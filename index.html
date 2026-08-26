@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Chati-AI</title>
+
+  <link
+    rel="stylesheet"
+    href="style.css"
+  >
+</head>
+
+
+<body>
+
+  <div class="app">
+
+
+    <!-- =========================
+         SIDEBAR
+    ========================== -->
+
+    <aside class="sidebar">
+
+      <h1 class="logo">
+        Chati-AI
+      </h1>
+
+
+      <nav>
+
+        <button
+          class="nav-btn active"
+          id="chatsBtn"
+        >
+          💬 Chats
+        </button>
+
+
+        <button
+          class="nav-btn"
+          id="createBtn"
+        >
+          ＋ Create Character
+        </button>
+
+      </nav>
+
+
+      <div class="sidebar-divider"></div>
+
+
+      <!-- RECENT CHATS -->
+
+      <div class="chat-history-section">
+
+        <p class="sidebar-section-title">
+          Recent Chats
+        </p>
+
+
+        <div
+          id="chatHistoryList"
+          class="chat-history-list"
+        ></div>
+
+      </div>
+
+
+      <button class="settings-btn">
+        ⚙ Settings
+      </button>
+
+    </aside>
+
+
+
+    <!-- =========================
+         MAIN CONTENT
+    ========================== -->
+
+    <main class="main-content">
+
+
+      <!-- =========================
+           HOME
+      ========================== -->
+
+      <section
+        id="homeView"
+        class="view"
+      >
+
+        <div class="top-bar">
+
+          <div>
+
+            <h2>
+              Your Characters
+            </h2>
+
+            <p>
+              Choose a character and start chatting.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div
+          id="charactersGrid"
+          class="characters-grid"
+        ></div>
+
+
+        <div
+          id="emptyState"
+          class="empty-state"
+        >
+
+          <div class="empty-icon">
+            🤖
+          </div>
+
+
+          <h2>
+            No characters yet
+          </h2>
+
+
+          <p>
+            Create your first AI character and start chatting.
+          </p>
+
+
+          <button
+            class="main-create-btn"
+            id="mainCreateBtn"
+          >
+            + Create Character
+          </button>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- =========================
+           CREATE CHARACTER
+      ========================== -->
+
+      <section
+        id="createView"
+        class="view hidden"
+      >
+
+        <div class="create-header">
+
+          <button
+            id="backBtn"
+            class="back-btn"
+          >
+            ←
+          </button>
+
+
+          <div>
+
+            <h2>
+              Create Character
+            </h2>
+
+            <p>
+              Build the personality and identity of your AI.
+            </p>
+
+          </div>
+
+        </div>
+
+
+
+        <form
+          id="characterForm"
+          class="character-form"
+        >
+
+
+          <label>
+
+            Character Name
+
+            <input
+              type="text"
+              id="characterName"
+              placeholder="Example: Rukia Kuchiki"
+              required
+            >
+
+          </label>
+
+
+
+          <label>
+
+            Profile Image URL
+
+            <input
+              type="url"
+              id="characterImage"
+              placeholder="https://example.com/image.jpg"
+            >
+
+          </label>
+
+
+
+          <label>
+
+            Short Description
+
+            <input
+              type="text"
+              id="characterDescription"
+              placeholder="Soul Reaper from the Kuchiki Clan"
+            >
+
+          </label>
+
+
+
+          <label>
+
+            Personality
+
+            <textarea
+              id="characterPersonality"
+              placeholder="Describe how the character behaves, talks, thinks..."
+              required
+            ></textarea>
+
+          </label>
+
+
+
+          <label>
+
+            Scenario
+
+            <textarea
+              id="characterScenario"
+              placeholder="Describe the world, situation, relationship with you..."
+            ></textarea>
+
+          </label>
+
+
+
+          <label>
+
+            Character Instructions
+
+            <textarea
+              id="characterInstructions"
+              placeholder="Example: Stay in character. Use canon knowledge. Remember important events..."
+            ></textarea>
+
+          </label>
+
+
+
+          <button
+            type="submit"
+            class="save-character-btn"
+          >
+            Create Character
+          </button>
+
+        </form>
+
+      </section>
+
+
+
+      <!-- =========================
+           CHAT
+      ========================== -->
+
+      <section
+        id="chatView"
+        class="view hidden"
+      >
+
+
+        <!-- CHAT HEADER -->
+
+        <div class="chat-header">
+
+
+          <div class="chat-header-left">
+
+            <button
+              id="chatBackBtn"
+              class="back-btn"
+            >
+              ←
+            </button>
+
+
+            <img
+              id="chatCharacterImage"
+              class="chat-avatar"
+              alt="Character"
+            >
+
+
+            <div class="chat-character-info">
+
+              <h2
+                id="chatCharacterName"
+              >
+                Character
+              </h2>
+
+
+              <p
+                id="chatCharacterDescription"
+              >
+                AI Character
+              </p>
+
+            </div>
+
+          </div>
+
+
+
+          <!-- CHAT ACTIONS -->
+
+          <div class="chat-actions">
+
+
+            <button
+              id="newChatBtn"
+              class="new-chat-btn"
+            >
+              ＋ New Chat
+            </button>
+
+
+
+            <div class="chat-menu-wrapper">
+
+              <button
+                id="chatMenuBtn"
+                class="menu-btn"
+                aria-label="Chat options"
+              >
+                ⋯
+              </button>
+
+
+              <div
+                id="chatMenu"
+                class="chat-menu hidden"
+              >
+
+                <button
+                  id="renameChatBtn"
+                >
+                  Rename Chat
+                </button>
+
+
+                <button
+                  id="clearChatBtn"
+                >
+                  Clear Chat
+                </button>
+
+
+                <div class="menu-divider"></div>
+
+
+                <button
+                  id="deleteChatBtn"
+                  class="danger-option"
+                >
+                  Delete Chat
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+
+        <!-- CURRENT CHAT NAME -->
+
+        <div class="current-chat-bar">
+
+          <span>
+            Conversation:
+          </span>
+
+          <strong
+            id="currentChatTitle"
+          >
+            New Chat
+          </strong>
+
+        </div>
+
+
+
+        <!-- MESSAGES -->
+
+        <div
+          id="messages"
+          class="messages"
+        ></div>
+
+
+
+        <!-- MESSAGE INPUT -->
+
+        <form
+          id="chatForm"
+          class="chat-form"
+        >
+
+          <input
+            id="messageInput"
+            type="text"
+            placeholder="Message..."
+            autocomplete="off"
+            required
+          >
+
+
+          <button type="submit">
+            Send
+          </button>
+
+        </form>
+
+      </section>
+
+    </main>
+
+  </div>
+
+
+  <script src="script.js"></script>
+
+</body>
+
+</html>
