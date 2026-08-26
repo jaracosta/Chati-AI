@@ -6,13 +6,9 @@
   <title>Chati-AI</title>
   <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-
   <div class="app">
-
     <aside class="sidebar">
-
       <h1 class="logo">Chati-AI</h1>
 
       <nav>
@@ -28,7 +24,6 @@
       <div class="sidebar-divider"></div>
 
       <div class="chat-history-section">
-
         <p class="sidebar-section-title">
           Recent Chats
         </p>
@@ -37,18 +32,18 @@
           id="chatHistoryList"
           class="chat-history-list"
         ></div>
-
       </div>
 
-      <button class="settings-btn">
+      <button
+        class="settings-btn"
+        id="settingsBtn"
+      >
         ⚙ Settings
       </button>
-
     </aside>
 
 
     <main class="main-content">
-
 
       <!-- HOME -->
 
@@ -56,21 +51,14 @@
         id="homeView"
         class="view"
       >
-
         <div class="top-bar">
-
           <div>
-
-            <h2>
-              Your Characters
-            </h2>
+            <h2>Your Characters</h2>
 
             <p>
               Choose a character and start chatting.
             </p>
-
           </div>
-
         </div>
 
         <div
@@ -82,14 +70,11 @@
           id="emptyState"
           class="empty-state"
         >
-
           <div class="empty-icon">
             🤖
           </div>
 
-          <h2>
-            No characters yet
-          </h2>
+          <h2>No characters yet</h2>
 
           <p>
             Create your first AI character and start chatting.
@@ -101,21 +86,17 @@
           >
             + Create Character
           </button>
-
         </div>
-
       </section>
 
 
-      <!-- CREATE CHARACTER -->
+      <!-- CREATE / EDIT CHARACTER -->
 
       <section
         id="createView"
         class="view hidden"
       >
-
         <div class="create-header">
-
           <button
             id="backBtn"
             class="back-btn"
@@ -124,17 +105,14 @@
           </button>
 
           <div>
-
-            <h2>
+            <h2 id="characterFormTitle">
               Create Character
             </h2>
 
-            <p>
-              Build the personality, look, and identity of your AI.
+            <p id="characterFormSubtitle">
+              Build the personality, identity, and world of your AI.
             </p>
-
           </div>
-
         </div>
 
 
@@ -143,109 +121,358 @@
           class="character-form"
         >
 
-          <label>
+          <!-- AVATAR + IDENTITY -->
 
-            Character Name
+          <section class="creator-card">
+            <div class="creator-card-title">
+              <span>🖼️</span>
 
-            <input
-              type="text"
-              id="characterName"
-              placeholder="Example: Rukia Kuchiki"
-              required
-            >
+              <div>
+                <h3>Avatar & Identity</h3>
 
-          </label>
-
-
-          <label>
-
-            Profile Image URL
-
-            <input
-              type="url"
-              id="characterImage"
-              placeholder="https://example.com/avatar.jpg"
-            >
-
-          </label>
+                <p>
+                  The character's public identity.
+                </p>
+              </div>
+            </div>
 
 
-          <label>
+            <div class="avatar-editor-row">
+              <div class="avatar-preview-wrap">
+                <img
+                  id="characterAvatarPreview"
+                  class="avatar-preview hidden"
+                  alt="Avatar preview"
+                >
 
-            Chat Background Image URL
-
-            <input
-              type="url"
-              id="characterBackground"
-              placeholder="https://example.com/background.jpg"
-            >
-
-            <small class="field-help">
-              Optional. This image appears behind this character's chat.
-            </small>
-
-          </label>
-
-
-          <label>
-
-            Short Description
-
-            <input
-              type="text"
-              id="characterDescription"
-              placeholder="Soul Reaper from the Kuchiki Clan"
-            >
-
-          </label>
+                <div
+                  id="characterAvatarPlaceholder"
+                  class="avatar-placeholder"
+                >
+                  🤖
+                </div>
+              </div>
 
 
-          <label>
+              <label class="grow-field">
+                Avatar Image URL
 
-            Personality
+                <input
+                  type="url"
+                  id="characterImage"
+                  placeholder="https://example.com/avatar.jpg"
+                >
+              </label>
+            </div>
+
+
+            <div class="form-grid two-columns">
+              <label>
+                Character Name
+
+                <input
+                  type="text"
+                  id="characterName"
+                  placeholder="Example: Rukia Kuchiki"
+                  required
+                >
+              </label>
+
+
+              <div class="form-field">
+                <span class="field-label">
+                  Pronouns
+                </span>
+
+                <div
+                  id="pronounPicker"
+                  class="pronoun-picker"
+                >
+                  <button
+                    type="button"
+                    class="pronoun-option active"
+                    data-pronouns="N/A"
+                  >
+                    N/A
+                  </button>
+
+                  <button
+                    type="button"
+                    class="pronoun-option"
+                    data-pronouns="HE"
+                  >
+                    HE
+                  </button>
+
+                  <button
+                    type="button"
+                    class="pronoun-option"
+                    data-pronouns="SHE"
+                  >
+                    SHE
+                  </button>
+
+                  <button
+                    type="button"
+                    class="pronoun-option"
+                    data-pronouns="THEY"
+                  >
+                    THEY
+                  </button>
+                </div>
+
+                <input
+                  type="hidden"
+                  id="characterPronouns"
+                  value="N/A"
+                >
+              </div>
+            </div>
+
+
+            <label>
+              Bot Bio
+
+              <textarea
+                id="characterBio"
+                class="small-textarea"
+                placeholder="A short description shown beside the character."
+              ></textarea>
+            </label>
+          </section>
+
+
+          <!-- PERSONALITY -->
+
+          <section class="creator-card">
+            <div class="creator-card-title">
+              <span>🧠</span>
+
+              <div>
+                <h3>
+                  Personality & Backstory
+                </h3>
+
+                <p>
+                  Who they are, how they think, and what shaped them.
+                </p>
+              </div>
+            </div>
 
             <textarea
               id="characterPersonality"
-              placeholder="Describe how the character behaves, talks, thinks..."
+              class="creator-large-textarea"
+              placeholder="Describe personality, habits, backstory, motivations, mannerisms, fears, values, relationships..."
               required
             ></textarea>
+          </section>
 
-          </label>
 
+          <!-- SCENARIO -->
 
-          <label>
+          <section class="creator-card">
+            <div class="creator-card-title">
+              <span>🎬</span>
 
-            Scenario
+              <div>
+                <h3>Scenario</h3>
+
+                <p>
+                  The starting situation or world for the roleplay.
+                </p>
+              </div>
+            </div>
 
             <textarea
               id="characterScenario"
-              placeholder="Describe the world, situation, relationship with you..."
+              class="creator-large-textarea"
+              placeholder="Where are they? What is happening? What is their relationship with the user?"
             ></textarea>
+          </section>
 
-          </label>
 
+          <!-- INSTRUCTIONS -->
 
-          <label>
+          <section class="creator-card">
+            <div class="creator-card-title">
+              <span>📘</span>
 
-            Character Instructions
+              <div>
+                <h3>Instructions</h3>
+
+                <p>
+                  Specific rules for how this character should behave and respond.
+                </p>
+              </div>
+            </div>
 
             <textarea
               id="characterInstructions"
-              placeholder="Stay in character, follow this version of the story, etc."
+              class="creator-large-textarea"
+              placeholder="Example: Stay in character. Never control the user's actions. Keep dialogue natural..."
             ></textarea>
+          </section>
 
-          </label>
+
+          <!-- EXAMPLE MESSAGES -->
+
+          <section class="creator-card">
+            <div class="creator-card-title">
+              <span>💬</span>
+
+              <div>
+                <h3>Example Messages</h3>
+
+                <p>
+                  Optional examples that teach the bot its voice and formatting.
+                </p>
+              </div>
+            </div>
+
+            <div
+              id="exampleMessagesList"
+              class="example-list"
+            ></div>
+
+            <button
+              type="button"
+              id="addExampleBtn"
+              class="outline-add-btn"
+            >
+              ＋ Add example
+            </button>
+          </section>
 
 
-          <button
-            type="submit"
-            class="save-character-btn"
-          >
-            Create Character
-          </button>
+          <!-- POWERS -->
 
+          <section class="creator-card">
+            <div class="creator-card-title powers-heading">
+              <span>⚡</span>
+
+              <div>
+                <h3>Powers & Abilities</h3>
+
+                <p>
+                  Optional — only enable this for characters with powers or a combat system.
+                </p>
+              </div>
+
+              <label class="switch">
+                <input
+                  type="checkbox"
+                  id="characterHasPowers"
+                >
+
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+
+            <div
+              id="powersFields"
+              class="powers-fields hidden"
+            >
+              <div class="form-grid two-columns">
+                <label>
+                  Power System / Source
+
+                  <input
+                    type="text"
+                    id="characterPowerSystem"
+                    placeholder="Example: Reiatsu / Soul Reaper"
+                  >
+                </label>
+
+
+                <label>
+                  Combat Style
+
+                  <input
+                    type="text"
+                    id="characterCombatStyle"
+                    placeholder="Example: Swordsmanship and ice techniques"
+                  >
+                </label>
+              </div>
+
+
+              <label>
+                Abilities
+
+                <textarea
+                  id="characterAbilities"
+                  placeholder="List powers, transformations, techniques, weapons, spells..."
+                ></textarea>
+              </label>
+
+
+              <label>
+                Rules / Limitations
+
+                <textarea
+                  id="characterPowerLimits"
+                  placeholder="Costs, weaknesses, limits, conditions, cooldowns..."
+                ></textarea>
+              </label>
+            </div>
+          </section>
+
+
+          <!-- BACKGROUND -->
+
+          <section class="creator-card">
+            <div class="creator-card-title">
+              <span>🎨</span>
+
+              <div>
+                <h3>Chat Background</h3>
+
+                <p>
+                  Optional image shown behind this character's chat.
+                </p>
+              </div>
+            </div>
+
+            <label>
+              Background Image URL
+
+              <input
+                type="url"
+                id="characterBackground"
+                placeholder="https://example.com/background.jpg"
+              >
+            </label>
+
+            <div
+              id="backgroundPreview"
+              class="background-preview"
+            >
+              <span>
+                No background selected
+              </span>
+            </div>
+          </section>
+
+
+          <div class="creator-form-actions">
+            <button
+              type="button"
+              id="cancelCharacterBtn"
+              class="secondary-btn"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              id="saveCharacterBtn"
+              class="save-character-btn"
+            >
+              Create Character
+            </button>
+          </div>
         </form>
-
       </section>
 
 
@@ -255,7 +482,6 @@
         id="chatView"
         class="view hidden"
       >
-
         <div
           id="chatBackground"
           class="chat-background"
@@ -264,9 +490,7 @@
 
 
         <div class="chat-header chat-layer">
-
           <div class="chat-header-left">
-
             <button
               id="chatBackBtn"
               class="back-btn"
@@ -281,7 +505,6 @@
             >
 
             <div class="chat-character-info">
-
               <h2 id="chatCharacterName">
                 Character
               </h2>
@@ -289,14 +512,11 @@
               <p id="chatCharacterDescription">
                 AI Character
               </p>
-
             </div>
-
           </div>
 
 
           <div class="chat-actions">
-
             <button
               id="memoryBtn"
               class="memory-btn"
@@ -314,7 +534,6 @@
             </button>
 
             <div class="chat-menu-wrapper">
-
               <button
                 id="chatMenuBtn"
                 class="menu-btn"
@@ -327,9 +546,12 @@
                 id="chatMenu"
                 class="chat-menu hidden"
               >
-
                 <button id="renameChatBtn">
                   Rename Chat
+                </button>
+
+                <button id="editCharacterMenuBtn">
+                  Edit Character
                 </button>
 
                 <button id="clearChatBtn">
@@ -344,18 +566,13 @@
                 >
                   Delete Chat
                 </button>
-
               </div>
-
             </div>
-
           </div>
-
         </div>
 
 
         <div class="current-chat-bar chat-layer">
-
           <span>
             Conversation:
           </span>
@@ -363,7 +580,6 @@
           <strong id="currentChatTitle">
             New Chat
           </strong>
-
         </div>
 
 
@@ -377,7 +593,6 @@
           id="chatForm"
           class="chat-form chat-layer"
         >
-
           <textarea
             id="messageInput"
             class="message-input"
@@ -392,24 +607,19 @@
           >
             Send
           </button>
-
         </form>
-
       </section>
-
     </main>
-
   </div>
 
 
-  <!-- RIGHT CLICK MESSAGE MENU -->
+  <!-- RIGHT CLICK MENU -->
 
   <div
     id="messageContextMenu"
     class="message-context-menu hidden"
     role="menu"
   >
-
     <button
       id="ctxCopy"
       class="context-action"
@@ -443,7 +653,10 @@
       type="button"
     >
       <span>🧠</span>
-      Pin Memory
+
+      <span id="ctxPinLabel">
+        Pin Memory
+      </span>
     </button>
 
     <div class="context-divider"></div>
@@ -456,7 +669,6 @@
       <span>🗑</span>
       Delete
     </button>
-
   </div>
 
 
@@ -466,22 +678,15 @@
     id="memoryModal"
     class="memory-modal hidden"
   >
-
     <div
       id="memoryOverlay"
       class="memory-overlay"
     ></div>
 
-
     <div class="memory-panel">
-
-
       <div class="memory-header">
-
         <div>
-
           <div class="memory-title-row">
-
             <span class="memory-title-icon">
               🧠
             </span>
@@ -489,13 +694,11 @@
             <h2>
               Chat Memory
             </h2>
-
           </div>
 
           <p id="memoryCharacterLabel">
             Current conversation
           </p>
-
         </div>
 
         <button
@@ -505,14 +708,11 @@
         >
           ×
         </button>
-
       </div>
 
 
       <div class="memory-status-card">
-
         <div>
-
           <span class="memory-status-label">
             Memory status
           </span>
@@ -520,22 +720,17 @@
           <strong id="memoryStatusText">
             No memories yet
           </strong>
-
         </div>
 
         <div class="memory-progress">
-
           <span id="memoryMessageCount">
             0 / 0 processed
           </span>
-
         </div>
-
       </div>
 
 
       <section class="memory-section">
-
         <h3>
           📌 Pinned Memories
         </h3>
@@ -544,12 +739,10 @@
           id="memoryPinned"
           class="memory-list"
         ></ul>
-
       </section>
 
 
       <section class="memory-section">
-
         <h3>
           Story Summary
         </h3>
@@ -560,12 +753,10 @@
         >
           No summary yet.
         </p>
-
       </section>
 
 
       <section class="memory-section">
-
         <h3>
           Important Memories
         </h3>
@@ -574,12 +765,10 @@
           id="memoryFacts"
           class="memory-list"
         ></ul>
-
       </section>
 
 
       <section class="memory-section">
-
         <h3>
           Current Scene
         </h3>
@@ -590,12 +779,10 @@
         >
           No current scene stored.
         </p>
-
       </section>
 
 
       <section class="memory-section">
-
         <h3>
           Relationship / Social State
         </h3>
@@ -606,12 +793,10 @@
         >
           No relationship development stored.
         </p>
-
       </section>
 
 
       <section class="memory-section">
-
         <h3>
           Unresolved Threads
         </h3>
@@ -620,12 +805,10 @@
           id="memoryThreads"
           class="memory-list"
         ></ul>
-
       </section>
 
 
       <div class="memory-footer">
-
         <span id="memoryUpdatedAt">
           Memory has not been updated yet.
         </span>
@@ -633,15 +816,11 @@
         <span>
           This memory belongs only to this chat.
         </span>
-
       </div>
-
     </div>
-
   </div>
 
 
   <script src="script.js"></script>
-
 </body>
 </html>

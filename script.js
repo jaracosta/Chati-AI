@@ -7,151 +7,101 @@ const MEMORY_MAX_BATCH_MESSAGES = 80;
 // DOM
 // =========================
 
-const homeView =
-  document.getElementById("homeView");
-
-const createView =
-  document.getElementById("createView");
-
-const chatView =
-  document.getElementById("chatView");
-
-const chatBackground =
-  document.getElementById("chatBackground");
+const $ = id =>
+  document.getElementById(id);
 
 
-const createBtn =
-  document.getElementById("createBtn");
+const homeView = $("homeView");
+const createView = $("createView");
+const chatView = $("chatView");
+const chatBackground = $("chatBackground");
 
-const mainCreateBtn =
-  document.getElementById("mainCreateBtn");
+const createBtn = $("createBtn");
+const mainCreateBtn = $("mainCreateBtn");
+const chatsBtn = $("chatsBtn");
+const backBtn = $("backBtn");
+const settingsBtn = $("settingsBtn");
 
-const chatsBtn =
-  document.getElementById("chatsBtn");
+const characterForm = $("characterForm");
+const characterFormTitle = $("characterFormTitle");
+const characterFormSubtitle = $("characterFormSubtitle");
+const saveCharacterBtn = $("saveCharacterBtn");
+const cancelCharacterBtn = $("cancelCharacterBtn");
 
-const backBtn =
-  document.getElementById("backBtn");
+const characterName = $("characterName");
+const characterImage = $("characterImage");
+const characterPronouns = $("characterPronouns");
+const characterBio = $("characterBio");
+const characterPersonality = $("characterPersonality");
+const characterScenario = $("characterScenario");
+const characterInstructions = $("characterInstructions");
+const characterBackground = $("characterBackground");
 
-const characterForm =
-  document.getElementById("characterForm");
+const characterAvatarPreview = $("characterAvatarPreview");
+const characterAvatarPlaceholder = $("characterAvatarPlaceholder");
+const backgroundPreview = $("backgroundPreview");
+const pronounPicker = $("pronounPicker");
 
-const charactersGrid =
-  document.getElementById("charactersGrid");
+const exampleMessagesList = $("exampleMessagesList");
+const addExampleBtn = $("addExampleBtn");
 
-const emptyState =
-  document.getElementById("emptyState");
+const characterHasPowers = $("characterHasPowers");
+const powersFields = $("powersFields");
+const characterPowerSystem = $("characterPowerSystem");
+const characterCombatStyle = $("characterCombatStyle");
+const characterAbilities = $("characterAbilities");
+const characterPowerLimits = $("characterPowerLimits");
 
+const charactersGrid = $("charactersGrid");
+const emptyState = $("emptyState");
+const chatHistoryList = $("chatHistoryList");
 
-const chatBackBtn =
-  document.getElementById("chatBackBtn");
+const chatBackBtn = $("chatBackBtn");
+const chatCharacterImage = $("chatCharacterImage");
+const chatCharacterName = $("chatCharacterName");
+const chatCharacterDescription = $("chatCharacterDescription");
 
-const chatCharacterImage =
-  document.getElementById("chatCharacterImage");
+const currentChatTitle = $("currentChatTitle");
 
-const chatCharacterName =
-  document.getElementById("chatCharacterName");
+const messages = $("messages");
 
-const chatCharacterDescription =
-  document.getElementById("chatCharacterDescription");
+const chatForm = $("chatForm");
+const messageInput = $("messageInput");
+const sendBtn = $("sendBtn");
 
-const currentChatTitle =
-  document.getElementById("currentChatTitle");
+const newChatBtn = $("newChatBtn");
 
-const messages =
-  document.getElementById("messages");
+const chatMenuBtn = $("chatMenuBtn");
+const chatMenu = $("chatMenu");
 
-const chatForm =
-  document.getElementById("chatForm");
+const renameChatBtn = $("renameChatBtn");
+const editCharacterMenuBtn = $("editCharacterMenuBtn");
+const clearChatBtn = $("clearChatBtn");
+const deleteChatBtn = $("deleteChatBtn");
 
-const messageInput =
-  document.getElementById("messageInput");
+const memoryBtn = $("memoryBtn");
+const memoryModal = $("memoryModal");
+const memoryOverlay = $("memoryOverlay");
+const closeMemoryBtn = $("closeMemoryBtn");
 
-const sendBtn =
-  document.getElementById("sendBtn");
+const memoryCharacterLabel = $("memoryCharacterLabel");
+const memoryStatusText = $("memoryStatusText");
+const memoryMessageCount = $("memoryMessageCount");
+const memoryPinned = $("memoryPinned");
+const memorySummary = $("memorySummary");
+const memoryFacts = $("memoryFacts");
+const memoryScene = $("memoryScene");
+const memoryRelationship = $("memoryRelationship");
+const memoryThreads = $("memoryThreads");
+const memoryUpdatedAt = $("memoryUpdatedAt");
 
-
-const newChatBtn =
-  document.getElementById("newChatBtn");
-
-const chatMenuBtn =
-  document.getElementById("chatMenuBtn");
-
-const chatMenu =
-  document.getElementById("chatMenu");
-
-const renameChatBtn =
-  document.getElementById("renameChatBtn");
-
-const clearChatBtn =
-  document.getElementById("clearChatBtn");
-
-const deleteChatBtn =
-  document.getElementById("deleteChatBtn");
-
-const chatHistoryList =
-  document.getElementById("chatHistoryList");
-
-
-const memoryBtn =
-  document.getElementById("memoryBtn");
-
-const memoryModal =
-  document.getElementById("memoryModal");
-
-const memoryOverlay =
-  document.getElementById("memoryOverlay");
-
-const closeMemoryBtn =
-  document.getElementById("closeMemoryBtn");
-
-const memoryCharacterLabel =
-  document.getElementById("memoryCharacterLabel");
-
-const memoryStatusText =
-  document.getElementById("memoryStatusText");
-
-const memoryMessageCount =
-  document.getElementById("memoryMessageCount");
-
-const memoryPinned =
-  document.getElementById("memoryPinned");
-
-const memorySummary =
-  document.getElementById("memorySummary");
-
-const memoryFacts =
-  document.getElementById("memoryFacts");
-
-const memoryScene =
-  document.getElementById("memoryScene");
-
-const memoryRelationship =
-  document.getElementById("memoryRelationship");
-
-const memoryThreads =
-  document.getElementById("memoryThreads");
-
-const memoryUpdatedAt =
-  document.getElementById("memoryUpdatedAt");
-
-
-const messageContextMenu =
-  document.getElementById("messageContextMenu");
-
-const ctxCopy =
-  document.getElementById("ctxCopy");
-
-const ctxEdit =
-  document.getElementById("ctxEdit");
-
-const ctxRewind =
-  document.getElementById("ctxRewind");
-
-const ctxPin =
-  document.getElementById("ctxPin");
-
-const ctxDelete =
-  document.getElementById("ctxDelete");
+const messageContextMenu = $("messageContextMenu");
+const ctxCopy = $("ctxCopy");
+const ctxEdit = $("ctxEdit");
+const ctxRewind = $("ctxRewind");
+const ctxPin = $("ctxPin");
+const ctxPinLabel = $("ctxPinLabel");
+const ctxDelete = $("ctxDelete");
 
 
 // =========================
@@ -165,17 +115,17 @@ let characters =
     )
   ) || [];
 
-let currentCharacter =
-  null;
 
-let currentChatId =
-  null;
+let currentCharacter = null;
 
-let isSending =
-  false;
+let currentChatId = null;
 
-let contextMessageId =
-  null;
+let isSending = false;
+
+let contextMessageId = null;
+
+let editingCharacterId = null;
+
 
 const memoryUpdateLocks =
   new Set();
@@ -185,44 +135,52 @@ const memoryUpdateLocks =
 // IDS
 // =========================
 
-function createChatId() {
+function uid(prefix) {
 
   return (
-    `${Date.now()}_` +
+    `${prefix}_${Date.now()}_` +
     Math.random()
       .toString(36)
-      .slice(2, 8)
+      .slice(2, 9)
   );
 
+}
+
+
+function createChatId() {
+  return uid("chat");
 }
 
 
 function createMessageId() {
-
-  return (
-    `msg_${Date.now()}_` +
-    Math.random()
-      .toString(36)
-      .slice(2, 9)
-  );
-
+  return uid("msg");
 }
 
 
 function createPinId() {
+  return uid("pin");
+}
 
-  return (
-    `pin_${Date.now()}_` +
-    Math.random()
-      .toString(36)
-      .slice(2, 9)
+
+function clamp(
+  number,
+  minimum,
+  maximum
+) {
+
+  return Math.max(
+    minimum,
+    Math.min(
+      maximum,
+      number
+    )
   );
 
 }
 
 
 // =========================
-// MEMORY
+// EMPTY MEMORY
 // =========================
 
 function createEmptyMemory() {
@@ -251,6 +209,10 @@ function createEmptyMemory() {
 
 }
 
+
+// =========================
+// PINNED MEMORY
+// =========================
 
 function normalizePinnedMemories(
   value
@@ -333,6 +295,10 @@ function normalizePinnedMemories(
 
 }
 
+
+// =========================
+// NORMALIZE MEMORY
+// =========================
 
 function normalizeMemory(
   memory
@@ -434,12 +400,109 @@ function normalizeMemory(
 
 
 // =========================
-// MESSAGES
+// MESSAGE VERSIONS
 // =========================
 
 function normalizeMessage(
   message
 ) {
+
+  const sender =
+    message?.sender ===
+    "character"
+
+      ? "character"
+
+      : (
+          message?.sender ===
+          "system"
+
+            ? "system"
+
+            : "user"
+        );
+
+
+  let variants = [];
+
+  let activeVariant = 0;
+
+
+  if (
+    sender ===
+    "character"
+  ) {
+
+    if (
+      Array.isArray(
+        message?.variants
+      ) &&
+      message.variants.length
+    ) {
+
+      variants =
+        message.variants.filter(
+          item =>
+            typeof item ===
+            "string"
+        );
+
+    }
+
+
+    if (
+      !variants.length
+    ) {
+
+      variants = [
+
+        typeof message?.text ===
+        "string"
+
+          ? message.text
+
+          : ""
+
+      ];
+
+    }
+
+
+    activeVariant =
+      clamp(
+
+        Number.isFinite(
+          message?.activeVariant
+        )
+          ? message.activeVariant
+          : 0,
+
+        0,
+
+        variants.length - 1
+
+      );
+
+  }
+
+
+  const text =
+    sender ===
+    "character"
+
+      ? variants[
+          activeVariant
+        ]
+
+      : (
+          typeof message?.text ===
+          "string"
+
+            ? message.text
+
+            : ""
+        );
+
 
   return {
 
@@ -449,23 +512,61 @@ function normalizeMessage(
       message?.id ||
       createMessageId(),
 
-    sender:
-      message?.sender ===
-      "character"
-        ? "character"
-        : "user",
+    sender,
 
-    text:
-      typeof message?.text ===
-      "string"
-        ? message.text
-        : "",
+    text,
+
+    variants,
+
+    activeVariant,
 
     time:
       message?.time ||
       Date.now()
 
   };
+
+}
+
+
+function getMessageText(
+  message
+) {
+
+  if (!message) {
+    return "";
+  }
+
+
+  if (
+    message.sender !==
+    "character"
+  ) {
+
+    return (
+      message.text ||
+      ""
+    );
+
+  }
+
+
+  const normalized =
+    normalizeMessage(
+      message
+    );
+
+
+  return (
+
+    normalized
+      .variants[
+        normalized.activeVariant
+      ] ||
+
+    ""
+
+  );
 
 }
 
@@ -518,7 +619,53 @@ function normalizeChat(
 
 
 // =========================
-// CHARACTER
+// EXAMPLE MESSAGES
+// =========================
+
+function normalizeExamples(
+  value
+) {
+
+  if (
+    !Array.isArray(value)
+  ) {
+
+    return [];
+
+  }
+
+
+  return value
+    .map(
+
+      example => ({
+
+        user:
+          typeof example?.user ===
+          "string"
+            ? example.user
+            : "",
+
+        character:
+          typeof example?.character ===
+          "string"
+            ? example.character
+            : ""
+
+      })
+
+    )
+    .filter(
+      example =>
+        example.user ||
+        example.character
+    );
+
+}
+
+
+// =========================
+// CHARACTER MIGRATION
 // =========================
 
 function normalizeCharacter(
@@ -529,11 +676,117 @@ function normalizeCharacter(
 
     ...character,
 
+    id:
+      character?.id ||
+      Date.now(),
+
+    name:
+      typeof character?.name ===
+      "string"
+        ? character.name
+        : "Unnamed Character",
+
+    image:
+      typeof character?.image ===
+      "string"
+        ? character.image
+        : "",
+
+    pronouns:
+      [
+        "N/A",
+        "HE",
+        "SHE",
+        "THEY"
+      ].includes(
+        character?.pronouns
+      )
+        ? character.pronouns
+        : "N/A",
+
+    bio:
+      typeof character?.bio ===
+      "string"
+        ? character.bio
+        : (
+            typeof character?.description ===
+            "string"
+              ? character.description
+              : ""
+          ),
+
+    description:
+      typeof character?.bio ===
+      "string"
+        ? character.bio
+        : (
+            typeof character?.description ===
+            "string"
+              ? character.description
+              : ""
+          ),
+
+    personality:
+      typeof character?.personality ===
+      "string"
+        ? character.personality
+        : "",
+
+    scenario:
+      typeof character?.scenario ===
+      "string"
+        ? character.scenario
+        : "",
+
+    instructions:
+      typeof character?.instructions ===
+      "string"
+        ? character.instructions
+        : "",
+
+    exampleMessages:
+      normalizeExamples(
+        character?.exampleMessages
+      ),
+
+    hasPowers:
+      Boolean(
+        character?.hasPowers
+      ),
+
+    powerSystem:
+      typeof character?.powerSystem ===
+      "string"
+        ? character.powerSystem
+        : "",
+
+    combatStyle:
+      typeof character?.combatStyle ===
+      "string"
+        ? character.combatStyle
+        : "",
+
+    abilities:
+      typeof character?.abilities ===
+      "string"
+        ? character.abilities
+        : "",
+
+    powerLimits:
+      typeof character?.powerLimits ===
+      "string"
+        ? character.powerLimits
+        : "",
+
     background:
       typeof character?.background ===
       "string"
         ? character.background
-        : ""
+        : "",
+
+    createdAt:
+      character?.createdAt ||
+      Date.now()
 
   };
 
@@ -628,9 +881,11 @@ function migrateOldChat(
 
   const oldRaw =
     localStorage.getItem(
+
       getOldChatKey(
         characterId
       )
+
     );
 
 
@@ -643,6 +898,7 @@ function migrateOldChat(
       JSON.stringify([])
 
     );
+
 
     return;
 
@@ -661,10 +917,10 @@ function migrateOldChat(
       Array.isArray(
         oldMessages
       ) &&
-      oldMessages.length > 0
+      oldMessages.length
     ) {
 
-      const migratedChat =
+      const migrated =
         normalizeChat({
 
           id:
@@ -698,7 +954,7 @@ function migrateOldChat(
         newKey,
 
         JSON.stringify([
-          migratedChat
+          migrated
         ])
 
       );
@@ -710,7 +966,7 @@ function migrateOldChat(
           characterId
         ),
 
-        migratedChat.id
+        migrated.id
 
       );
 
@@ -730,9 +986,11 @@ function migrateOldChat(
 
 
     localStorage.removeItem(
+
       getOldChatKey(
         characterId
       )
+
     );
 
   }
@@ -759,7 +1017,7 @@ function migrateOldChat(
 
 
 // =========================
-// GET CHATS
+// GET / SAVE CHATS
 // =========================
 
 function getCharacterChats(
@@ -777,9 +1035,11 @@ function getCharacterChats(
       JSON.parse(
 
         localStorage.getItem(
+
           getChatsKey(
             characterId
           )
+
         )
 
       ) || [];
@@ -830,10 +1090,6 @@ function getCharacterChats(
 }
 
 
-// =========================
-// SAVE CHATS
-// =========================
-
 function saveCharacterChats(
   characterId,
   chats
@@ -846,19 +1102,17 @@ function saveCharacterChats(
     ),
 
     JSON.stringify(
+
       chats.map(
         normalizeChat
       )
+
     )
 
   );
 
 }
 
-
-// =========================
-// GET CHAT
-// =========================
 
 function getStoredChat(
   characterId,
@@ -875,6 +1129,7 @@ function getStoredChat(
           chat.id ===
           chatId
       ) ||
+
     null
 
   );
@@ -974,7 +1229,7 @@ function updateCurrentChat(
   }
 
 
-  const updated =
+  const result =
     mutateStoredChat(
 
       currentCharacter.id,
@@ -989,7 +1244,7 @@ function updateCurrentChat(
   renderChatHistory();
 
 
-  return updated;
+  return result;
 
 }
 
@@ -1035,9 +1290,7 @@ function createNewChat(
 ) {
 
   if (!character) {
-
     return null;
-
   }
 
 
@@ -1047,12 +1300,12 @@ function createNewChat(
     );
 
 
-  const newChat =
+  const chat =
     buildNewChat();
 
 
   chats.push(
-    newChat
+    chat
   );
 
 
@@ -1068,7 +1321,7 @@ function createNewChat(
       character.id
     ),
 
-    newChat.id
+    chat.id
 
   );
 
@@ -1079,7 +1332,7 @@ function createNewChat(
 
     openChat(
       character,
-      newChat.id
+      chat.id
     );
 
   }
@@ -1088,13 +1341,1304 @@ function createNewChat(
   renderChatHistory();
 
 
-  return newChat;
+  return chat;
 
 }
 
 
 // =========================
-// BACKGROUND
+// CREATE / EDIT CHARACTER
+// =========================
+
+function setPronouns(
+  value
+) {
+
+  const selected =
+    [
+      "N/A",
+      "HE",
+      "SHE",
+      "THEY"
+    ].includes(value)
+
+      ? value
+
+      : "N/A";
+
+
+  characterPronouns.value =
+    selected;
+
+
+  pronounPicker
+    .querySelectorAll(
+      ".pronoun-option"
+    )
+    .forEach(
+
+      button => {
+
+        button.classList.toggle(
+
+          "active",
+
+          button.dataset.pronouns ===
+          selected
+
+        );
+
+      }
+
+    );
+
+}
+
+
+function updateAvatarPreview() {
+
+  const url =
+    characterImage
+      .value
+      .trim();
+
+
+  if (url) {
+
+    characterAvatarPreview.src =
+      url;
+
+
+    characterAvatarPreview
+      .classList
+      .remove(
+        "hidden"
+      );
+
+
+    characterAvatarPlaceholder
+      .classList
+      .add(
+        "hidden"
+      );
+
+  }
+
+  else {
+
+    characterAvatarPreview
+      .removeAttribute(
+        "src"
+      );
+
+
+    characterAvatarPreview
+      .classList
+      .add(
+        "hidden"
+      );
+
+
+    characterAvatarPlaceholder
+      .classList
+      .remove(
+        "hidden"
+      );
+
+  }
+
+}
+
+
+function updateBackgroundPreview() {
+
+  const url =
+    characterBackground
+      .value
+      .trim();
+
+
+  if (url) {
+
+    backgroundPreview
+      .style
+      .backgroundImage =
+      `url("${url.replace(
+        /"/g,
+        "\\\""
+      )}")`;
+
+
+    backgroundPreview
+      .classList
+      .add(
+        "has-image"
+      );
+
+  }
+
+  else {
+
+    backgroundPreview
+      .style
+      .backgroundImage =
+      "none";
+
+
+    backgroundPreview
+      .classList
+      .remove(
+        "has-image"
+      );
+
+  }
+
+}
+
+
+function togglePowersFields() {
+
+  powersFields
+    .classList
+    .toggle(
+
+      "hidden",
+
+      !characterHasPowers.checked
+
+    );
+
+}
+
+
+// =========================
+// EXAMPLE MESSAGE EDITOR
+// =========================
+
+function createExampleEditor(
+  example = {
+    user: "",
+    character: ""
+  }
+) {
+
+  const card =
+    document.createElement(
+      "div"
+    );
+
+
+  card.className =
+    "example-card";
+
+
+  card.innerHTML = `
+    <div class="example-card-head">
+      <strong>Example</strong>
+
+      <button
+        type="button"
+        class="remove-example-btn"
+      >
+        Remove
+      </button>
+    </div>
+
+    <div class="example-grid">
+
+      <label>
+        User message
+
+        <textarea
+          class="example-user"
+          placeholder="What the user might say..."
+        ></textarea>
+      </label>
+
+      <label>
+        Character reply
+
+        <textarea
+          class="example-character"
+          placeholder="How the character should reply..."
+        ></textarea>
+      </label>
+
+    </div>
+  `;
+
+
+  card
+    .querySelector(
+      ".example-user"
+    )
+    .value =
+    example.user ||
+    "";
+
+
+  card
+    .querySelector(
+      ".example-character"
+    )
+    .value =
+    example.character ||
+    "";
+
+
+  card
+    .querySelector(
+      ".remove-example-btn"
+    )
+    .addEventListener(
+
+      "click",
+
+      () =>
+        card.remove()
+
+    );
+
+
+  exampleMessagesList
+    .appendChild(
+      card
+    );
+
+}
+
+
+function collectExamples() {
+
+  return [
+
+    ...exampleMessagesList
+      .querySelectorAll(
+        ".example-card"
+      )
+
+  ]
+    .map(
+
+      card => ({
+
+        user:
+          card
+            .querySelector(
+              ".example-user"
+            )
+            .value
+            .trim(),
+
+        character:
+          card
+            .querySelector(
+              ".example-character"
+            )
+            .value
+            .trim()
+
+      })
+
+    )
+    .filter(
+
+      example =>
+        example.user ||
+        example.character
+
+    );
+
+}
+
+
+// =========================
+// RESET CHARACTER FORM
+// =========================
+
+function resetCharacterForm() {
+
+  characterForm.reset();
+
+
+  editingCharacterId =
+    null;
+
+
+  exampleMessagesList.innerHTML =
+    "";
+
+
+  setPronouns(
+    "N/A"
+  );
+
+
+  characterHasPowers.checked =
+    false;
+
+
+  togglePowersFields();
+
+  updateAvatarPreview();
+
+  updateBackgroundPreview();
+
+
+  characterFormTitle.textContent =
+    "Create Character";
+
+
+  characterFormSubtitle.textContent =
+    "Build the personality, identity, and world of your AI.";
+
+
+  saveCharacterBtn.textContent =
+    "Create Character";
+
+}
+
+
+// =========================
+// EDIT CHARACTER FORM
+// =========================
+
+function fillCharacterForm(
+  character
+) {
+
+  const normalized =
+    normalizeCharacter(
+      character
+    );
+
+
+  editingCharacterId =
+    normalized.id;
+
+
+  characterName.value =
+    normalized.name;
+
+
+  characterImage.value =
+    normalized.image;
+
+
+  setPronouns(
+    normalized.pronouns
+  );
+
+
+  characterBio.value =
+    normalized.bio;
+
+
+  characterPersonality.value =
+    normalized.personality;
+
+
+  characterScenario.value =
+    normalized.scenario;
+
+
+  characterInstructions.value =
+    normalized.instructions;
+
+
+  characterBackground.value =
+    normalized.background;
+
+
+  characterHasPowers.checked =
+    normalized.hasPowers;
+
+
+  characterPowerSystem.value =
+    normalized.powerSystem;
+
+
+  characterCombatStyle.value =
+    normalized.combatStyle;
+
+
+  characterAbilities.value =
+    normalized.abilities;
+
+
+  characterPowerLimits.value =
+    normalized.powerLimits;
+
+
+  exampleMessagesList.innerHTML =
+    "";
+
+
+  normalized
+    .exampleMessages
+    .forEach(
+      createExampleEditor
+    );
+
+
+  togglePowersFields();
+
+  updateAvatarPreview();
+
+  updateBackgroundPreview();
+
+
+  characterFormTitle.textContent =
+    `Edit ${normalized.name}`;
+
+
+  characterFormSubtitle.textContent =
+    "Change the character without deleting their chats or memory.";
+
+
+  saveCharacterBtn.textContent =
+    "Save Changes";
+
+}
+
+
+// =========================
+// NAVIGATION
+// =========================
+
+function showCreateView(
+  characterToEdit = null
+) {
+
+  if (isSending) {
+    return;
+  }
+
+
+  closeMemoryViewer();
+
+  closeAllFloatingUi();
+
+
+  if (
+    characterToEdit
+  ) {
+
+    fillCharacterForm(
+      characterToEdit
+    );
+
+  }
+
+  else {
+
+    resetCharacterForm();
+
+  }
+
+
+  homeView.classList.add(
+    "hidden"
+  );
+
+
+  chatView.classList.add(
+    "hidden"
+  );
+
+
+  createView.classList.remove(
+    "hidden"
+  );
+
+
+  document
+    .querySelector(
+      ".main-content"
+    )
+    .scrollTop =
+    0;
+
+}
+
+
+function showHomeView() {
+
+  if (isSending) {
+    return;
+  }
+
+
+  closeMemoryViewer();
+
+  closeAllFloatingUi();
+
+
+  homeView.classList.remove(
+    "hidden"
+  );
+
+
+  createView.classList.add(
+    "hidden"
+  );
+
+
+  chatView.classList.add(
+    "hidden"
+  );
+
+
+  renderCharacters();
+
+  renderChatHistory();
+
+}
+
+
+// =========================
+// FORM EVENTS
+// =========================
+
+pronounPicker.addEventListener(
+
+  "click",
+
+  event => {
+
+    const button =
+      event.target.closest(
+        ".pronoun-option"
+      );
+
+
+    if (button) {
+
+      setPronouns(
+        button.dataset.pronouns
+      );
+
+    }
+
+  }
+
+);
+
+
+characterImage.addEventListener(
+  "input",
+  updateAvatarPreview
+);
+
+
+characterBackground.addEventListener(
+  "input",
+  updateBackgroundPreview
+);
+
+
+characterHasPowers.addEventListener(
+  "change",
+  togglePowersFields
+);
+
+
+addExampleBtn.addEventListener(
+
+  "click",
+
+  () =>
+    createExampleEditor()
+
+);
+
+
+createBtn.addEventListener(
+
+  "click",
+
+  () =>
+    showCreateView()
+
+);
+
+
+mainCreateBtn.addEventListener(
+
+  "click",
+
+  () =>
+    showCreateView()
+
+);
+
+
+backBtn.addEventListener(
+
+  "click",
+
+  () => {
+
+    if (
+      editingCharacterId &&
+      currentCharacter
+    ) {
+
+      openChat(
+        currentCharacter,
+        currentChatId
+      );
+
+    }
+
+    else {
+
+      showHomeView();
+
+    }
+
+  }
+
+);
+
+
+cancelCharacterBtn.addEventListener(
+
+  "click",
+
+  () => {
+
+    if (
+      editingCharacterId &&
+      currentCharacter
+    ) {
+
+      openChat(
+        currentCharacter,
+        currentChatId
+      );
+
+    }
+
+    else {
+
+      showHomeView();
+
+    }
+
+  }
+
+);
+
+
+chatsBtn.addEventListener(
+  "click",
+  showHomeView
+);
+
+
+chatBackBtn.addEventListener(
+  "click",
+  showHomeView
+);
+
+
+settingsBtn.addEventListener(
+
+  "click",
+
+  () => {
+
+    if (
+      !currentCharacter
+    ) {
+
+      alert(
+        "Open a character first, then use Settings to edit it."
+      );
+
+
+      return;
+
+    }
+
+
+    showCreateView(
+      currentCharacter
+    );
+
+  }
+
+);
+
+
+editCharacterMenuBtn.addEventListener(
+
+  "click",
+
+  () => {
+
+    closeChatMenu();
+
+
+    if (
+      currentCharacter
+    ) {
+
+      showCreateView(
+        currentCharacter
+      );
+
+    }
+
+  }
+
+);
+
+
+// =========================
+// SAVE CHARACTER
+// =========================
+
+characterForm.addEventListener(
+
+  "submit",
+
+  event => {
+
+    event.preventDefault();
+
+
+    const existing =
+      editingCharacterId
+
+        ? characters.find(
+            character =>
+              character.id ===
+              editingCharacterId
+          )
+
+        : null;
+
+
+    const character =
+      normalizeCharacter({
+
+        ...(existing || {}),
+
+        id:
+          existing?.id ||
+          Date.now(),
+
+        createdAt:
+          existing?.createdAt ||
+          Date.now(),
+
+        name:
+          characterName
+            .value
+            .trim(),
+
+        image:
+          characterImage
+            .value
+            .trim(),
+
+        pronouns:
+          characterPronouns.value,
+
+        bio:
+          characterBio
+            .value
+            .trim(),
+
+        description:
+          characterBio
+            .value
+            .trim(),
+
+        personality:
+          characterPersonality
+            .value
+            .trim(),
+
+        scenario:
+          characterScenario
+            .value
+            .trim(),
+
+        instructions:
+          characterInstructions
+            .value
+            .trim(),
+
+        exampleMessages:
+          collectExamples(),
+
+        hasPowers:
+          characterHasPowers.checked,
+
+        powerSystem:
+          characterPowerSystem
+            .value
+            .trim(),
+
+        combatStyle:
+          characterCombatStyle
+            .value
+            .trim(),
+
+        abilities:
+          characterAbilities
+            .value
+            .trim(),
+
+        powerLimits:
+          characterPowerLimits
+            .value
+            .trim(),
+
+        background:
+          characterBackground
+            .value
+            .trim()
+
+      });
+
+
+    if (
+      !character.name ||
+      !character.personality
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      existing
+    ) {
+
+      const index =
+        characters.findIndex(
+          item =>
+            item.id ===
+            existing.id
+        );
+
+
+      characters[index] =
+        character;
+
+
+      if (
+        currentCharacter?.id ===
+        character.id
+      ) {
+
+        currentCharacter =
+          character;
+
+      }
+
+    }
+
+    else {
+
+      characters.push(
+        character
+      );
+
+    }
+
+
+    saveCharacters();
+
+
+    resetCharacterForm();
+
+
+    if (
+      existing
+    ) {
+
+      openChat(
+        character,
+        currentChatId
+      );
+
+    }
+
+    else {
+
+      showHomeView();
+
+    }
+
+  }
+
+);
+
+
+// =========================
+// CHARACTER CARDS
+// =========================
+
+function renderCharacters() {
+
+  charactersGrid.innerHTML =
+    "";
+
+
+  emptyState.style.display =
+    characters.length
+
+      ? "none"
+
+      : "flex";
+
+
+  characters.forEach(
+
+    character => {
+
+      const card =
+        document.createElement(
+          "div"
+        );
+
+
+      card.className =
+        "character-card";
+
+
+      if (
+        character.image
+      ) {
+
+        const image =
+          document.createElement(
+            "img"
+          );
+
+
+        image.src =
+          character.image;
+
+
+        image.alt =
+          character.name;
+
+
+        image.className =
+          "character-image";
+
+
+        card.appendChild(
+          image
+        );
+
+      }
+
+      else {
+
+        const placeholder =
+          document.createElement(
+            "div"
+          );
+
+
+        placeholder.className =
+          "character-placeholder";
+
+
+        placeholder.textContent =
+          "🤖";
+
+
+        card.appendChild(
+          placeholder
+        );
+
+      }
+
+
+      const info =
+        document.createElement(
+          "div"
+        );
+
+
+      info.className =
+        "character-info";
+
+
+      const title =
+        document.createElement(
+          "h3"
+        );
+
+
+      title.textContent =
+        character.name;
+
+
+      const description =
+        document.createElement(
+          "p"
+        );
+
+
+      description.textContent =
+        character.bio ||
+        "AI Character";
+
+
+      info.append(
+        title,
+        description
+      );
+
+
+      card.appendChild(
+        info
+      );
+
+
+      card.addEventListener(
+
+        "click",
+
+        () =>
+          openChat(
+            character
+          )
+
+      );
+
+
+      charactersGrid.appendChild(
+        card
+      );
+
+    }
+
+  );
+
+}
+
+
+// =========================
+// CHAT TITLES
+// =========================
+
+function makeChatTitle(
+  text
+) {
+
+  const clean =
+    text
+      .replace(
+        /\s+/g,
+        " "
+      )
+      .trim();
+
+
+  return (
+    clean.length <= 28
+
+      ? clean
+
+      : `${clean.slice(
+          0,
+          28
+        )}...`
+  );
+
+}
+
+
+// =========================
+// CHAT HISTORY
+// =========================
+
+function renderChatHistory() {
+
+  chatHistoryList.innerHTML =
+    "";
+
+
+  const allChats =
+    [];
+
+
+  characters.forEach(
+
+    character => {
+
+      getCharacterChats(
+        character.id
+      )
+        .forEach(
+
+          chat => {
+
+            allChats.push({
+
+              character,
+
+              chat
+
+            });
+
+          }
+
+        );
+
+    }
+
+  );
+
+
+  allChats.sort(
+
+    (a, b) =>
+      b.chat.updatedAt -
+      a.chat.updatedAt
+
+  );
+
+
+  if (
+    !allChats.length
+  ) {
+
+    const empty =
+      document.createElement(
+        "p"
+      );
+
+
+    empty.className =
+      "history-empty";
+
+
+    empty.textContent =
+      "No chats yet";
+
+
+    chatHistoryList.appendChild(
+      empty
+    );
+
+
+    return;
+
+  }
+
+
+  allChats.forEach(
+
+    ({
+      character,
+      chat
+    }) => {
+
+      const button =
+        document.createElement(
+          "button"
+        );
+
+
+      button.className =
+        "history-item";
+
+
+      if (
+        currentCharacter?.id ===
+          character.id &&
+        currentChatId ===
+          chat.id
+      ) {
+
+        button.classList.add(
+          "active"
+        );
+
+      }
+
+
+      const name =
+        document.createElement(
+          "span"
+        );
+
+
+      name.className =
+        "history-character";
+
+
+      name.textContent =
+        character.name;
+
+
+      const title =
+        document.createElement(
+          "span"
+        );
+
+
+      title.className =
+        "history-title";
+
+
+      title.textContent =
+        chat.title;
+
+
+      button.append(
+        name,
+        title
+      );
+
+
+      button.addEventListener(
+
+        "click",
+
+        () => {
+
+          if (
+            !isSending
+          ) {
+
+            openChat(
+              character,
+              chat.id
+            );
+
+          }
+
+        }
+
+      );
+
+
+      chatHistoryList.appendChild(
+        button
+      );
+
+    }
+
+  );
+
+}
+
+
+// =========================
+// CHAT BACKGROUND
 // =========================
 
 function applyCharacterBackground(
@@ -1127,115 +2671,19 @@ function applyCharacterBackground(
   }
 
 
-  const safeUrl =
-    url.replace(
-      /"/g,
-      "\\\""
-    );
-
-
   chatBackground
     .style
     .backgroundImage =
-    `url("${safeUrl}")`;
+    `url("${url.replace(
+      /"/g,
+      "\\\""
+    )}")`;
 
 
   chatBackground
     .classList
     .add(
       "active"
-    );
-
-}
-
-
-// =========================
-// NAVIGATION
-// =========================
-
-function closeAllFloatingUi() {
-
-  closeChatMenu();
-
-  closeMessageContextMenu();
-
-}
-
-
-function showHomeView() {
-
-  if (isSending) {
-
-    return;
-
-  }
-
-
-  closeMemoryViewer();
-
-  closeAllFloatingUi();
-
-
-  homeView
-    .classList
-    .remove(
-      "hidden"
-    );
-
-
-  createView
-    .classList
-    .add(
-      "hidden"
-    );
-
-
-  chatView
-    .classList
-    .add(
-      "hidden"
-    );
-
-
-  renderCharacters();
-
-  renderChatHistory();
-
-}
-
-
-function showCreateView() {
-
-  if (isSending) {
-
-    return;
-
-  }
-
-
-  closeMemoryViewer();
-
-  closeAllFloatingUi();
-
-
-  homeView
-    .classList
-    .add(
-      "hidden"
-    );
-
-
-  chatView
-    .classList
-    .add(
-      "hidden"
-    );
-
-
-  createView
-    .classList
-    .remove(
-      "hidden"
     );
 
 }
@@ -1251,9 +2699,7 @@ function openChat(
 ) {
 
   if (isSending) {
-
     return;
-
   }
 
 
@@ -1268,14 +2714,37 @@ function openChat(
     );
 
 
-  let chats =
-    getCharacterChats(
-      character.id
+  const characterIndex =
+    characters.findIndex(
+      item =>
+        item.id ===
+        currentCharacter.id
     );
 
 
   if (
-    chats.length === 0
+    characterIndex >= 0
+  ) {
+
+    characters[
+      characterIndex
+    ] =
+      currentCharacter;
+
+
+    saveCharacters();
+
+  }
+
+
+  let chats =
+    getCharacterChats(
+      currentCharacter.id
+    );
+
+
+  if (
+    !chats.length
   ) {
 
     const firstChat =
@@ -1288,14 +2757,14 @@ function openChat(
 
 
     saveCharacterChats(
-      character.id,
+      currentCharacter.id,
       chats
     );
 
   }
 
 
-  let selectedChat =
+  let selected =
     requestedChatId
 
       ? chats.find(
@@ -1308,36 +2777,34 @@ function openChat(
 
 
   if (
-    !selectedChat
+    !selected
   ) {
 
-    const activeId =
+    const active =
       localStorage.getItem(
 
         getActiveChatKey(
-          character.id
+          currentCharacter.id
         )
 
       );
 
 
-    selectedChat =
+    selected =
       chats.find(
-
         chat =>
           chat.id ===
-          activeId
-
+          active
       );
 
   }
 
 
   if (
-    !selectedChat
+    !selected
   ) {
 
-    selectedChat =
+    selected =
       [...chats]
         .sort(
 
@@ -1351,13 +2818,13 @@ function openChat(
 
 
   currentChatId =
-    selectedChat.id;
+    selected.id;
 
 
   localStorage.setItem(
 
     getActiveChatKey(
-      character.id
+      currentCharacter.id
     ),
 
     currentChatId
@@ -1365,35 +2832,27 @@ function openChat(
   );
 
 
-  homeView
-    .classList
-    .add(
-      "hidden"
-    );
+  homeView.classList.add(
+    "hidden"
+  );
 
 
-  createView
-    .classList
-    .add(
-      "hidden"
-    );
+  createView.classList.add(
+    "hidden"
+  );
 
 
-  chatView
-    .classList
-    .remove(
-      "hidden"
-    );
+  chatView.classList.remove(
+    "hidden"
+  );
 
 
-  chatCharacterName
-    .textContent =
+  chatCharacterName.textContent =
     currentCharacter.name;
 
 
-  chatCharacterDescription
-    .textContent =
-    currentCharacter.description ||
+  chatCharacterDescription.textContent =
+    currentCharacter.bio ||
     "AI Character";
 
 
@@ -1405,9 +2864,7 @@ function openChat(
       currentCharacter.image;
 
 
-    chatCharacterImage
-      .style
-      .display =
+    chatCharacterImage.style.display =
       "block";
 
   }
@@ -1418,6 +2875,10 @@ function openChat(
       .removeAttribute(
         "src"
       );
+
+
+    chatCharacterImage.style.display =
+      "none";
 
   }
 
@@ -1437,7 +2898,7 @@ function openChat(
     () =>
       messageInput.focus(),
 
-    100
+    80
 
   );
 
@@ -1445,551 +2906,7 @@ function openChat(
 
 
 // =========================
-// NAV BUTTONS
-// =========================
-
-createBtn.addEventListener(
-  "click",
-  showCreateView
-);
-
-
-mainCreateBtn.addEventListener(
-  "click",
-  showCreateView
-);
-
-
-backBtn.addEventListener(
-  "click",
-  showHomeView
-);
-
-
-chatsBtn.addEventListener(
-  "click",
-  showHomeView
-);
-
-
-chatBackBtn.addEventListener(
-  "click",
-  showHomeView
-);
-
-
-// =========================
-// CREATE CHARACTER
-// =========================
-
-characterForm.addEventListener(
-
-  "submit",
-
-  event => {
-
-    event.preventDefault();
-
-
-    const character =
-      normalizeCharacter({
-
-        id:
-          Date.now(),
-
-        name:
-          document
-            .getElementById(
-              "characterName"
-            )
-            .value
-            .trim(),
-
-        image:
-          document
-            .getElementById(
-              "characterImage"
-            )
-            .value
-            .trim(),
-
-        background:
-          document
-            .getElementById(
-              "characterBackground"
-            )
-            .value
-            .trim(),
-
-        description:
-          document
-            .getElementById(
-              "characterDescription"
-            )
-            .value
-            .trim(),
-
-        personality:
-          document
-            .getElementById(
-              "characterPersonality"
-            )
-            .value
-            .trim(),
-
-        scenario:
-          document
-            .getElementById(
-              "characterScenario"
-            )
-            .value
-            .trim(),
-
-        instructions:
-          document
-            .getElementById(
-              "characterInstructions"
-            )
-            .value
-            .trim(),
-
-        createdAt:
-          Date.now()
-
-      });
-
-
-    characters.push(
-      character
-    );
-
-
-    saveCharacters();
-
-
-    characterForm.reset();
-
-
-    showHomeView();
-
-  }
-
-);
-
-
-// =========================
-// CHARACTER CARDS
-// =========================
-
-function renderCharacters() {
-
-  charactersGrid.innerHTML =
-    "";
-
-
-  if (
-    characters.length === 0
-  ) {
-
-    emptyState
-      .style
-      .display =
-      "flex";
-
-
-    return;
-
-  }
-
-
-  emptyState
-    .style
-    .display =
-    "none";
-
-
-  characters.forEach(
-
-    character => {
-
-      const card =
-        document.createElement(
-          "div"
-        );
-
-
-      card
-        .classList
-        .add(
-          "character-card"
-        );
-
-
-      if (
-        character.image
-      ) {
-
-        const image =
-          document.createElement(
-            "img"
-          );
-
-
-        image.src =
-          character.image;
-
-
-        image
-          .classList
-          .add(
-            "character-image"
-          );
-
-
-        image.alt =
-          character.name;
-
-
-        card.appendChild(
-          image
-        );
-
-      }
-
-      else {
-
-        const placeholder =
-          document.createElement(
-            "div"
-          );
-
-
-        placeholder
-          .classList
-          .add(
-            "character-placeholder"
-          );
-
-
-        placeholder
-          .textContent =
-          "🤖";
-
-
-        card.appendChild(
-          placeholder
-        );
-
-      }
-
-
-      const info =
-        document.createElement(
-          "div"
-        );
-
-
-      info
-        .classList
-        .add(
-          "character-info"
-        );
-
-
-      const name =
-        document.createElement(
-          "h3"
-        );
-
-
-      name.textContent =
-        character.name;
-
-
-      const description =
-        document.createElement(
-          "p"
-        );
-
-
-      description.textContent =
-        character.description ||
-        "AI Character";
-
-
-      info.appendChild(
-        name
-      );
-
-
-      info.appendChild(
-        description
-      );
-
-
-      card.appendChild(
-        info
-      );
-
-
-      card.addEventListener(
-
-        "click",
-
-        () =>
-          openChat(
-            character
-          )
-
-      );
-
-
-      charactersGrid
-        .appendChild(
-          card
-        );
-
-    }
-
-  );
-
-}
-
-
-// =========================
-// CHAT TITLE
-// =========================
-
-function makeChatTitle(
-  text
-) {
-
-  const cleaned =
-    text
-      .replace(
-        /\s+/g,
-        " "
-      )
-      .trim();
-
-
-  return (
-    cleaned.length <= 28
-
-      ? cleaned
-
-      : (
-          cleaned.slice(
-            0,
-            28
-          ) +
-          "..."
-        )
-  );
-
-}
-
-
-// =========================
-// CHAT HISTORY
-// =========================
-
-function renderChatHistory() {
-
-  chatHistoryList.innerHTML =
-    "";
-
-
-  const allChats =
-    [];
-
-
-  characters.forEach(
-
-    character => {
-
-      getCharacterChats(
-        character.id
-      )
-        .forEach(
-
-          chat =>
-
-            allChats.push({
-
-              character,
-
-              chat
-
-            })
-
-        );
-
-    }
-
-  );
-
-
-  allChats.sort(
-
-    (a, b) =>
-      b.chat.updatedAt -
-      a.chat.updatedAt
-
-  );
-
-
-  if (
-    allChats.length === 0
-  ) {
-
-    const empty =
-      document.createElement(
-        "p"
-      );
-
-
-    empty
-      .classList
-      .add(
-        "history-empty"
-      );
-
-
-    empty.textContent =
-      "No chats yet";
-
-
-    chatHistoryList
-      .appendChild(
-        empty
-      );
-
-
-    return;
-
-  }
-
-
-  allChats.forEach(
-
-    ({
-      character,
-      chat
-    }) => {
-
-      const button =
-        document.createElement(
-          "button"
-        );
-
-
-      button
-        .classList
-        .add(
-          "history-item"
-        );
-
-
-      if (
-        currentCharacter &&
-        currentChatId &&
-        currentCharacter.id ===
-          character.id &&
-        currentChatId ===
-          chat.id
-      ) {
-
-        button
-          .classList
-          .add(
-            "active"
-          );
-
-      }
-
-
-      const characterName =
-        document.createElement(
-          "span"
-        );
-
-
-      characterName
-        .classList
-        .add(
-          "history-character"
-        );
-
-
-      characterName.textContent =
-        character.name;
-
-
-      const title =
-        document.createElement(
-          "span"
-        );
-
-
-      title
-        .classList
-        .add(
-          "history-title"
-        );
-
-
-      title.textContent =
-        chat.title ||
-        "New Chat";
-
-
-      button.appendChild(
-        characterName
-      );
-
-
-      button.appendChild(
-        title
-      );
-
-
-      button.addEventListener(
-
-        "click",
-
-        () => {
-
-          if (
-            !isSending
-          ) {
-
-            openChat(
-              character,
-              chat.id
-            );
-
-          }
-
-        }
-
-      );
-
-
-      chatHistoryList
-        .appendChild(
-          button
-        );
-
-    }
-
-  );
-
-}
-
-
-// =========================
-// RICH MESSAGE TEXT
+// RICH ACTION TEXT
 // =========================
 
 function renderRichText(
@@ -2017,7 +2934,7 @@ function renderRichText(
         pattern.exec(
           text
         )
-    ) !== null
+    )
   ) {
 
     if (
@@ -2025,20 +2942,18 @@ function renderRichText(
       lastIndex
     ) {
 
-      element
-        .appendChild(
+      element.appendChild(
 
-          document
-            .createTextNode(
+        document.createTextNode(
 
-              text.slice(
-                lastIndex,
-                match.index
-              )
+          text.slice(
+            lastIndex,
+            match.index
+          )
 
-            )
+        )
 
-        );
+      );
 
     }
 
@@ -2047,14 +2962,10 @@ function renderRichText(
       match[0];
 
 
-    const isDouble =
+    const strip =
       token.startsWith(
         "**"
-      );
-
-
-    const strip =
-      isDouble
+      )
         ? 2
         : 1;
 
@@ -2071,8 +2982,12 @@ function renderRichText(
 
     action.textContent =
       token.slice(
+
         strip,
-        token.length - strip
+
+        token.length -
+        strip
+
       );
 
 
@@ -2094,14 +3009,13 @@ function renderRichText(
 
     element.appendChild(
 
-      document
-        .createTextNode(
+      document.createTextNode(
 
-          text.slice(
-            lastIndex
-          )
-
+        text.slice(
+          lastIndex
         )
+
+      )
 
     );
 
@@ -2111,7 +3025,7 @@ function renderRichText(
 
 
 // =========================
-// MESSAGE ROW
+// MESSAGE ROW + VARIANTS
 // =========================
 
 function createMessageRow(
@@ -2119,22 +3033,24 @@ function createMessageRow(
   options = {}
 ) {
 
+  const normalized =
+    normalizeMessage(
+      message
+    );
+
+
   const row =
     document.createElement(
       "div"
     );
 
 
-  row
-    .classList
-    .add(
-      "message-row",
-      message.sender
-    );
+  row.className =
+    `message-row ${normalized.sender}`;
 
 
   row.dataset.messageId =
-    message.id;
+    normalized.id;
 
 
   const bubble =
@@ -2143,26 +3059,27 @@ function createMessageRow(
     );
 
 
-  bubble
-    .classList
-    .add(
-      "message",
-      message.sender
-    );
+  bubble.className =
+    `message ${normalized.sender}`;
 
 
   bubble.dataset.messageId =
-    message.id;
+    normalized.id;
 
 
   if (
-    message.sender ===
+    normalized.sender ===
     "character"
   ) {
 
     renderRichText(
+
       bubble,
-      message.text
+
+      getMessageText(
+        normalized
+      )
+
     );
 
   }
@@ -2170,27 +3087,7 @@ function createMessageRow(
   else {
 
     bubble.textContent =
-      message.text;
-
-  }
-
-
-  if (
-    message.sender ===
-    "character"
-  ) {
-
-    bubble.addEventListener(
-
-      "contextmenu",
-
-      event =>
-        openMessageContextMenu(
-          event,
-          message.id
-        )
-
-    );
+      normalized.text;
 
   }
 
@@ -2201,60 +3098,201 @@ function createMessageRow(
 
 
   if (
-    message.sender ===
-      "character" &&
-    !options.hideRegenerate
+    normalized.sender ===
+    "character"
   ) {
 
-    const regenerate =
-      document.createElement(
-        "button"
-      );
+    bubble.addEventListener(
+
+      "contextmenu",
+
+      event =>
+        openMessageContextMenu(
+
+          event,
+
+          normalized.id
+
+        )
+
+    );
 
 
-    regenerate.type =
-      "button";
+    if (
+      !options.hideTools
+    ) {
+
+      const tools =
+        document.createElement(
+          "div"
+        );
 
 
-    regenerate.className =
-      "message-regenerate";
+      tools.className =
+        "message-tools";
 
 
-    regenerate.title =
-      "Regenerate response";
+      const left =
+        document.createElement(
+          "button"
+        );
 
 
-    regenerate
-      .setAttribute(
-        "aria-label",
-        "Regenerate response"
-      );
+      left.type =
+        "button";
 
 
-    regenerate.textContent =
-      "↻";
+      left.className =
+        "message-tool-btn";
 
 
-    regenerate.disabled =
-      isSending;
+      left.textContent =
+        "←";
 
 
-    regenerate
-      .addEventListener(
+      left.title =
+        "Previous version";
+
+
+      const count =
+        document.createElement(
+          "span"
+        );
+
+
+      count.className =
+        "variant-count";
+
+
+      count.textContent =
+        `${normalized.activeVariant + 1}/${normalized.variants.length}`;
+
+
+      const right =
+        document.createElement(
+          "button"
+        );
+
+
+      right.type =
+        "button";
+
+
+      right.className =
+        "message-tool-btn";
+
+
+      right.textContent =
+        "→";
+
+
+      right.title =
+        "Next version";
+
+
+      const regenerate =
+        document.createElement(
+          "button"
+        );
+
+
+      regenerate.type =
+        "button";
+
+
+      regenerate.className =
+        "message-tool-btn message-regenerate";
+
+
+      regenerate.textContent =
+        "↻";
+
+
+      regenerate.title =
+        "Generate another version";
+
+
+      left.disabled =
+        isSending ||
+        normalized.activeVariant <=
+        0;
+
+
+      right.disabled =
+        isSending ||
+        normalized.activeVariant >=
+        normalized.variants.length -
+        1;
+
+
+      regenerate.disabled =
+        isSending;
+
+
+      left.addEventListener(
 
         "click",
 
         () =>
-          regenerateMessage(
-            message.id
+          selectVariant(
+
+            normalized.id,
+
+            normalized.activeVariant -
+            1
+
           )
 
       );
 
 
-    row.appendChild(
-      regenerate
-    );
+      right.addEventListener(
+
+        "click",
+
+        () =>
+          selectVariant(
+
+            normalized.id,
+
+            normalized.activeVariant +
+            1
+
+          )
+
+      );
+
+
+      regenerate.addEventListener(
+
+        "click",
+
+        () =>
+          regenerateMessage(
+            normalized.id
+          )
+
+      );
+
+
+      tools.append(
+
+        left,
+
+        count,
+
+        right,
+
+        regenerate
+
+      );
+
+
+      row.appendChild(
+        tools
+      );
+
+    }
 
   }
 
@@ -2282,20 +3320,17 @@ function renderMessages() {
 
 
   if (!chat) {
-
     return;
-
   }
 
 
-  currentChatTitle
-    .textContent =
+  currentChatTitle.textContent =
     chat.title ||
     "New Chat";
 
 
   if (
-    chat.messages.length === 0
+    !chat.messages.length
   ) {
 
     const empty =
@@ -2304,11 +3339,8 @@ function renderMessages() {
       );
 
 
-    empty
-      .classList
-      .add(
-        "chat-empty"
-      );
+    empty.className =
+      "chat-empty";
 
 
     if (
@@ -2321,11 +3353,8 @@ function renderMessages() {
         );
 
 
-      avatar
-        .classList
-        .add(
-          "chat-empty-avatar"
-        );
+      avatar.className =
+        "chat-empty-avatar";
 
 
       avatar.src =
@@ -2360,19 +3389,11 @@ function renderMessages() {
 
 
     text.textContent =
-      (
-        "Start a new conversation with " +
-        currentCharacter.name +
-        "."
-      );
+      `Start a new conversation with ${currentCharacter.name}.`;
 
 
-    empty.appendChild(
-      title
-    );
-
-
-    empty.appendChild(
+    empty.append(
+      title,
       text
     );
 
@@ -2408,10 +3429,6 @@ function renderMessages() {
 
 }
 
-
-// =========================
-// SCROLL
-// =========================
 
 function scrollToBottom() {
 
@@ -2465,9 +3482,9 @@ function showTypingIndicator() {
 
 
   for (
-    let i = 0;
-    i < 3;
-    i += 1
+    let index = 0;
+    index < 3;
+    index++
   ) {
 
     indicator.appendChild(
@@ -2513,7 +3530,170 @@ function removeTypingIndicator() {
 
 
 // =========================
-// READ AI STREAM
+// PIN SYNC WHEN VERSION CHANGES
+// =========================
+
+function syncPinsForMessage(
+  chat,
+  messageId
+) {
+
+  const target =
+    chat.messages.find(
+      message =>
+        message.id ===
+        messageId
+    );
+
+
+  if (!target) {
+    return;
+  }
+
+
+  const memory =
+    normalizeMemory(
+      chat.memory
+    );
+
+
+  const text =
+    getMessageText(
+      target
+    );
+
+
+  memory.pinnedMemories =
+    memory
+      .pinnedMemories
+      .map(
+
+        pin =>
+          pin.sourceMessageId ===
+          messageId
+
+            ? {
+                ...pin,
+                text
+              }
+
+            : pin
+
+      );
+
+
+  chat.memory =
+    memory;
+
+}
+
+
+// =========================
+// SELECT OLD / NEW VERSION
+// =========================
+
+function selectVariant(
+  messageId,
+  newIndex
+) {
+
+  if (isSending) {
+    return;
+  }
+
+
+  const chat =
+    getCurrentChat();
+
+
+  const message =
+    chat
+      ?.messages
+      .find(
+        item =>
+          item.id ===
+          messageId
+      );
+
+
+  if (
+    !message ||
+    message.sender !==
+    "character"
+  ) {
+
+    return;
+
+  }
+
+
+  const normalized =
+    normalizeMessage(
+      message
+    );
+
+
+  if (
+    newIndex < 0 ||
+    newIndex >=
+      normalized.variants.length ||
+    newIndex ===
+      normalized.activeVariant
+  ) {
+
+    return;
+
+  }
+
+
+  updateCurrentChat(
+
+    stored => {
+
+      const target =
+        stored.messages.find(
+          item =>
+            item.id ===
+            messageId
+        );
+
+
+      target.activeVariant =
+        newIndex;
+
+
+      target.text =
+        target.variants[
+          newIndex
+        ];
+
+
+      syncPinsForMessage(
+        stored,
+        messageId
+      );
+
+    }
+
+  );
+
+
+  renderMessages();
+
+
+  rebuildMemoryAfterHistoryChange(
+
+    currentCharacter,
+
+    currentChatId
+
+  );
+
+}
+
+
+// =========================
+// STREAM READER
 // =========================
 
 async function readAIStream(
@@ -2525,32 +3705,26 @@ async function readAIStream(
   ) {
 
     throw new Error(
-      "Streaming is not supported by this browser."
+      "Streaming not supported"
     );
 
   }
 
 
   const reader =
-    response.body
-      .getReader();
+    response.body.getReader();
 
 
   const decoder =
     new TextDecoder();
 
 
-  let buffer =
-    "";
+  let buffer = "";
 
-
-  let finalText =
-    "";
-
+  let finalText = "";
 
   let streamingBubble =
     null;
-
 
   let streamingRow =
     null;
@@ -2566,19 +3740,19 @@ async function readAIStream(
 
 
     if (done) {
-
       break;
-
     }
 
 
     buffer +=
       decoder.decode(
+
         value,
+
         {
-          stream:
-            true
+          stream: true
         }
+
       );
 
 
@@ -2674,8 +3848,11 @@ async function readAIStream(
 
 
         renderRichText(
+
           streamingBubble,
+
           finalText
+
         );
 
 
@@ -2690,89 +3867,13 @@ async function readAIStream(
       ) {
 
         throw new Error(
+
           packet.message ||
-          "Streaming failed."
+          "Streaming failed"
+
         );
 
       }
-
-    }
-
-  }
-
-
-  if (
-    buffer.trim()
-  ) {
-
-    try {
-
-      const packet =
-        JSON.parse(
-          buffer
-        );
-
-
-      if (
-        packet.type ===
-        "delta"
-      ) {
-
-        if (
-          !streamingBubble
-        ) {
-
-          removeTypingIndicator();
-
-
-          streamingRow =
-            document.createElement(
-              "div"
-            );
-
-
-          streamingRow.className =
-            "message-row character";
-
-
-          streamingBubble =
-            document.createElement(
-              "div"
-            );
-
-
-          streamingBubble.className =
-            "message character streaming";
-
-
-          streamingRow.appendChild(
-            streamingBubble
-          );
-
-
-          messages.appendChild(
-            streamingRow
-          );
-
-        }
-
-
-        finalText +=
-          packet.delta;
-
-
-        renderRichText(
-          streamingBubble,
-          finalText
-        );
-
-      }
-
-    }
-
-    catch {
-
-      // ignore incomplete packet
 
     }
 
@@ -2807,7 +3908,7 @@ function createMemoryPayload(
   memory
 ) {
 
-  const clean =
+  const normalized =
     normalizeMemory(
       memory
     );
@@ -2816,24 +3917,66 @@ function createMemoryPayload(
   return {
 
     summary:
-      clean.summary,
+      normalized.summary,
 
     importantFacts:
-      clean.importantFacts,
+      normalized.importantFacts,
 
     currentScene:
-      clean.currentScene,
+      normalized.currentScene,
 
     relationshipState:
-      clean.relationshipState,
+      normalized.relationshipState,
 
     unresolvedThreads:
-      clean.unresolvedThreads,
+      normalized.unresolvedThreads,
 
     pinnedMemories:
-      clean.pinnedMemories
+      normalized.pinnedMemories
 
   };
+
+}
+
+
+// =========================
+// ONLY ACTIVE VARIANTS COUNT
+// =========================
+
+function getActiveMessages(
+  chat
+) {
+
+  return chat.messages
+    .filter(
+      message =>
+        message.sender !==
+        "system"
+    )
+    .map(
+
+      message => {
+
+        const normalized =
+          normalizeMessage(
+            message
+          );
+
+
+        return {
+
+          ...normalized,
+
+          text:
+            getMessageText(
+              normalized
+            )
+
+        };
+
+      }
+
+    );
 
 }
 
@@ -2949,11 +4092,7 @@ async function updateMemoryForChat(
 
 
   const lockKey =
-    (
-      character.id +
-      "_" +
-      chatId
-    );
+    `${character.id}_${chatId}`;
 
 
   if (
@@ -2975,9 +4114,7 @@ async function updateMemoryForChat(
 
 
   if (!chat) {
-
     return;
-
   }
 
 
@@ -2987,8 +4124,14 @@ async function updateMemoryForChat(
     );
 
 
+  let activeMessages =
+    getActiveMessages(
+      chat
+    );
+
+
   const totalMessages =
-    chat.messages.length;
+    activeMessages.length;
 
 
   const processed =
@@ -3002,7 +4145,7 @@ async function updateMemoryForChat(
     );
 
 
-  const unprocessedCount =
+  const unprocessed =
     totalMessages -
     processed;
 
@@ -3014,7 +4157,7 @@ async function updateMemoryForChat(
   if (
     !force &&
     !fullRebuild &&
-    unprocessedCount <
+    unprocessed <
       MEMORY_BATCH_THRESHOLD
   ) {
 
@@ -3024,7 +4167,7 @@ async function updateMemoryForChat(
 
 
   if (
-    unprocessedCount <= 0
+    unprocessed <= 0
   ) {
 
     if (
@@ -3077,7 +4220,7 @@ async function updateMemoryForChat(
       !fullRebuild &&
       processed === 0 &&
       totalMessages >
-        MEMORY_MAX_BATCH_MESSAGES
+      MEMORY_MAX_BATCH_MESSAGES
     ) {
 
       start =
@@ -3099,14 +4242,16 @@ async function updateMemoryForChat(
 
 
     const batch =
-      chat.messages.slice(
+      activeMessages.slice(
         start,
         end
       );
 
 
     console.log(
+
       `🧠 Updating memory: ${character.name} (${batch.length} messages)`
+
     );
 
 
@@ -3116,15 +4261,12 @@ async function updateMemoryForChat(
         "/api/memory",
 
         {
-
           method:
             "POST",
 
           headers: {
-
             "Content-Type":
               "application/json"
-
           },
 
           body:
@@ -3141,7 +4283,6 @@ async function updateMemoryForChat(
                 batch
 
             })
-
         }
 
       );
@@ -3152,7 +4293,7 @@ async function updateMemoryForChat(
     ) {
 
       throw new Error(
-        "Memory request failed."
+        "Memory request failed"
       );
 
     }
@@ -3167,7 +4308,7 @@ async function updateMemoryForChat(
     ) {
 
       throw new Error(
-        "Memory response was empty."
+        "Empty memory response"
       );
 
     }
@@ -3179,15 +4320,15 @@ async function updateMemoryForChat(
 
       chatId,
 
-      latestChat => {
+      stored => {
 
-        const latestMemory =
+        const latest =
           normalizeMemory(
-            latestChat.memory
+            stored.memory
           );
 
 
-        latestChat.memory = {
+        stored.memory = {
 
           summary:
             data.memory.summary ||
@@ -3222,13 +4363,13 @@ async function updateMemoryForChat(
               : [],
 
           pinnedMemories:
-            latestMemory
+            latest
               .pinnedMemories,
 
           lastProcessedMessageCount:
             Math.max(
 
-              latestMemory
+              latest
                 .lastProcessedMessageCount,
 
               end
@@ -3239,7 +4380,7 @@ async function updateMemoryForChat(
             Date.now(),
 
           needsFullRebuild:
-            latestMemory
+            latest
               .needsFullRebuild
 
         };
@@ -3250,7 +4391,9 @@ async function updateMemoryForChat(
 
 
     console.log(
+
       `✅ Memory saved for ${character.name}`
+
     );
 
 
@@ -3260,8 +4403,7 @@ async function updateMemoryForChat(
         .contains(
           "hidden"
         ) &&
-      currentCharacter
-        ?.id ===
+      currentCharacter?.id ===
         character.id &&
       currentChatId ===
         chatId
@@ -3299,9 +4441,7 @@ async function updateMemoryForChat(
 
 
   if (!chat) {
-
     return;
-
   }
 
 
@@ -3311,8 +4451,14 @@ async function updateMemoryForChat(
     );
 
 
+  activeMessages =
+    getActiveMessages(
+      chat
+    );
+
+
   const waiting =
-    chat.messages.length -
+    activeMessages.length -
     memory
       .lastProcessedMessageCount;
 
@@ -3397,7 +4543,7 @@ async function updateMemoryForChat(
 
 
 // =========================
-// REBUILD MEMORY
+// MEMORY REBUILD
 // =========================
 
 function rebuildMemoryAfterHistoryChange(
@@ -3427,18 +4573,24 @@ function rebuildMemoryAfterHistoryChange(
 
 
   if (
-    chat
-      ?.messages
-      .length
+    getActiveMessages(
+      chat || {
+        messages: []
+      }
+    ).length
   ) {
 
     setTimeout(
 
       () =>
         updateMemoryForChat(
+
           character,
+
           chatId,
+
           true
+
         ),
 
       100
@@ -3469,15 +4621,11 @@ function createMemoryListItem(
     text;
 
 
-  if (
-    empty
-  ) {
+  if (empty) {
 
-    item
-      .classList
-      .add(
-        "memory-empty-item"
-      );
+    item.classList.add(
+      "memory-empty-item"
+    );
 
   }
 
@@ -3504,8 +4652,11 @@ function fillMemoryList(
     element.appendChild(
 
       createMemoryListItem(
+
         emptyText,
+
         true
+
       )
 
     );
@@ -3518,7 +4669,7 @@ function fillMemoryList(
 
   items.forEach(
 
-    item =>
+    item => {
 
       element.appendChild(
 
@@ -3526,7 +4677,9 @@ function fillMemoryList(
           item
         )
 
-      )
+      );
+
+    }
 
   );
 
@@ -3555,17 +4708,10 @@ function renderMemoryViewer() {
     );
 
 
-  memoryCharacterLabel
-    .textContent =
-    (
-      currentCharacter.name +
-      " • " +
-      chat.title
-    );
-
-
   const total =
-    chat.messages.length;
+    getActiveMessages(
+      chat
+    ).length;
 
 
   const processed =
@@ -3579,20 +4725,20 @@ function renderMemoryViewer() {
     );
 
 
-  memoryMessageCount
-    .textContent =
-    (
-      processed +
-      " / " +
-      total +
-      " processed"
-    );
+  memoryCharacterLabel.textContent =
+    `${currentCharacter.name} • ${chat.title}`;
 
 
-  const hasAutoMemory =
+  memoryMessageCount.textContent =
+    `${processed} / ${total} processed`;
+
+
+  const hasMemory =
     Boolean(
 
-      memory.summary.trim() ||
+      memory
+        .summary
+        .trim() ||
 
       memory
         .importantFacts
@@ -3608,52 +4754,34 @@ function renderMemoryViewer() {
 
       memory
         .unresolvedThreads
+        .length ||
+
+      memory
+        .pinnedMemories
         .length
 
     );
 
 
-  if (
+  memoryStatusText.textContent =
     memory.needsFullRebuild
-  ) {
 
-    memoryStatusText
-      .textContent =
-      "Rebuilding memory...";
+      ? "Rebuilding memory..."
 
-  }
+      : (
+          hasMemory
 
-  else if (
-    hasAutoMemory ||
-    memory
-      .pinnedMemories
-      .length
-  ) {
+            ? "Memory active"
 
-    memoryStatusText
-      .textContent =
-      "Memory active";
+            : (
+                total >=
+                MEMORY_BATCH_THRESHOLD
 
-  }
+                  ? "Waiting for memory update"
 
-  else if (
-    total >=
-    MEMORY_BATCH_THRESHOLD
-  ) {
-
-    memoryStatusText
-      .textContent =
-      "Waiting for memory update";
-
-  }
-
-  else {
-
-    memoryStatusText
-      .textContent =
-      "Not enough messages yet";
-
-  }
+                  : "Not enough messages yet"
+              )
+        );
 
 
   fillMemoryList(
@@ -3672,9 +4800,10 @@ function renderMemoryViewer() {
   );
 
 
-  memorySummary
-    .textContent =
-    memory.summary.trim() ||
+  memorySummary.textContent =
+    memory
+      .summary
+      .trim() ||
     "No summary yet.";
 
 
@@ -3690,16 +4819,14 @@ function renderMemoryViewer() {
   );
 
 
-  memoryScene
-    .textContent =
+  memoryScene.textContent =
     memory
       .currentScene
       .trim() ||
     "No current scene stored.";
 
 
-  memoryRelationship
-    .textContent =
+  memoryRelationship.textContent =
     memory
       .relationshipState
       .trim() ||
@@ -3718,8 +4845,7 @@ function renderMemoryViewer() {
   );
 
 
-  memoryUpdatedAt
-    .textContent =
+  memoryUpdatedAt.textContent =
     memory.updatedAt
 
       ? (
@@ -3749,7 +4875,6 @@ function openMemoryViewer() {
 
   closeAllFloatingUi();
 
-
   renderMemoryViewer();
 
 
@@ -3774,38 +4899,29 @@ function closeMemoryViewer() {
 
 
 memoryBtn.addEventListener(
-
   "click",
-
   openMemoryViewer
-
 );
 
 
 closeMemoryBtn.addEventListener(
-
   "click",
-
   closeMemoryViewer
-
 );
 
 
 memoryOverlay.addEventListener(
-
   "click",
-
   closeMemoryViewer
-
 );
 
 
 // =========================
-// RIGHT CLICK HELPERS
+// CONTEXT MENU
 // =========================
 
 function findCurrentMessage(
-  messageId
+  id
 ) {
 
   return (
@@ -3815,8 +4931,9 @@ function findCurrentMessage(
       .find(
         message =>
           message.id ===
-          messageId
+          id
       ) ||
+
     null
 
   );
@@ -3826,7 +4943,7 @@ function findCurrentMessage(
 
 function isMessagePinned(
   chat,
-  messageId
+  id
 ) {
 
   return normalizeMemory(
@@ -3834,37 +4951,31 @@ function isMessagePinned(
   )
     .pinnedMemories
     .some(
+
       pin =>
         pin.sourceMessageId ===
-        messageId
+        id
+
     );
 
 }
 
 
-// =========================
-// OPEN RIGHT CLICK MENU
-// =========================
-
 function openMessageContextMenu(
   event,
-  messageId
+  id
 ) {
 
   event.preventDefault();
 
 
-  if (
-    isSending
-  ) {
-
+  if (isSending) {
     return;
-
   }
 
 
   contextMessageId =
-    messageId;
+    id;
 
 
   const chat =
@@ -3872,20 +4983,18 @@ function openMessageContextMenu(
 
 
   if (!chat) {
-
     return;
-
   }
 
 
-  ctxPin
-    .lastChild
-    .textContent =
+  ctxPinLabel.textContent =
     isMessagePinned(
       chat,
-      messageId
+      id
     )
+
       ? "Unpin Memory"
+
       : "Pin Memory";
 
 
@@ -3896,7 +5005,7 @@ function openMessageContextMenu(
     );
 
 
-  const rect =
+  const rectangle =
     messageContextMenu
       .getBoundingClientRect();
 
@@ -3911,14 +5020,14 @@ function openMessageContextMenu(
 
   if (
     x +
-      rect.width >
+    rectangle.width >
     window.innerWidth -
-      8
+    8
   ) {
 
     x =
       window.innerWidth -
-      rect.width -
+      rectangle.width -
       8;
 
   }
@@ -3926,14 +5035,14 @@ function openMessageContextMenu(
 
   if (
     y +
-      rect.height >
+    rectangle.height >
     window.innerHeight -
-      8
+    8
   ) {
 
     y =
       window.innerHeight -
-      rect.height -
+      rectangle.height -
       8;
 
   }
@@ -3942,13 +5051,19 @@ function openMessageContextMenu(
   messageContextMenu
     .style
     .left =
-    `${Math.max(8, x)}px`;
+    `${Math.max(
+      8,
+      x
+    )}px`;
 
 
   messageContextMenu
     .style
     .top =
-    `${Math.max(8, y)}px`;
+    `${Math.max(
+      8,
+      y
+    )}px`;
 
 }
 
@@ -3968,9 +5083,7 @@ function closeMessageContextMenu() {
 }
 
 
-// =========================
 // COPY
-// =========================
 
 ctxCopy.addEventListener(
 
@@ -3986,9 +5099,17 @@ ctxCopy.addEventListener(
 
     if (!message) {
 
-      return closeMessageContextMenu();
+      closeMessageContextMenu();
+
+      return;
 
     }
+
+
+    const text =
+      getMessageText(
+        message
+      );
 
 
     try {
@@ -3996,7 +5117,7 @@ ctxCopy.addEventListener(
       await navigator
         .clipboard
         .writeText(
-          message.text
+          text
         );
 
     }
@@ -4010,13 +5131,12 @@ ctxCopy.addEventListener(
 
 
       area.value =
-        message.text;
+        text;
 
 
-      document.body
-        .appendChild(
-          area
-        );
+      document.body.appendChild(
+        area
+      );
 
 
       area.select();
@@ -4039,9 +5159,7 @@ ctxCopy.addEventListener(
 );
 
 
-// =========================
-// EDIT
-// =========================
+// EDIT CURRENT VERSION
 
 ctxEdit.addEventListener(
 
@@ -4061,9 +5179,17 @@ ctxEdit.addEventListener(
 
     if (!message) {
 
-      return closeMessageContextMenu();
+      closeMessageContextMenu();
+
+      return;
 
     }
+
+
+    const current =
+      getMessageText(
+        message
+      );
 
 
     const edited =
@@ -4071,7 +5197,7 @@ ctxEdit.addEventListener(
 
         "Edit this message:",
 
-        message.text
+        current
 
       );
 
@@ -4080,10 +5206,12 @@ ctxEdit.addEventListener(
       edited === null ||
       !edited.trim() ||
       edited.trim() ===
-        message.text
+      current
     ) {
 
-      return closeMessageContextMenu();
+      closeMessageContextMenu();
+
+      return;
 
     }
 
@@ -4100,46 +5228,40 @@ ctxEdit.addEventListener(
           );
 
 
-        if (!target) {
+        if (
+          target.sender ===
+          "character"
+        ) {
 
-          return;
+          const normalized =
+            normalizeMessage(
+              target
+            );
+
+
+          target.variants[
+            normalized.activeVariant
+          ] =
+            edited.trim();
+
+
+          target.text =
+            edited.trim();
+
+        }
+
+        else {
+
+          target.text =
+            edited.trim();
 
         }
 
 
-        target.text =
-          edited.trim();
-
-
-        const memory =
-          normalizeMemory(
-            chat.memory
-          );
-
-
-        memory.pinnedMemories =
-          memory
-            .pinnedMemories
-            .map(
-
-              pin =>
-                pin.sourceMessageId ===
-                id
-
-                  ? {
-                      ...pin,
-
-                      text:
-                        edited.trim()
-                    }
-
-                  : pin
-
-            );
-
-
-        chat.memory =
-          memory;
+        syncPinsForMessage(
+          chat,
+          id
+        );
 
       }
 
@@ -4148,13 +5270,15 @@ ctxEdit.addEventListener(
 
     closeMessageContextMenu();
 
-
     renderMessages();
 
 
     rebuildMemoryAfterHistoryChange(
+
       currentCharacter,
+
       currentChatId
+
     );
 
   }
@@ -4162,9 +5286,7 @@ ctxEdit.addEventListener(
 );
 
 
-// =========================
 // REWIND
-// =========================
 
 ctxRewind.addEventListener(
 
@@ -4182,7 +5304,9 @@ ctxRewind.addEventListener(
 
     if (!chat) {
 
-      return closeMessageContextMenu();
+      closeMessageContextMenu();
+
+      return;
 
     }
 
@@ -4200,46 +5324,31 @@ ctxRewind.addEventListener(
       index === -1
     ) {
 
-      return closeMessageContextMenu();
+      closeMessageContextMenu();
+
+      return;
 
     }
 
 
-    const afterCount =
+    const count =
       chat.messages.length -
       index -
       1;
 
 
     if (
-      afterCount > 0
+      count > 0 &&
+      !confirm(
+
+        `Rewind to this message? ${count} later message${count === 1 ? "" : "s"} will be removed.`
+
+      )
     ) {
 
-      const confirmed =
-        confirm(
+      closeMessageContextMenu();
 
-          (
-            "Rewind to this message? " +
-            afterCount +
-            " later message" +
-            (
-              afterCount === 1
-                ? ""
-                : "s"
-            ) +
-            " will be removed."
-          )
-
-        );
-
-
-      if (
-        !confirmed
-      ) {
-
-        return closeMessageContextMenu();
-
-      }
+      return;
 
     }
 
@@ -4266,13 +5375,15 @@ ctxRewind.addEventListener(
 
     closeMessageContextMenu();
 
-
     renderMessages();
 
 
     rebuildMemoryAfterHistoryChange(
+
       currentCharacter,
+
       currentChatId
+
     );
 
   }
@@ -4280,9 +5391,7 @@ ctxRewind.addEventListener(
 );
 
 
-// =========================
-// PIN MEMORY
-// =========================
+// PIN / UNPIN
 
 ctxPin.addEventListener(
 
@@ -4302,7 +5411,9 @@ ctxPin.addEventListener(
 
     if (!message) {
 
-      return closeMessageContextMenu();
+      closeMessageContextMenu();
+
+      return;
 
     }
 
@@ -4317,24 +5428,26 @@ ctxPin.addEventListener(
           );
 
 
-        const pinIndex =
+        const index =
           memory
             .pinnedMemories
             .findIndex(
+
               pin =>
                 pin.sourceMessageId ===
                 id
+
             );
 
 
         if (
-          pinIndex >= 0
+          index >= 0
         ) {
 
           memory
             .pinnedMemories
             .splice(
-              pinIndex,
+              index,
               1
             );
 
@@ -4350,7 +5463,9 @@ ctxPin.addEventListener(
                 createPinId(),
 
               text:
-                message.text,
+                getMessageText(
+                  message
+                ),
 
               sourceMessageId:
                 id,
@@ -4391,9 +5506,7 @@ ctxPin.addEventListener(
 );
 
 
-// =========================
 // DELETE MESSAGE
-// =========================
 
 ctxDelete.addEventListener(
 
@@ -4411,38 +5524,22 @@ ctxDelete.addEventListener(
 
     if (!chat) {
 
-      return closeMessageContextMenu();
+      closeMessageContextMenu();
+
+      return;
 
     }
-
-
-    const message =
-      chat.messages
-        .find(
-          item =>
-            item.id ===
-            id
-        );
-
-
-    if (!message) {
-
-      return closeMessageContextMenu();
-
-    }
-
-
-    const confirmed =
-      confirm(
-        "Delete this character message?"
-      );
 
 
     if (
-      !confirmed
+      !confirm(
+        "Delete this message?"
+      )
     ) {
 
-      return closeMessageContextMenu();
+      closeMessageContextMenu();
+
+      return;
 
     }
 
@@ -4452,13 +5549,13 @@ ctxDelete.addEventListener(
       stored => {
 
         stored.messages =
-          stored
-            .messages
-            .filter(
-              item =>
-                item.id !==
-                id
-            );
+          stored.messages.filter(
+
+            message =>
+              message.id !==
+              id
+
+          );
 
 
         removePinsForMissingMessages(
@@ -4472,13 +5569,15 @@ ctxDelete.addEventListener(
 
     closeMessageContextMenu();
 
-
     renderMessages();
 
 
     rebuildMemoryAfterHistoryChange(
+
       currentCharacter,
+
       currentChatId
+
     );
 
   }
@@ -4487,7 +5586,7 @@ ctxDelete.addEventListener(
 
 
 // =========================
-// NEW CHAT
+// CHAT MENU
 // =========================
 
 newChatBtn.addEventListener(
@@ -4497,31 +5596,27 @@ newChatBtn.addEventListener(
   () => {
 
     if (
-      !currentCharacter ||
-      isSending
+      currentCharacter &&
+      !isSending
     ) {
 
-      return;
+      closeMemoryViewer();
+
+
+      createNewChat(
+
+        currentCharacter,
+
+        true
+
+      );
 
     }
-
-
-    closeMemoryViewer();
-
-
-    createNewChat(
-      currentCharacter,
-      true
-    );
 
   }
 
 );
 
-
-// =========================
-// THREE DOT MENU
-// =========================
 
 chatMenuBtn.addEventListener(
 
@@ -4557,9 +5652,7 @@ function closeChatMenu() {
 }
 
 
-// =========================
-// RENAME CHAT
-// =========================
+// RENAME
 
 renameChatBtn.addEventListener(
 
@@ -4572,13 +5665,11 @@ renameChatBtn.addEventListener(
 
 
     if (!chat) {
-
       return;
-
     }
 
 
-    const newName =
+    const name =
       prompt(
 
         "Rename this chat:",
@@ -4589,31 +5680,27 @@ renameChatBtn.addEventListener(
 
 
     if (
-      newName === null ||
-      !newName.trim()
+      name?.trim()
     ) {
 
-      return;
+      updateCurrentChat(
+
+        stored => {
+
+          stored.title =
+            name.trim();
+
+        }
+
+      );
+
+
+      renderMessages();
 
     }
 
 
-    updateCurrentChat(
-
-      stored => {
-
-        stored.title =
-          newName.trim();
-
-      }
-
-    );
-
-
     closeChatMenu();
-
-
-    renderMessages();
 
   }
 
@@ -4621,7 +5708,7 @@ renameChatBtn.addEventListener(
 
 
 // =========================
-// CLEAR CHAT
+// FIXED CLEAR CHAT
 // =========================
 
 clearChatBtn.addEventListener(
@@ -4630,12 +5717,8 @@ clearChatBtn.addEventListener(
 
   () => {
 
-    if (
-      isSending
-    ) {
-
+    if (isSending) {
       return;
-
     }
 
 
@@ -4644,20 +5727,20 @@ clearChatBtn.addEventListener(
 
 
     if (!chat) {
-
       return;
-
     }
 
 
-    if (
-      !confirm(
-        `Clear all messages and memory from "${chat.title}"?`
-      )
-    ) {
+    const confirmed =
+      confirm(
 
+        `Clear every message and memory from "${chat.title}"?`
+
+      );
+
+
+    if (!confirmed) {
       return;
-
     }
 
 
@@ -4668,8 +5751,10 @@ clearChatBtn.addEventListener(
         stored.messages =
           [];
 
+
         stored.title =
           "New Chat";
+
 
         stored.memory =
           createEmptyMemory();
@@ -4681,11 +5766,13 @@ clearChatBtn.addEventListener(
 
     closeChatMenu();
 
-
     closeMemoryViewer();
 
-
     renderMessages();
+
+    renderChatHistory();
+
+    messageInput.focus();
 
   }
 
@@ -4693,7 +5780,7 @@ clearChatBtn.addEventListener(
 
 
 // =========================
-// DELETE CHAT
+// FIXED DELETE CHAT
 // =========================
 
 deleteChatBtn.addEventListener(
@@ -4713,25 +5800,25 @@ deleteChatBtn.addEventListener(
     }
 
 
-    const current =
+    const chat =
       getCurrentChat();
 
 
-    if (!current) {
-
+    if (!chat) {
       return;
-
     }
 
 
-    if (
-      !confirm(
-        `Delete "${current.title}" permanently?`
-      )
-    ) {
+    const confirmed =
+      confirm(
 
+        `Delete "${chat.title}" permanently?`
+
+      );
+
+
+    if (!confirmed) {
       return;
-
     }
 
 
@@ -4739,25 +5826,33 @@ deleteChatBtn.addEventListener(
       currentCharacter;
 
 
+    const deletedId =
+      currentChatId;
+
+
     let chats =
       getCharacterChats(
         character.id
       )
         .filter(
-          chat =>
-            chat.id !==
-            currentChatId
+
+          item =>
+            item.id !==
+            deletedId
+
         );
 
 
     saveCharacterChats(
+
       character.id,
+
       chats
+
     );
 
 
     closeChatMenu();
-
 
     closeMemoryViewer();
 
@@ -4766,14 +5861,13 @@ deleteChatBtn.addEventListener(
       chats.length
     ) {
 
-      chats =
-        chats.sort(
+      chats.sort(
 
-          (a, b) =>
-            b.updatedAt -
-            a.updatedAt
+        (a, b) =>
+          b.updatedAt -
+          a.updatedAt
 
-        );
+      );
 
 
       openChat(
@@ -4797,6 +5891,9 @@ deleteChatBtn.addEventListener(
       );
 
     }
+
+
+    renderChatHistory();
 
   }
 
@@ -4837,12 +5934,13 @@ function saveMessageToChat(
 
 
 // =========================
-// REQUEST CHARACTER
+// REQUEST AI
 // =========================
 
 async function requestCharacterReply(
   character,
-  chatId
+  chatId,
+  messagesOverride = null
 ) {
 
   const chat =
@@ -4852,34 +5950,50 @@ async function requestCharacterReply(
     );
 
 
-  if (
-    !chat ||
-    !chat.messages.length
-  ) {
+  if (!chat) {
 
     throw new Error(
-      "Chat is empty."
+      "Chat not found"
     );
 
   }
 
 
-  const requestMessages =
-    chat.messages
+  const activeMessages =
+    (
+      messagesOverride ||
+      getActiveMessages(
+        chat
+      )
+    )
       .slice(
         -CHAT_RECENT_LIMIT
       )
       .map(
+
         message => ({
-          ...message
+
+          ...message,
+
+          text:
+            getMessageText(
+              message
+            )
+
         })
+
       );
 
 
-  const requestMemory =
-    createMemoryPayload(
-      chat.memory
+  if (
+    !activeMessages.length
+  ) {
+
+    throw new Error(
+      "Conversation is empty"
     );
+
+  }
 
 
   const response =
@@ -4888,15 +6002,12 @@ async function requestCharacterReply(
       "/api/chat",
 
       {
-
         method:
           "POST",
 
         headers: {
-
           "Content-Type":
             "application/json"
-
         },
 
         body:
@@ -4905,13 +6016,14 @@ async function requestCharacterReply(
             character,
 
             messages:
-              requestMessages,
+              activeMessages,
 
             memory:
-              requestMemory
+              createMemoryPayload(
+                chat.memory
+              )
 
           })
-
       }
 
     );
@@ -4921,7 +6033,7 @@ async function requestCharacterReply(
     !response.ok
   ) {
 
-    let errorMessage =
+    let error =
       "Something went wrong.";
 
 
@@ -4931,21 +6043,17 @@ async function requestCharacterReply(
         await response.json();
 
 
-      errorMessage =
+      error =
         data.error ||
-        errorMessage;
+        error;
 
     }
 
-    catch {
-
-      // ignore
-
-    }
+    catch {}
 
 
     throw new Error(
-      errorMessage
+      error
     );
 
   }
@@ -4980,14 +6088,18 @@ function setSendingState(
 
   document
     .querySelectorAll(
-      ".message-regenerate"
+      ".message-tool-btn"
     )
     .forEach(
 
       button => {
 
-        button.disabled =
-          value;
+        if (value) {
+
+          button.disabled =
+            true;
+
+        }
 
       }
 
@@ -5002,51 +6114,38 @@ function setSendingState(
 
 function autoGrowMessageInput() {
 
-  messageInput
-    .style
-    .height =
+  messageInput.style.height =
     "auto";
 
 
-  const nextHeight =
+  const height =
     Math.min(
 
-      messageInput
-        .scrollHeight,
+      messageInput.scrollHeight,
 
       180
 
     );
 
 
-  messageInput
-    .style
-    .height =
-    `${nextHeight}px`;
+  messageInput.style.height =
+    `${height}px`;
 
 
-  messageInput
-    .style
-    .overflowY =
-    (
-      messageInput
-        .scrollHeight >
-      180
+  messageInput.style.overflowY =
+    messageInput.scrollHeight >
+    180
 
-        ? "auto"
+      ? "auto"
 
-        : "hidden"
-    );
+      : "hidden";
 
 }
 
 
 messageInput.addEventListener(
-
   "input",
-
   autoGrowMessageInput
-
 );
 
 
@@ -5084,7 +6183,54 @@ messageInput.addEventListener(
 
 
 // =========================
-// SEND MESSAGE
+// SYSTEM MESSAGE
+// =========================
+
+function addSystemMessage(
+  text
+) {
+
+  const row =
+    document.createElement(
+      "div"
+    );
+
+
+  row.className =
+    "message-row system";
+
+
+  const bubble =
+    document.createElement(
+      "div"
+    );
+
+
+  bubble.className =
+    "message system";
+
+
+  bubble.textContent =
+    text;
+
+
+  row.appendChild(
+    bubble
+  );
+
+
+  messages.appendChild(
+    row
+  );
+
+
+  scrollToBottom();
+
+}
+
+
+// =========================
+// SEND NORMAL MESSAGE
 // =========================
 
 chatForm.addEventListener(
@@ -5114,26 +6260,24 @@ chatForm.addEventListener(
 
 
     if (!text) {
-
       return;
-
     }
 
 
-    const requestCharacter = {
+    const character = {
       ...currentCharacter
     };
 
 
-    const requestChatId =
+    const chatId =
       currentChatId;
 
 
     mutateStoredChat(
 
-      requestCharacter.id,
+      character.id,
 
-      requestChatId,
+      chatId,
 
       chat => {
 
@@ -5179,17 +6323,13 @@ chatForm.addEventListener(
 
     autoGrowMessageInput();
 
-
     renderMessages();
 
-
     renderChatHistory();
-
 
     setSendingState(
       true
     );
-
 
     showTypingIndicator();
 
@@ -5198,7 +6338,7 @@ chatForm.addEventListener(
 
       const {
         text:
-          finalReply,
+          reply,
 
         row:
           temporaryRow
@@ -5206,9 +6346,9 @@ chatForm.addEventListener(
       } =
         await requestCharacterReply(
 
-          requestCharacter,
+          character,
 
-          requestChatId
+          chatId
 
         );
 
@@ -5216,58 +6356,55 @@ chatForm.addEventListener(
       removeTypingIndicator();
 
 
-      if (
-        !finalReply
-      ) {
+      if (!reply) {
 
         throw new Error(
-          "The character returned an empty response."
+          "Empty response"
         );
 
       }
 
 
-      temporaryRow
-        ?.remove();
-
-
-      const saved =
-        normalizeMessage({
-
-          sender:
-            "character",
-
-          text:
-            finalReply,
-
-          time:
-            Date.now()
-
-        });
+      temporaryRow?.remove();
 
 
       saveMessageToChat(
 
-        requestCharacter.id,
+        character.id,
 
-        requestChatId,
+        chatId,
 
-        saved
+        {
+          sender:
+            "character",
+
+          text:
+            reply,
+
+          variants: [
+            reply
+          ],
+
+          activeVariant:
+            0,
+
+          time:
+            Date.now()
+        }
 
       );
 
 
       renderMessages();
 
-
       renderChatHistory();
 
 
       updateMemoryForChat(
 
-        requestCharacter,
+        character,
 
-        requestChatId
+        chatId
 
       );
 
@@ -5294,45 +6431,9 @@ chatForm.addEventListener(
       );
 
 
-      const system =
-        normalizeMessage({
-
-          sender:
-            "user",
-
-          text:
-            "Could not generate a response right now.",
-
-          time:
-            Date.now()
-
-        });
-
-
-      const row =
-        createMessageRow(
-
-          {
-            ...system,
-
-            sender:
-              "system"
-          },
-
-          {
-            hideRegenerate:
-              true
-          }
-
-        ).row;
-
-
-      messages.appendChild(
-        row
+      addSystemMessage(
+        "Could not generate a response right now."
       );
-
-
-      scrollToBottom();
 
     }
 
@@ -5343,17 +6444,9 @@ chatForm.addEventListener(
       );
 
 
-      if (
-        !chatView
-          .classList
-          .contains(
-            "hidden"
-          )
-      ) {
+      renderMessages();
 
-        messageInput.focus();
-
-      }
+      messageInput.focus();
 
     }
 
@@ -5363,7 +6456,7 @@ chatForm.addEventListener(
 
 
 // =========================
-// REGENERATE
+// REGENERATE + SAVE VERSIONS
 // =========================
 
 async function regenerateMessage(
@@ -5398,18 +6491,18 @@ async function regenerateMessage(
 
 
   if (!chat) {
-
     return;
-
   }
 
 
   const index =
     chat.messages
       .findIndex(
+
         message =>
           message.id ===
           messageId
+
       );
 
 
@@ -5438,80 +6531,41 @@ async function regenerateMessage(
     const confirmed =
       confirm(
 
-        (
-          "Regenerating this older reply will remove it and " +
-          laterCount +
-          " later message" +
-          (
-            laterCount === 1
-              ? ""
-              : "s"
-          ) +
-          ". Continue?"
-        )
+        `Generate a new version here? ${laterCount} later message${laterCount === 1 ? "" : "s"} will be removed after the new version succeeds.`
 
       );
 
 
-    if (
-      !confirmed
-    ) {
-
+    if (!confirmed) {
       return;
-
     }
 
   }
 
 
-  mutateStoredChat(
-
-    character.id,
-
-    chatId,
-
-    stored => {
-
-      stored.messages =
-        stored.messages.slice(
-          0,
-          index
-        );
-
-
-      removePinsForMissingMessages(
-        stored
+  const requestHistory =
+    chat.messages
+      .slice(
+        0,
+        index
+      )
+      .map(
+        normalizeMessage
       );
 
 
-      const oldPins =
-        normalizeMemory(
-          stored.memory
-        )
-          .pinnedMemories;
+  if (
+    !requestHistory.length
+  ) {
+
+    alert(
+      "There is no user message before this response."
+    );
 
 
-      stored.memory = {
+    return;
 
-        ...createEmptyMemory(),
-
-        pinnedMemories:
-          oldPins,
-
-        needsFullRebuild:
-          true
-
-      };
-
-    }
-
-  );
-
-
-  renderMessages();
-
-
-  renderChatHistory();
+  }
 
 
   setSendingState(
@@ -5524,29 +6578,9 @@ async function regenerateMessage(
 
   try {
 
-    const remainingChat =
-      getStoredChat(
-        character.id,
-        chatId
-      );
-
-
-    if (
-      !remainingChat
-        ?.messages
-        .length
-    ) {
-
-      throw new Error(
-        "Nothing remains before this response."
-      );
-
-    }
-
-
     const {
       text:
-        finalReply,
+        reply,
 
       row:
         temporaryRow
@@ -5556,7 +6590,9 @@ async function regenerateMessage(
 
         character,
 
-        chatId
+        chatId,
+
+        requestHistory
 
       );
 
@@ -5564,37 +6600,104 @@ async function regenerateMessage(
     removeTypingIndicator();
 
 
-    if (
-      !finalReply
-    ) {
+    if (!reply) {
 
       throw new Error(
-        "The character returned an empty response."
+        "Empty response"
       );
 
     }
 
 
-    temporaryRow
-      ?.remove();
+    temporaryRow?.remove();
 
 
-    saveMessageToChat(
+    mutateStoredChat(
 
       character.id,
 
       chatId,
 
-      {
+      stored => {
 
-        sender:
-          "character",
+        const target =
+          stored.messages.find(
 
-        text:
-          finalReply,
+            message =>
+              message.id ===
+              messageId
 
-        time:
-          Date.now()
+          );
+
+
+        if (!target) {
+          return;
+        }
+
+
+        const normalized =
+          normalizeMessage(
+            target
+          );
+
+
+        target.variants = [
+
+          ...normalized.variants,
+
+          reply
+
+        ];
+
+
+        target.activeVariant =
+          target.variants.length -
+          1;
+
+
+        target.text =
+          reply;
+
+
+        if (
+          laterCount > 0
+        ) {
+
+          const targetIndex =
+            stored.messages
+              .findIndex(
+
+                message =>
+                  message.id ===
+                  messageId
+
+              );
+
+
+          stored.messages =
+            stored.messages.slice(
+
+              0,
+
+              targetIndex + 1
+
+            );
+
+
+          removePinsForMissingMessages(
+            stored
+          );
+
+        }
+
+
+        syncPinsForMessage(
+
+          stored,
+
+          messageId
+
+        );
 
       }
 
@@ -5602,7 +6705,6 @@ async function regenerateMessage(
 
 
     renderMessages();
-
 
     renderChatHistory();
 
@@ -5638,37 +6740,8 @@ async function regenerateMessage(
     );
 
 
-    const row =
-      document.createElement(
-        "div"
-      );
-
-
-    row.className =
-      "message-row system";
-
-
-    const bubble =
-      document.createElement(
-        "div"
-      );
-
-
-    bubble.className =
-      "message system";
-
-
-    bubble.textContent =
-      "Could not regenerate the response right now.";
-
-
-    row.appendChild(
-      bubble
-    );
-
-
-    messages.appendChild(
-      row
+    addSystemMessage(
+      "Could not regenerate the response right now."
     );
 
   }
@@ -5680,6 +6753,8 @@ async function regenerateMessage(
     );
 
 
+    renderMessages();
+
     messageInput.focus();
 
   }
@@ -5688,8 +6763,17 @@ async function regenerateMessage(
 
 
 // =========================
-// GLOBAL EVENTS
+// FLOATING UI
 // =========================
+
+function closeAllFloatingUi() {
+
+  closeChatMenu();
+
+  closeMessageContextMenu();
+
+}
+
 
 document.addEventListener(
 
