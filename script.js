@@ -1,16 +1,10 @@
-// =========================
-// CONFIG
-// =========================
-
 const CHAT_RECENT_LIMIT = 50;
-
 const MEMORY_BATCH_THRESHOLD = 10;
-
 const MEMORY_MAX_BATCH_MESSAGES = 80;
 
 
 // =========================
-// PAGE ELEMENTS
+// DOM
 // =========================
 
 const homeView =
@@ -21,6 +15,9 @@ const createView =
 
 const chatView =
   document.getElementById("chatView");
+
+const chatBackground =
+  document.getElementById("chatBackground");
 
 
 const createBtn =
@@ -35,7 +32,6 @@ const chatsBtn =
 const backBtn =
   document.getElementById("backBtn");
 
-
 const characterForm =
   document.getElementById("characterForm");
 
@@ -45,10 +41,6 @@ const charactersGrid =
 const emptyState =
   document.getElementById("emptyState");
 
-
-// =========================
-// CHAT ELEMENTS
-// =========================
 
 const chatBackBtn =
   document.getElementById("chatBackBtn");
@@ -60,14 +52,10 @@ const chatCharacterName =
   document.getElementById("chatCharacterName");
 
 const chatCharacterDescription =
-  document.getElementById(
-    "chatCharacterDescription"
-  );
+  document.getElementById("chatCharacterDescription");
 
 const currentChatTitle =
-  document.getElementById(
-    "currentChatTitle"
-  );
+  document.getElementById("currentChatTitle");
 
 const messages =
   document.getElementById("messages");
@@ -78,10 +66,9 @@ const chatForm =
 const messageInput =
   document.getElementById("messageInput");
 
+const sendBtn =
+  document.getElementById("sendBtn");
 
-// =========================
-// CHAT ACTIONS
-// =========================
 
 const newChatBtn =
   document.getElementById("newChatBtn");
@@ -102,14 +89,8 @@ const deleteChatBtn =
   document.getElementById("deleteChatBtn");
 
 const chatHistoryList =
-  document.getElementById(
-    "chatHistoryList"
-  );
+  document.getElementById("chatHistoryList");
 
-
-// =========================
-// MEMORY VIEWER ELEMENTS
-// =========================
 
 const memoryBtn =
   document.getElementById("memoryBtn");
@@ -124,49 +105,53 @@ const closeMemoryBtn =
   document.getElementById("closeMemoryBtn");
 
 const memoryCharacterLabel =
-  document.getElementById(
-    "memoryCharacterLabel"
-  );
+  document.getElementById("memoryCharacterLabel");
 
 const memoryStatusText =
-  document.getElementById(
-    "memoryStatusText"
-  );
+  document.getElementById("memoryStatusText");
 
 const memoryMessageCount =
-  document.getElementById(
-    "memoryMessageCount"
-  );
+  document.getElementById("memoryMessageCount");
+
+const memoryPinned =
+  document.getElementById("memoryPinned");
 
 const memorySummary =
-  document.getElementById(
-    "memorySummary"
-  );
+  document.getElementById("memorySummary");
 
 const memoryFacts =
-  document.getElementById(
-    "memoryFacts"
-  );
+  document.getElementById("memoryFacts");
 
 const memoryScene =
-  document.getElementById(
-    "memoryScene"
-  );
+  document.getElementById("memoryScene");
 
 const memoryRelationship =
-  document.getElementById(
-    "memoryRelationship"
-  );
+  document.getElementById("memoryRelationship");
 
 const memoryThreads =
-  document.getElementById(
-    "memoryThreads"
-  );
+  document.getElementById("memoryThreads");
 
 const memoryUpdatedAt =
-  document.getElementById(
-    "memoryUpdatedAt"
-  );
+  document.getElementById("memoryUpdatedAt");
+
+
+const messageContextMenu =
+  document.getElementById("messageContextMenu");
+
+const ctxCopy =
+  document.getElementById("ctxCopy");
+
+const ctxEdit =
+  document.getElementById("ctxEdit");
+
+const ctxRewind =
+  document.getElementById("ctxRewind");
+
+const ctxPin =
+  document.getElementById("ctxPin");
+
+const ctxDelete =
+  document.getElementById("ctxDelete");
 
 
 // =========================
@@ -180,20 +165,64 @@ let characters =
     )
   ) || [];
 
+let currentCharacter =
+  null;
 
-let currentCharacter = null;
+let currentChatId =
+  null;
 
-let currentChatId = null;
+let isSending =
+  false;
 
-let isSending = false;
-
+let contextMessageId =
+  null;
 
 const memoryUpdateLocks =
   new Set();
 
 
 // =========================
-// EMPTY MEMORY
+// IDS
+// =========================
+
+function createChatId() {
+
+  return (
+    `${Date.now()}_` +
+    Math.random()
+      .toString(36)
+      .slice(2, 8)
+  );
+
+}
+
+
+function createMessageId() {
+
+  return (
+    `msg_${Date.now()}_` +
+    Math.random()
+      .toString(36)
+      .slice(2, 9)
+  );
+
+}
+
+
+function createPinId() {
+
+  return (
+    `pin_${Date.now()}_` +
+    Math.random()
+      .toString(36)
+      .slice(2, 9)
+  );
+
+}
+
+
+// =========================
+// MEMORY
 // =========================
 
 function createEmptyMemory() {
@@ -210,18 +239,100 @@ function createEmptyMemory() {
 
     unresolvedThreads: [],
 
+    pinnedMemories: [],
+
     lastProcessedMessageCount: 0,
 
-    updatedAt: null
+    updatedAt: null,
+
+    needsFullRebuild: false
 
   };
 
 }
 
 
-// =========================
-// NORMALIZE MEMORY
-// =========================
+function normalizePinnedMemories(
+  value
+) {
+
+  if (
+    !Array.isArray(value)
+  ) {
+
+    return [];
+
+  }
+
+
+  return value
+    .map(
+
+      item => {
+
+        if (
+          typeof item ===
+          "string"
+        ) {
+
+          return {
+
+            id:
+              createPinId(),
+
+            text:
+              item,
+
+            sourceMessageId:
+              null,
+
+            createdAt:
+              Date.now()
+
+          };
+
+        }
+
+
+        if (
+          !item ||
+          typeof item !==
+            "object" ||
+          typeof item.text !==
+            "string"
+        ) {
+
+          return null;
+
+        }
+
+
+        return {
+
+          id:
+            item.id ||
+            createPinId(),
+
+          text:
+            item.text,
+
+          sourceMessageId:
+            item.sourceMessageId ||
+            null,
+
+          createdAt:
+            item.createdAt ||
+            Date.now()
+
+        };
+
+      }
+
+    )
+    .filter(Boolean);
+
+}
+
 
 function normalizeMemory(
   memory
@@ -233,7 +344,8 @@ function normalizeMemory(
 
   if (
     !memory ||
-    typeof memory !== "object"
+    typeof memory !==
+      "object"
   ) {
 
     return empty;
@@ -254,11 +366,13 @@ function normalizeMemory(
       Array.isArray(
         memory.importantFacts
       )
-        ? memory.importantFacts.filter(
-            item =>
-              typeof item ===
-              "string"
-          )
+        ? memory
+            .importantFacts
+            .filter(
+              item =>
+                typeof item ===
+                "string"
+            )
         : [],
 
 
@@ -280,12 +394,20 @@ function normalizeMemory(
       Array.isArray(
         memory.unresolvedThreads
       )
-        ? memory.unresolvedThreads.filter(
-            item =>
-              typeof item ===
-              "string"
-          )
+        ? memory
+            .unresolvedThreads
+            .filter(
+              item =>
+                typeof item ===
+                "string"
+            )
         : [],
+
+
+    pinnedMemories:
+      normalizePinnedMemories(
+        memory.pinnedMemories
+      ),
 
 
     lastProcessedMessageCount:
@@ -298,7 +420,13 @@ function normalizeMemory(
 
     updatedAt:
       memory.updatedAt ||
-      null
+      null,
+
+
+    needsFullRebuild:
+      Boolean(
+        memory.needsFullRebuild
+      )
 
   };
 
@@ -306,7 +434,44 @@ function normalizeMemory(
 
 
 // =========================
-// NORMALIZE CHAT
+// MESSAGES
+// =========================
+
+function normalizeMessage(
+  message
+) {
+
+  return {
+
+    ...message,
+
+    id:
+      message?.id ||
+      createMessageId(),
+
+    sender:
+      message?.sender ===
+      "character"
+        ? "character"
+        : "user",
+
+    text:
+      typeof message?.text ===
+      "string"
+        ? message.text
+        : "",
+
+    time:
+      message?.time ||
+      Date.now()
+
+  };
+
+}
+
+
+// =========================
+// CHAT
 // =========================
 
 function normalizeChat(
@@ -318,31 +483,33 @@ function normalizeChat(
     ...chat,
 
     id:
-      chat.id ||
+      chat?.id ||
       createChatId(),
 
     title:
-      chat.title ||
+      chat?.title ||
       "New Chat",
 
     createdAt:
-      chat.createdAt ||
+      chat?.createdAt ||
       Date.now(),
 
     updatedAt:
-      chat.updatedAt ||
+      chat?.updatedAt ||
       Date.now(),
 
     messages:
       Array.isArray(
-        chat.messages
+        chat?.messages
       )
-        ? chat.messages
+        ? chat.messages.map(
+            normalizeMessage
+          )
         : [],
 
     memory:
       normalizeMemory(
-        chat.memory
+        chat?.memory
       )
 
   };
@@ -351,7 +518,36 @@ function normalizeChat(
 
 
 // =========================
-// CHARACTER STORAGE
+// CHARACTER
+// =========================
+
+function normalizeCharacter(
+  character
+) {
+
+  return {
+
+    ...character,
+
+    background:
+      typeof character?.background ===
+      "string"
+        ? character.background
+        : ""
+
+  };
+
+}
+
+
+characters =
+  characters.map(
+    normalizeCharacter
+  );
+
+
+// =========================
+// STORAGE
 // =========================
 
 function saveCharacters() {
@@ -368,10 +564,6 @@ function saveCharacters() {
 
 }
 
-
-// =========================
-// STORAGE KEYS
-// =========================
 
 function getChatsKey(
   characterId
@@ -410,28 +602,7 @@ function getOldChatKey(
 
 
 // =========================
-// CHAT ID
-// =========================
-
-function createChatId() {
-
-  return (
-
-    Date.now().toString() +
-
-    "_" +
-
-    Math.random()
-      .toString(36)
-      .slice(2, 8)
-
-  );
-
-}
-
-
-// =========================
-// MIGRATE OLD CHAT
+// OLD CHAT MIGRATION
 // =========================
 
 function migrateOldChat(
@@ -455,15 +626,11 @@ function migrateOldChat(
   }
 
 
-  const oldKey =
-    getOldChatKey(
-      characterId
-    );
-
-
   const oldRaw =
     localStorage.getItem(
-      oldKey
+      getOldChatKey(
+        characterId
+      )
     );
 
 
@@ -476,7 +643,6 @@ function migrateOldChat(
       JSON.stringify([])
 
     );
-
 
     return;
 
@@ -498,32 +664,33 @@ function migrateOldChat(
       oldMessages.length > 0
     ) {
 
-      const migratedChat = {
+      const migratedChat =
+        normalizeChat({
 
-        id:
-          createChatId(),
+          id:
+            createChatId(),
 
-        title:
-          "Previous Chat",
+          title:
+            "Previous Chat",
 
-        createdAt:
-          oldMessages[0]
-            ?.time ||
-          Date.now(),
+          createdAt:
+            oldMessages[0]
+              ?.time ||
+            Date.now(),
 
-        updatedAt:
-          oldMessages[
-            oldMessages.length - 1
-          ]?.time ||
-          Date.now(),
+          updatedAt:
+            oldMessages[
+              oldMessages.length - 1
+            ]?.time ||
+            Date.now(),
 
-        messages:
-          oldMessages,
+          messages:
+            oldMessages,
 
-        memory:
-          createEmptyMemory()
+          memory:
+            createEmptyMemory()
 
-      };
+        });
 
 
       localStorage.setItem(
@@ -563,7 +730,9 @@ function migrateOldChat(
 
 
     localStorage.removeItem(
-      oldKey
+      getOldChatKey(
+        characterId
+      )
     );
 
   }
@@ -590,7 +759,7 @@ function migrateOldChat(
 
 
 // =========================
-// GET CHARACTER CHATS
+// GET CHATS
 // =========================
 
 function getCharacterChats(
@@ -662,19 +831,13 @@ function getCharacterChats(
 
 
 // =========================
-// SAVE CHARACTER CHATS
+// SAVE CHATS
 // =========================
 
 function saveCharacterChats(
   characterId,
   chats
 ) {
-
-  const cleanChats =
-    chats.map(
-      normalizeChat
-    );
-
 
   localStorage.setItem(
 
@@ -683,7 +846,9 @@ function saveCharacterChats(
     ),
 
     JSON.stringify(
-      cleanChats
+      chats.map(
+        normalizeChat
+      )
     )
 
   );
@@ -692,7 +857,145 @@ function saveCharacterChats(
 
 
 // =========================
-// NEW CHAT OBJECT
+// GET CHAT
+// =========================
+
+function getStoredChat(
+  characterId,
+  chatId
+) {
+
+  return (
+
+    getCharacterChats(
+      characterId
+    )
+      .find(
+        chat =>
+          chat.id ===
+          chatId
+      ) ||
+    null
+
+  );
+
+}
+
+
+function getCurrentChat() {
+
+  if (
+    !currentCharacter ||
+    !currentChatId
+  ) {
+
+    return null;
+
+  }
+
+
+  return getStoredChat(
+
+    currentCharacter.id,
+
+    currentChatId
+
+  );
+
+}
+
+
+// =========================
+// MUTATE CHAT
+// =========================
+
+function mutateStoredChat(
+  characterId,
+  chatId,
+  callback
+) {
+
+  const chats =
+    getCharacterChats(
+      characterId
+    );
+
+
+  const index =
+    chats.findIndex(
+
+      chat =>
+        chat.id ===
+        chatId
+
+    );
+
+
+  if (
+    index === -1
+  ) {
+
+    return null;
+
+  }
+
+
+  callback(
+    chats[index]
+  );
+
+
+  chats[index].updatedAt =
+    Date.now();
+
+
+  saveCharacterChats(
+    characterId,
+    chats
+  );
+
+
+  return chats[index];
+
+}
+
+
+function updateCurrentChat(
+  callback
+) {
+
+  if (
+    !currentCharacter ||
+    !currentChatId
+  ) {
+
+    return null;
+
+  }
+
+
+  const updated =
+    mutateStoredChat(
+
+      currentCharacter.id,
+
+      currentChatId,
+
+      callback
+
+    );
+
+
+  renderChatHistory();
+
+
+  return updated;
+
+}
+
+
+// =========================
+// NEW CHAT
 // =========================
 
 function buildNewChat() {
@@ -725,10 +1028,6 @@ function buildNewChat() {
 
 }
 
-
-// =========================
-// CREATE NEW CHAT
-// =========================
 
 function createNewChat(
   character,
@@ -795,128 +1094,57 @@ function createNewChat(
 
 
 // =========================
-// CURRENT CHAT
+// BACKGROUND
 // =========================
 
-function getCurrentChat() {
-
-  if (
-    !currentCharacter ||
-    !currentChatId
-  ) {
-
-    return null;
-
-  }
-
-
-  const chats =
-    getCharacterChats(
-      currentCharacter.id
-    );
-
-
-  return (
-
-    chats.find(
-      chat =>
-        chat.id ===
-        currentChatId
-    ) || null
-
-  );
-
-}
-
-
-// =========================
-// SPECIFIC CHAT
-// =========================
-
-function getStoredChat(
-  characterId,
-  chatId
+function applyCharacterBackground(
+  character
 ) {
 
-  const chats =
-    getCharacterChats(
-      characterId
-    );
+  const url =
+    character
+      ?.background
+      ?.trim();
 
 
-  return (
+  if (!url) {
 
-    chats.find(
-      chat =>
-        chat.id ===
-        chatId
-    ) || null
-
-  );
-
-}
+    chatBackground
+      .style
+      .backgroundImage =
+      "none";
 
 
-// =========================
-// UPDATE CURRENT CHAT
-// =========================
+    chatBackground
+      .classList
+      .remove(
+        "active"
+      );
 
-function updateCurrentChat(
-  callback
-) {
 
-  if (
-    !currentCharacter ||
-    !currentChatId
-  ) {
-
-    return null;
+    return;
 
   }
 
 
-  const chats =
-    getCharacterChats(
-      currentCharacter.id
+  const safeUrl =
+    url.replace(
+      /"/g,
+      "\\\""
     );
 
 
-  const index =
-    chats.findIndex(
-      chat =>
-        chat.id ===
-        currentChatId
+  chatBackground
+    .style
+    .backgroundImage =
+    `url("${safeUrl}")`;
+
+
+  chatBackground
+    .classList
+    .add(
+      "active"
     );
-
-
-  if (
-    index === -1
-  ) {
-
-    return null;
-
-  }
-
-
-  callback(
-    chats[index]
-  );
-
-
-  chats[index].updatedAt =
-    Date.now();
-
-
-  saveCharacterChats(
-    currentCharacter.id,
-    chats
-  );
-
-
-  renderChatHistory();
-
-
-  return chats[index];
 
 }
 
@@ -924,6 +1152,15 @@ function updateCurrentChat(
 // =========================
 // NAVIGATION
 // =========================
+
+function closeAllFloatingUi() {
+
+  closeChatMenu();
+
+  closeMessageContextMenu();
+
+}
+
 
 function showHomeView() {
 
@@ -936,21 +1173,29 @@ function showHomeView() {
 
   closeMemoryViewer();
 
-
-  homeView.classList.remove(
-    "hidden"
-  );
-
-  createView.classList.add(
-    "hidden"
-  );
-
-  chatView.classList.add(
-    "hidden"
-  );
+  closeAllFloatingUi();
 
 
-  closeChatMenu();
+  homeView
+    .classList
+    .remove(
+      "hidden"
+    );
+
+
+  createView
+    .classList
+    .add(
+      "hidden"
+    );
+
+
+  chatView
+    .classList
+    .add(
+      "hidden"
+    );
+
 
   renderCharacters();
 
@@ -970,21 +1215,28 @@ function showCreateView() {
 
   closeMemoryViewer();
 
-
-  homeView.classList.add(
-    "hidden"
-  );
-
-  chatView.classList.add(
-    "hidden"
-  );
-
-  createView.classList.remove(
-    "hidden"
-  );
+  closeAllFloatingUi();
 
 
-  closeChatMenu();
+  homeView
+    .classList
+    .add(
+      "hidden"
+    );
+
+
+  chatView
+    .classList
+    .add(
+      "hidden"
+    );
+
+
+  createView
+    .classList
+    .remove(
+      "hidden"
+    );
 
 }
 
@@ -1007,9 +1259,13 @@ function openChat(
 
   closeMemoryViewer();
 
+  closeAllFloatingUi();
+
 
   currentCharacter =
-    character;
+    normalizeCharacter(
+      character
+    );
 
 
   let chats =
@@ -1040,21 +1296,15 @@ function openChat(
 
 
   let selectedChat =
-    null;
-
-
-  if (
     requestedChatId
-  ) {
 
-    selectedChat =
-      chats.find(
-        chat =>
-          chat.id ===
-          requestedChatId
-      );
+      ? chats.find(
+          chat =>
+            chat.id ===
+            requestedChatId
+        )
 
-  }
+      : null;
 
 
   if (
@@ -1073,9 +1323,11 @@ function openChat(
 
     selectedChat =
       chats.find(
+
         chat =>
           chat.id ===
           activeId
+
       );
 
   }
@@ -1085,18 +1337,15 @@ function openChat(
     !selectedChat
   ) {
 
-    const sorted =
-      [...chats].sort(
-
-        (a, b) =>
-          b.updatedAt -
-          a.updatedAt
-
-      );
-
-
     selectedChat =
-      sorted[0];
+      [...chats]
+        .sort(
+
+          (a, b) =>
+            b.updatedAt -
+            a.updatedAt
+
+        )[0];
 
   }
 
@@ -1116,37 +1365,49 @@ function openChat(
   );
 
 
-  homeView.classList.add(
-    "hidden"
-  );
-
-  createView.classList.add(
-    "hidden"
-  );
-
-  chatView.classList.remove(
-    "hidden"
-  );
+  homeView
+    .classList
+    .add(
+      "hidden"
+    );
 
 
-  chatCharacterName.textContent =
-    character.name;
+  createView
+    .classList
+    .add(
+      "hidden"
+    );
 
 
-  chatCharacterDescription.textContent =
-    character.description ||
+  chatView
+    .classList
+    .remove(
+      "hidden"
+    );
+
+
+  chatCharacterName
+    .textContent =
+    currentCharacter.name;
+
+
+  chatCharacterDescription
+    .textContent =
+    currentCharacter.description ||
     "AI Character";
 
 
   if (
-    character.image
+    currentCharacter.image
   ) {
 
     chatCharacterImage.src =
-      character.image;
+      currentCharacter.image;
 
 
-    chatCharacterImage.style.display =
+    chatCharacterImage
+      .style
+      .display =
       "block";
 
   }
@@ -1161,7 +1422,10 @@ function openChat(
   }
 
 
-  closeChatMenu();
+  applyCharacterBackground(
+    currentCharacter
+  );
+
 
   renderMessages();
 
@@ -1169,9 +1433,12 @@ function openChat(
 
 
   setTimeout(
+
     () =>
       messageInput.focus(),
+
     100
+
   );
 
 }
@@ -1219,68 +1486,77 @@ characterForm.addEventListener(
 
   "submit",
 
-  function(event) {
+  event => {
 
     event.preventDefault();
 
 
-    const character = {
+    const character =
+      normalizeCharacter({
 
-      id:
-        Date.now(),
+        id:
+          Date.now(),
 
-      name:
-        document
-          .getElementById(
-            "characterName"
-          )
-          .value
-          .trim(),
+        name:
+          document
+            .getElementById(
+              "characterName"
+            )
+            .value
+            .trim(),
 
-      image:
-        document
-          .getElementById(
-            "characterImage"
-          )
-          .value
-          .trim(),
+        image:
+          document
+            .getElementById(
+              "characterImage"
+            )
+            .value
+            .trim(),
 
-      description:
-        document
-          .getElementById(
-            "characterDescription"
-          )
-          .value
-          .trim(),
+        background:
+          document
+            .getElementById(
+              "characterBackground"
+            )
+            .value
+            .trim(),
 
-      personality:
-        document
-          .getElementById(
-            "characterPersonality"
-          )
-          .value
-          .trim(),
+        description:
+          document
+            .getElementById(
+              "characterDescription"
+            )
+            .value
+            .trim(),
 
-      scenario:
-        document
-          .getElementById(
-            "characterScenario"
-          )
-          .value
-          .trim(),
+        personality:
+          document
+            .getElementById(
+              "characterPersonality"
+            )
+            .value
+            .trim(),
 
-      instructions:
-        document
-          .getElementById(
-            "characterInstructions"
-          )
-          .value
-          .trim(),
+        scenario:
+          document
+            .getElementById(
+              "characterScenario"
+            )
+            .value
+            .trim(),
 
-      createdAt:
-        Date.now()
+        instructions:
+          document
+            .getElementById(
+              "characterInstructions"
+            )
+            .value
+            .trim(),
 
-    };
+        createdAt:
+          Date.now()
+
+      });
 
 
     characters.push(
@@ -1290,7 +1566,9 @@ characterForm.addEventListener(
 
     saveCharacters();
 
+
     characterForm.reset();
+
 
     showHomeView();
 
@@ -1313,7 +1591,9 @@ function renderCharacters() {
     characters.length === 0
   ) {
 
-    emptyState.style.display =
+    emptyState
+      .style
+      .display =
       "flex";
 
 
@@ -1322,13 +1602,15 @@ function renderCharacters() {
   }
 
 
-  emptyState.style.display =
+  emptyState
+    .style
+    .display =
     "none";
 
 
   characters.forEach(
 
-    function(character) {
+    character => {
 
       const card =
         document.createElement(
@@ -1336,9 +1618,11 @@ function renderCharacters() {
         );
 
 
-      card.classList.add(
-        "character-card"
-      );
+      card
+        .classList
+        .add(
+          "character-card"
+        );
 
 
       if (
@@ -1355,9 +1639,11 @@ function renderCharacters() {
           character.image;
 
 
-        image.classList.add(
-          "character-image"
-        );
+        image
+          .classList
+          .add(
+            "character-image"
+          );
 
 
         image.alt =
@@ -1378,12 +1664,15 @@ function renderCharacters() {
           );
 
 
-        placeholder.classList.add(
-          "character-placeholder"
-        );
+        placeholder
+          .classList
+          .add(
+            "character-placeholder"
+          );
 
 
-        placeholder.textContent =
+        placeholder
+          .textContent =
           "🤖";
 
 
@@ -1400,9 +1689,11 @@ function renderCharacters() {
         );
 
 
-      info.classList.add(
-        "character-info"
-      );
+      info
+        .classList
+        .add(
+          "character-info"
+        );
 
 
       const name =
@@ -1445,20 +1736,18 @@ function renderCharacters() {
 
         "click",
 
-        function() {
-
+        () =>
           openChat(
             character
-          );
-
-        }
+          )
 
       );
 
 
-      charactersGrid.appendChild(
-        card
-      );
+      charactersGrid
+        .appendChild(
+          card
+        );
 
     }
 
@@ -1468,7 +1757,7 @@ function renderCharacters() {
 
 
 // =========================
-// AUTO CHAT TITLE
+// CHAT TITLE
 // =========================
 
 function makeChatTitle(
@@ -1484,23 +1773,18 @@ function makeChatTitle(
       .trim();
 
 
-  if (
-    cleaned.length <= 28
-  ) {
-
-    return cleaned;
-
-  }
-
-
   return (
+    cleaned.length <= 28
 
-    cleaned.slice(
-      0,
-      28
-    ) +
-    "..."
+      ? cleaned
 
+      : (
+          cleaned.slice(
+            0,
+            28
+          ) +
+          "..."
+        )
   );
 
 }
@@ -1522,26 +1806,24 @@ function renderChatHistory() {
 
   characters.forEach(
 
-    function(character) {
+    character => {
 
-      const chats =
-        getCharacterChats(
-          character.id
+      getCharacterChats(
+        character.id
+      )
+        .forEach(
+
+          chat =>
+
+            allChats.push({
+
+              character,
+
+              chat
+
+            })
+
         );
-
-
-      chats.forEach(
-
-        function(chat) {
-
-          allChats.push({
-            character,
-            chat
-          });
-
-        }
-
-      );
 
     }
 
@@ -1567,18 +1849,21 @@ function renderChatHistory() {
       );
 
 
-    empty.classList.add(
-      "history-empty"
-    );
+    empty
+      .classList
+      .add(
+        "history-empty"
+      );
 
 
     empty.textContent =
       "No chats yet";
 
 
-    chatHistoryList.appendChild(
-      empty
-    );
+    chatHistoryList
+      .appendChild(
+        empty
+      );
 
 
     return;
@@ -1588,7 +1873,10 @@ function renderChatHistory() {
 
   allChats.forEach(
 
-    function(item) {
+    ({
+      character,
+      chat
+    }) => {
 
       const button =
         document.createElement(
@@ -1596,23 +1884,27 @@ function renderChatHistory() {
         );
 
 
-      button.classList.add(
-        "history-item"
-      );
+      button
+        .classList
+        .add(
+          "history-item"
+        );
 
 
       if (
         currentCharacter &&
         currentChatId &&
         currentCharacter.id ===
-          item.character.id &&
+          character.id &&
         currentChatId ===
-          item.chat.id
+          chat.id
       ) {
 
-        button.classList.add(
-          "active"
-        );
+        button
+          .classList
+          .add(
+            "active"
+          );
 
       }
 
@@ -1623,13 +1915,15 @@ function renderChatHistory() {
         );
 
 
-      characterName.classList.add(
-        "history-character"
-      );
+      characterName
+        .classList
+        .add(
+          "history-character"
+        );
 
 
       characterName.textContent =
-        item.character.name;
+        character.name;
 
 
       const title =
@@ -1638,13 +1932,15 @@ function renderChatHistory() {
         );
 
 
-      title.classList.add(
-        "history-title"
-      );
+      title
+        .classList
+        .add(
+          "history-title"
+        );
 
 
       title.textContent =
-        item.chat.title ||
+        chat.title ||
         "New Chat";
 
 
@@ -1662,35 +1958,311 @@ function renderChatHistory() {
 
         "click",
 
-        function() {
+        () => {
 
-          if (isSending) {
+          if (
+            !isSending
+          ) {
 
-            return;
+            openChat(
+              character,
+              chat.id
+            );
 
           }
-
-
-          openChat(
-
-            item.character,
-
-            item.chat.id
-
-          );
 
         }
 
       );
 
 
-      chatHistoryList.appendChild(
-        button
-      );
+      chatHistoryList
+        .appendChild(
+          button
+        );
 
     }
 
   );
+
+}
+
+
+// =========================
+// RICH MESSAGE TEXT
+// =========================
+
+function renderRichText(
+  element,
+  text
+) {
+
+  element.replaceChildren();
+
+
+  const pattern =
+    /(\*\*[\s\S]*?\*\*|\*(?!\*)[\s\S]*?\*)/g;
+
+
+  let lastIndex =
+    0;
+
+
+  let match;
+
+
+  while (
+    (
+      match =
+        pattern.exec(
+          text
+        )
+    ) !== null
+  ) {
+
+    if (
+      match.index >
+      lastIndex
+    ) {
+
+      element
+        .appendChild(
+
+          document
+            .createTextNode(
+
+              text.slice(
+                lastIndex,
+                match.index
+              )
+
+            )
+
+        );
+
+    }
+
+
+    const token =
+      match[0];
+
+
+    const isDouble =
+      token.startsWith(
+        "**"
+      );
+
+
+    const strip =
+      isDouble
+        ? 2
+        : 1;
+
+
+    const action =
+      document.createElement(
+        "span"
+      );
+
+
+    action.className =
+      "action-text";
+
+
+    action.textContent =
+      token.slice(
+        strip,
+        token.length - strip
+      );
+
+
+    element.appendChild(
+      action
+    );
+
+
+    lastIndex =
+      pattern.lastIndex;
+
+  }
+
+
+  if (
+    lastIndex <
+    text.length
+  ) {
+
+    element.appendChild(
+
+      document
+        .createTextNode(
+
+          text.slice(
+            lastIndex
+          )
+
+        )
+
+    );
+
+  }
+
+}
+
+
+// =========================
+// MESSAGE ROW
+// =========================
+
+function createMessageRow(
+  message,
+  options = {}
+) {
+
+  const row =
+    document.createElement(
+      "div"
+    );
+
+
+  row
+    .classList
+    .add(
+      "message-row",
+      message.sender
+    );
+
+
+  row.dataset.messageId =
+    message.id;
+
+
+  const bubble =
+    document.createElement(
+      "div"
+    );
+
+
+  bubble
+    .classList
+    .add(
+      "message",
+      message.sender
+    );
+
+
+  bubble.dataset.messageId =
+    message.id;
+
+
+  if (
+    message.sender ===
+    "character"
+  ) {
+
+    renderRichText(
+      bubble,
+      message.text
+    );
+
+  }
+
+  else {
+
+    bubble.textContent =
+      message.text;
+
+  }
+
+
+  if (
+    message.sender ===
+    "character"
+  ) {
+
+    bubble.addEventListener(
+
+      "contextmenu",
+
+      event =>
+        openMessageContextMenu(
+          event,
+          message.id
+        )
+
+    );
+
+  }
+
+
+  row.appendChild(
+    bubble
+  );
+
+
+  if (
+    message.sender ===
+      "character" &&
+    !options.hideRegenerate
+  ) {
+
+    const regenerate =
+      document.createElement(
+        "button"
+      );
+
+
+    regenerate.type =
+      "button";
+
+
+    regenerate.className =
+      "message-regenerate";
+
+
+    regenerate.title =
+      "Regenerate response";
+
+
+    regenerate
+      .setAttribute(
+        "aria-label",
+        "Regenerate response"
+      );
+
+
+    regenerate.textContent =
+      "↻";
+
+
+    regenerate.disabled =
+      isSending;
+
+
+    regenerate
+      .addEventListener(
+
+        "click",
+
+        () =>
+          regenerateMessage(
+            message.id
+          )
+
+      );
+
+
+    row.appendChild(
+      regenerate
+    );
+
+  }
+
+
+  return {
+    row,
+    bubble
+  };
 
 }
 
@@ -1716,7 +2288,8 @@ function renderMessages() {
   }
 
 
-  currentChatTitle.textContent =
+  currentChatTitle
+    .textContent =
     chat.title ||
     "New Chat";
 
@@ -1731,9 +2304,11 @@ function renderMessages() {
       );
 
 
-    empty.classList.add(
-      "chat-empty"
-    );
+    empty
+      .classList
+      .add(
+        "chat-empty"
+      );
 
 
     if (
@@ -1746,9 +2321,11 @@ function renderMessages() {
         );
 
 
-      avatar.classList.add(
-        "chat-empty-avatar"
-      );
+      avatar
+        .classList
+        .add(
+          "chat-empty-avatar"
+        );
 
 
       avatar.src =
@@ -1783,7 +2360,11 @@ function renderMessages() {
 
 
     text.textContent =
-      `Start a new conversation with ${currentCharacter.name}.`;
+      (
+        "Start a new conversation with " +
+        currentCharacter.name +
+        "."
+      );
 
 
     empty.appendChild(
@@ -1808,13 +2389,13 @@ function renderMessages() {
 
   chat.messages.forEach(
 
-    function(message) {
+    message => {
 
-      addMessageBubble(
+      messages.appendChild(
 
-        message.sender,
-
-        message.text
+        createMessageRow(
+          message
+        ).row
 
       );
 
@@ -1824,41 +2405,6 @@ function renderMessages() {
 
 
   scrollToBottom();
-
-}
-
-
-// =========================
-// MESSAGE BUBBLE
-// =========================
-
-function addMessageBubble(
-  sender,
-  text
-) {
-
-  const bubble =
-    document.createElement(
-      "div"
-    );
-
-
-  bubble.classList.add(
-    "message",
-    sender
-  );
-
-
-  bubble.textContent =
-    text;
-
-
-  messages.appendChild(
-    bubble
-  );
-
-
-  return bubble;
 
 }
 
@@ -1876,12 +2422,26 @@ function scrollToBottom() {
 
 
 // =========================
-// TYPING INDICATOR
+// TYPING
 // =========================
 
 function showTypingIndicator() {
 
   removeTypingIndicator();
+
+
+  const row =
+    document.createElement(
+      "div"
+    );
+
+
+  row.id =
+    "typingIndicator";
+
+
+  row.className =
+    "message-row character";
 
 
   const bubble =
@@ -1890,15 +2450,8 @@ function showTypingIndicator() {
     );
 
 
-  bubble.classList.add(
-    "message",
-    "character",
-    "typing-bubble"
-  );
-
-
-  bubble.id =
-    "typingIndicator";
+  bubble.className =
+    "message character typing-bubble";
 
 
   const indicator =
@@ -1907,25 +2460,22 @@ function showTypingIndicator() {
     );
 
 
-  indicator.classList.add(
-    "typing-indicator"
-  );
+  indicator.className =
+    "typing-indicator";
 
 
   for (
     let i = 0;
     i < 3;
-    i++
+    i += 1
   ) {
 
-    const dot =
+    indicator.appendChild(
+
       document.createElement(
         "span"
-      );
+      )
 
-
-    indicator.appendChild(
-      dot
     );
 
   }
@@ -1936,8 +2486,13 @@ function showTypingIndicator() {
   );
 
 
-  messages.appendChild(
+  row.appendChild(
     bubble
+  );
+
+
+  messages.appendChild(
+    row
   );
 
 
@@ -1948,1207 +2503,17 @@ function showTypingIndicator() {
 
 function removeTypingIndicator() {
 
-  const typing =
-    document.getElementById(
+  document
+    .getElementById(
       "typingIndicator"
-    );
-
-
-  if (typing) {
-
-    typing.remove();
-
-  }
-
-}
-
-
-// =========================
-// MEMORY VIEWER
-// =========================
-
-function createMemoryListItem(
-  text,
-  empty = false
-) {
-
-  const item =
-    document.createElement(
-      "li"
-    );
-
-
-  item.textContent =
-    text;
-
-
-  if (empty) {
-
-    item.classList.add(
-      "memory-empty-item"
-    );
-
-  }
-
-
-  return item;
-
-}
-
-
-function renderMemoryViewer() {
-
-  const chat =
-    getCurrentChat();
-
-
-  if (
-    !chat ||
-    !currentCharacter
-  ) {
-
-    return;
-
-  }
-
-
-  const memory =
-    normalizeMemory(
-      chat.memory
-    );
-
-
-  memoryCharacterLabel.textContent =
-    `${currentCharacter.name} • ${chat.title}`;
-
-
-  const totalMessages =
-    chat.messages.length;
-
-
-  const processed =
-    Math.min(
-
-      memory
-        .lastProcessedMessageCount,
-
-      totalMessages
-
-    );
-
-
-  memoryMessageCount.textContent =
-    `${processed} / ${totalMessages} processed`;
-
-
-  const hasMemory =
-
-    Boolean(
-      memory.summary.trim()
-    ) ||
-
-    memory
-      .importantFacts
-      .length > 0 ||
-
-    Boolean(
-      memory.currentScene.trim()
-    ) ||
-
-    Boolean(
-      memory
-        .relationshipState
-        .trim()
-    ) ||
-
-    memory
-      .unresolvedThreads
-      .length > 0;
-
-
-  if (hasMemory) {
-
-    memoryStatusText.textContent =
-      "Memory active";
-
-  }
-
-  else if (
-    totalMessages >=
-    MEMORY_BATCH_THRESHOLD
-  ) {
-
-    memoryStatusText.textContent =
-      "Waiting for memory update";
-
-  }
-
-  else {
-
-    memoryStatusText.textContent =
-      "Not enough messages yet";
-
-  }
-
-
-  memorySummary.textContent =
-    memory.summary.trim() ||
-    "No summary yet.";
-
-
-  memoryScene.textContent =
-    memory.currentScene.trim() ||
-    "No current scene stored.";
-
-
-  memoryRelationship.textContent =
-    memory
-      .relationshipState
-      .trim() ||
-    "No relationship development stored.";
-
-
-  // IMPORTANT FACTS
-
-  memoryFacts.innerHTML =
-    "";
-
-
-  if (
-    memory
-      .importantFacts
-      .length === 0
-  ) {
-
-    memoryFacts.appendChild(
-
-      createMemoryListItem(
-        "No important memories stored yet.",
-        true
-      )
-
-    );
-
-  }
-
-  else {
-
-    memory
-      .importantFacts
-      .forEach(
-
-        fact => {
-
-          memoryFacts.appendChild(
-
-            createMemoryListItem(
-              fact
-            )
-
-          );
-
-        }
-
-      );
-
-  }
-
-
-  // UNRESOLVED THREADS
-
-  memoryThreads.innerHTML =
-    "";
-
-
-  if (
-    memory
-      .unresolvedThreads
-      .length === 0
-  ) {
-
-    memoryThreads.appendChild(
-
-      createMemoryListItem(
-        "No unresolved threads.",
-        true
-      )
-
-    );
-
-  }
-
-  else {
-
-    memory
-      .unresolvedThreads
-      .forEach(
-
-        thread => {
-
-          memoryThreads.appendChild(
-
-            createMemoryListItem(
-              thread
-            )
-
-          );
-
-        }
-
-      );
-
-  }
-
-
-  // UPDATED DATE
-
-  if (
-    memory.updatedAt
-  ) {
-
-    const date =
-      new Date(
-        memory.updatedAt
-      );
-
-
-    memoryUpdatedAt.textContent =
-      `Last updated: ${date.toLocaleString()}`;
-
-  }
-
-  else {
-
-    memoryUpdatedAt.textContent =
-      "Memory has not been updated yet.";
-
-  }
-
-}
-
-
-function openMemoryViewer() {
-
-  if (
-    !currentCharacter ||
-    !currentChatId
-  ) {
-
-    return;
-
-  }
-
-
-  closeChatMenu();
-
-
-  renderMemoryViewer();
-
-
-  memoryModal.classList.remove(
-    "hidden"
-  );
-
-
-  document.body.style.overflow =
-    "hidden";
-
-}
-
-
-function closeMemoryViewer() {
-
-  if (!memoryModal) {
-
-    return;
-
-  }
-
-
-  memoryModal.classList.add(
-    "hidden"
-  );
-
-
-  document.body.style.overflow =
-    "";
-
-}
-
-
-memoryBtn.addEventListener(
-
-  "click",
-
-  openMemoryViewer
-
-);
-
-
-closeMemoryBtn.addEventListener(
-
-  "click",
-
-  closeMemoryViewer
-
-);
-
-
-memoryOverlay.addEventListener(
-
-  "click",
-
-  closeMemoryViewer
-
-);
-
-
-document.addEventListener(
-
-  "keydown",
-
-  function(event) {
-
-    if (
-      event.key ===
-      "Escape"
-    ) {
-
-      closeMemoryViewer();
-
-      closeChatMenu();
-
-    }
-
-  }
-
-);
-
-
-// =========================
-// NEW CHAT
-// =========================
-
-newChatBtn.addEventListener(
-
-  "click",
-
-  function() {
-
-    if (
-      !currentCharacter ||
-      isSending
-    ) {
-
-      return;
-
-    }
-
-
-    closeMemoryViewer();
-
-
-    createNewChat(
-      currentCharacter,
-      true
-    );
-
-  }
-
-);
-
-
-// =========================
-// CHAT MENU
-// =========================
-
-chatMenuBtn.addEventListener(
-
-  "click",
-
-  function(event) {
-
-    event.stopPropagation();
-
-
-    chatMenu.classList.toggle(
-      "hidden"
-    );
-
-  }
-
-);
-
-
-function closeChatMenu() {
-
-  chatMenu.classList.add(
-    "hidden"
-  );
-
-}
-
-
-document.addEventListener(
-
-  "click",
-
-  function(event) {
-
-    if (
-      !event.target.closest(
-        ".chat-menu-wrapper"
-      )
-    ) {
-
-      closeChatMenu();
-
-    }
-
-  }
-
-);
-
-
-// =========================
-// RENAME CHAT
-// =========================
-
-renameChatBtn.addEventListener(
-
-  "click",
-
-  function() {
-
-    const chat =
-      getCurrentChat();
-
-
-    if (!chat) {
-
-      return;
-
-    }
-
-
-    const newName =
-      prompt(
-
-        "Rename this chat:",
-
-        chat.title
-
-      );
-
-
-    if (
-      newName === null
-    ) {
-
-      return;
-
-    }
-
-
-    const cleaned =
-      newName.trim();
-
-
-    if (!cleaned) {
-
-      return;
-
-    }
-
-
-    updateCurrentChat(
-
-      function(chat) {
-
-        chat.title =
-          cleaned;
-
-      }
-
-    );
-
-
-    closeChatMenu();
-
-    renderMessages();
-
-    renderChatHistory();
-
-  }
-
-);
-
-
-// =========================
-// CLEAR CHAT
-// =========================
-
-clearChatBtn.addEventListener(
-
-  "click",
-
-  function() {
-
-    if (isSending) {
-
-      return;
-
-    }
-
-
-    const chat =
-      getCurrentChat();
-
-
-    if (!chat) {
-
-      return;
-
-    }
-
-
-    const confirmed =
-      confirm(
-
-        `Clear all messages and memory from "${chat.title}"?`
-
-      );
-
-
-    if (!confirmed) {
-
-      return;
-
-    }
-
-
-    updateCurrentChat(
-
-      function(chat) {
-
-        chat.messages =
-          [];
-
-        chat.title =
-          "New Chat";
-
-        chat.memory =
-          createEmptyMemory();
-
-      }
-
-    );
-
-
-    closeChatMenu();
-
-    closeMemoryViewer();
-
-    renderMessages();
-
-    renderChatHistory();
-
-  }
-
-);
-
-
-// =========================
-// DELETE CHAT
-// =========================
-
-deleteChatBtn.addEventListener(
-
-  "click",
-
-  function() {
-
-    if (
-      isSending ||
-      !currentCharacter ||
-      !currentChatId
-    ) {
-
-      return;
-
-    }
-
-
-    const current =
-      getCurrentChat();
-
-
-    if (!current) {
-
-      return;
-
-    }
-
-
-    const confirmed =
-      confirm(
-
-        `Delete "${current.title}" permanently?`
-
-      );
-
-
-    if (!confirmed) {
-
-      return;
-
-    }
-
-
-    closeMemoryViewer();
-
-
-    const character =
-      currentCharacter;
-
-
-    let chats =
-      getCharacterChats(
-        character.id
-      );
-
-
-    chats =
-      chats.filter(
-
-        chat =>
-          chat.id !==
-          currentChatId
-
-      );
-
-
-    saveCharacterChats(
-      character.id,
-      chats
-    );
-
-
-    if (
-      chats.length > 0
-    ) {
-
-      chats.sort(
-
-        (a, b) =>
-          b.updatedAt -
-          a.updatedAt
-
-      );
-
-
-      openChat(
-
-        character,
-
-        chats[0].id
-
-      );
-
-    }
-
-    else {
-
-      createNewChat(
-
-        character,
-
-        true
-
-      );
-
-    }
-
-
-    closeChatMenu();
-
-    renderChatHistory();
-
-  }
-
-);
-
-
-// =========================
-// SAVE MESSAGE
-// =========================
-
-function addMessageToStoredChat(
-  characterId,
-  chatId,
-  message
-) {
-
-  const chats =
-    getCharacterChats(
-      characterId
-    );
-
-
-  const index =
-    chats.findIndex(
-      chat =>
-        chat.id ===
-        chatId
-    );
-
-
-  if (
-    index === -1
-  ) {
-
-    return null;
-
-  }
-
-
-  chats[index]
-    .messages
-    .push(
-      message
-    );
-
-
-  chats[index].updatedAt =
-    Date.now();
-
-
-  saveCharacterChats(
-    characterId,
-    chats
-  );
-
-
-  return chats[index];
-
-}
-
-
-// =========================
-// MEMORY PAYLOAD
-// =========================
-
-function createMemoryPayload(
-  memory
-) {
-
-  const clean =
-    normalizeMemory(
-      memory
-    );
-
-
-  return {
-
-    summary:
-      clean.summary,
-
-    importantFacts:
-      clean.importantFacts,
-
-    currentScene:
-      clean.currentScene,
-
-    relationshipState:
-      clean.relationshipState,
-
-    unresolvedThreads:
-      clean.unresolvedThreads
-
-  };
-
-}
-
-
-// =========================
-// MEMORY UPDATE
-// =========================
-
-async function updateMemoryForChat(
-  character,
-  chatId
-) {
-
-  if (
-    !character ||
-    !chatId
-  ) {
-
-    return;
-
-  }
-
-
-  const lockKey =
-    `${character.id}_${chatId}`;
-
-
-  if (
-    memoryUpdateLocks.has(
-      lockKey
     )
-  ) {
-
-    return;
-
-  }
-
-
-  let chat =
-    getStoredChat(
-      character.id,
-      chatId
-    );
-
-
-  if (!chat) {
-
-    return;
-
-  }
-
-
-  const memory =
-    normalizeMemory(
-      chat.memory
-    );
-
-
-  const totalMessages =
-    chat.messages.length;
-
-
-  let processed =
-    Math.min(
-
-      memory
-        .lastProcessedMessageCount,
-
-      totalMessages
-
-    );
-
-
-  const unprocessedCount =
-    totalMessages -
-    processed;
-
-
-  if (
-    unprocessedCount <
-    MEMORY_BATCH_THRESHOLD
-  ) {
-
-    return;
-
-  }
-
-
-  memoryUpdateLocks.add(
-    lockKey
-  );
-
-
-  try {
-
-    let start =
-      processed;
-
-
-    if (
-      processed === 0 &&
-      totalMessages >
-      MEMORY_MAX_BATCH_MESSAGES
-    ) {
-
-      start =
-        totalMessages -
-        MEMORY_MAX_BATCH_MESSAGES;
-
-    }
-
-
-    const end =
-      Math.min(
-
-        totalMessages,
-
-        start +
-        MEMORY_MAX_BATCH_MESSAGES
-
-      );
-
-
-    const batch =
-      chat.messages.slice(
-        start,
-        end
-      );
-
-
-    console.log(
-      `🧠 Updating memory: ${character.name} (${batch.length} messages)`
-    );
-
-
-    const response =
-      await fetch(
-
-        "/api/memory",
-
-        {
-
-          method:
-            "POST",
-
-          headers: {
-
-            "Content-Type":
-              "application/json"
-
-          },
-
-          body:
-            JSON.stringify({
-
-              character:
-                character,
-
-              memory:
-                createMemoryPayload(
-                  memory
-                ),
-
-              messages:
-                batch
-
-            })
-
-        }
-
-      );
-
-
-    if (
-      !response.ok
-    ) {
-
-      throw new Error(
-        "Memory request failed."
-      );
-
-    }
-
-
-    const data =
-      await response.json();
-
-
-    if (
-      !data.memory
-    ) {
-
-      throw new Error(
-        "Memory response was empty."
-      );
-
-    }
-
-
-    const latestChats =
-      getCharacterChats(
-        character.id
-      );
-
-
-    const index =
-      latestChats.findIndex(
-        item =>
-          item.id ===
-          chatId
-      );
-
-
-    if (
-      index === -1
-    ) {
-
-      return;
-
-    }
-
-
-    const latestMemory =
-      normalizeMemory(
-        latestChats[index]
-          .memory
-      );
-
-
-    latestChats[index].memory = {
-
-      summary:
-        data.memory.summary ||
-        "",
-
-      importantFacts:
-        Array.isArray(
-          data.memory
-            .importantFacts
-        )
-          ? data.memory
-              .importantFacts
-          : [],
-
-      currentScene:
-        data.memory
-          .currentScene ||
-        "",
-
-      relationshipState:
-        data.memory
-          .relationshipState ||
-        "",
-
-      unresolvedThreads:
-        Array.isArray(
-          data.memory
-            .unresolvedThreads
-        )
-          ? data.memory
-              .unresolvedThreads
-          : [],
-
-      lastProcessedMessageCount:
-        Math.max(
-          latestMemory
-            .lastProcessedMessageCount,
-          end
-        ),
-
-      updatedAt:
-        Date.now()
-
-    };
-
-
-    saveCharacterChats(
-      character.id,
-      latestChats
-    );
-
-
-    console.log(
-      `✅ Memory saved for ${character.name}`
-    );
-
-
-    // If viewer happens to be open,
-    // refresh it automatically.
-
-    if (
-      !memoryModal
-        .classList
-        .contains(
-          "hidden"
-        ) &&
-      currentCharacter &&
-      currentCharacter.id ===
-        character.id &&
-      currentChatId ===
-        chatId
-    ) {
-
-      renderMemoryViewer();
-
-    }
-
-  }
-
-  catch (error) {
-
-    console.error(
-      "Memory update failed:",
-      error
-    );
-
-  }
-
-  finally {
-
-    memoryUpdateLocks.delete(
-      lockKey
-    );
-
-  }
-
-
-  const newestChat =
-    getStoredChat(
-      character.id,
-      chatId
-    );
-
-
-  if (
-    newestChat
-  ) {
-
-    const newestMemory =
-      normalizeMemory(
-        newestChat.memory
-      );
-
-
-    const stillWaiting =
-
-      newestChat
-        .messages
-        .length -
-
-      newestMemory
-        .lastProcessedMessageCount;
-
-
-    if (
-      stillWaiting >=
-      MEMORY_BATCH_THRESHOLD
-    ) {
-
-      setTimeout(
-
-        () => {
-
-          updateMemoryForChat(
-            character,
-            chatId
-          );
-
-        },
-
-        500
-
-      );
-
-    }
-
-  }
+    ?.remove();
 
 }
 
 
 // =========================
-// READ STREAM
+// READ AI STREAM
 // =========================
 
 async function readAIStream(
@@ -3178,10 +2543,16 @@ async function readAIStream(
   let buffer =
     "";
 
+
   let finalText =
     "";
 
+
   let streamingBubble =
+    null;
+
+
+  let streamingRow =
     null;
 
 
@@ -3266,18 +2637,34 @@ async function readAIStream(
           removeTypingIndicator();
 
 
+          streamingRow =
+            document.createElement(
+              "div"
+            );
+
+
+          streamingRow.className =
+            "message-row character";
+
+
           streamingBubble =
-            addMessageBubble(
-              "character",
-              ""
+            document.createElement(
+              "div"
             );
 
 
-          streamingBubble
-            .classList
-            .add(
-              "streaming"
-            );
+          streamingBubble.className =
+            "message character streaming";
+
+
+          streamingRow.appendChild(
+            streamingBubble
+          );
+
+
+          messages.appendChild(
+            streamingRow
+          );
 
         }
 
@@ -3286,9 +2673,10 @@ async function readAIStream(
           packet.delta;
 
 
-        streamingBubble
-          .textContent =
-          finalText;
+        renderRichText(
+          streamingBubble,
+          finalText
+        );
 
 
         scrollToBottom();
@@ -3302,10 +2690,8 @@ async function readAIStream(
       ) {
 
         throw new Error(
-
           packet.message ||
           "Streaming failed."
-
         );
 
       }
@@ -3339,11 +2725,34 @@ async function readAIStream(
           removeTypingIndicator();
 
 
-          streamingBubble =
-            addMessageBubble(
-              "character",
-              ""
+          streamingRow =
+            document.createElement(
+              "div"
             );
+
+
+          streamingRow.className =
+            "message-row character";
+
+
+          streamingBubble =
+            document.createElement(
+              "div"
+            );
+
+
+          streamingBubble.className =
+            "message character streaming";
+
+
+          streamingRow.appendChild(
+            streamingBubble
+          );
+
+
+          messages.appendChild(
+            streamingRow
+          );
 
         }
 
@@ -3352,9 +2761,10 @@ async function readAIStream(
           packet.delta;
 
 
-        streamingBubble
-          .textContent =
-          finalText;
+        renderRichText(
+          streamingBubble,
+          finalText
+        );
 
       }
 
@@ -3362,30 +2772,2315 @@ async function readAIStream(
 
     catch {
 
-      // Ignore incomplete
-      // leftover packet.
+      // ignore incomplete packet
 
     }
 
   }
 
 
+  streamingBubble
+    ?.classList
+    .remove(
+      "streaming"
+    );
+
+
+  return {
+
+    text:
+      finalText.trim(),
+
+    row:
+      streamingRow
+
+  };
+
+}
+
+
+// =========================
+// MEMORY PAYLOAD
+// =========================
+
+function createMemoryPayload(
+  memory
+) {
+
+  const clean =
+    normalizeMemory(
+      memory
+    );
+
+
+  return {
+
+    summary:
+      clean.summary,
+
+    importantFacts:
+      clean.importantFacts,
+
+    currentScene:
+      clean.currentScene,
+
+    relationshipState:
+      clean.relationshipState,
+
+    unresolvedThreads:
+      clean.unresolvedThreads,
+
+    pinnedMemories:
+      clean.pinnedMemories
+
+  };
+
+}
+
+
+// =========================
+// RESET AUTO MEMORY
+// =========================
+
+function resetAutomaticMemory(
+  characterId,
+  chatId,
+  {
+    fullRebuild = true
+  } = {}
+) {
+
+  mutateStoredChat(
+
+    characterId,
+
+    chatId,
+
+    chat => {
+
+      const memory =
+        normalizeMemory(
+          chat.memory
+        );
+
+
+      chat.memory = {
+
+        ...createEmptyMemory(),
+
+        pinnedMemories:
+          memory.pinnedMemories,
+
+        needsFullRebuild:
+          fullRebuild
+
+      };
+
+    }
+
+  );
+
+}
+
+
+// =========================
+// REMOVE INVALID PINS
+// =========================
+
+function removePinsForMissingMessages(
+  chat
+) {
+
+  const validIds =
+    new Set(
+
+      chat.messages.map(
+        message =>
+          message.id
+      )
+
+    );
+
+
+  const memory =
+    normalizeMemory(
+      chat.memory
+    );
+
+
+  memory.pinnedMemories =
+    memory
+      .pinnedMemories
+      .filter(
+
+        pin =>
+          !pin.sourceMessageId ||
+          validIds.has(
+            pin.sourceMessageId
+          )
+
+      );
+
+
+  chat.memory =
+    memory;
+
+}
+
+
+// =========================
+// UPDATE MEMORY
+// =========================
+
+async function updateMemoryForChat(
+  character,
+  chatId,
+  force = false
+) {
+
   if (
-    streamingBubble
+    !character ||
+    !chatId
   ) {
 
-    streamingBubble
+    return;
+
+  }
+
+
+  const lockKey =
+    (
+      character.id +
+      "_" +
+      chatId
+    );
+
+
+  if (
+    memoryUpdateLocks.has(
+      lockKey
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  let chat =
+    getStoredChat(
+      character.id,
+      chatId
+    );
+
+
+  if (!chat) {
+
+    return;
+
+  }
+
+
+  let memory =
+    normalizeMemory(
+      chat.memory
+    );
+
+
+  const totalMessages =
+    chat.messages.length;
+
+
+  const processed =
+    Math.min(
+
+      memory
+        .lastProcessedMessageCount,
+
+      totalMessages
+
+    );
+
+
+  const unprocessedCount =
+    totalMessages -
+    processed;
+
+
+  const fullRebuild =
+    memory.needsFullRebuild;
+
+
+  if (
+    !force &&
+    !fullRebuild &&
+    unprocessedCount <
+      MEMORY_BATCH_THRESHOLD
+  ) {
+
+    return;
+
+  }
+
+
+  if (
+    unprocessedCount <= 0
+  ) {
+
+    if (
+      fullRebuild
+    ) {
+
+      mutateStoredChat(
+
+        character.id,
+
+        chatId,
+
+        stored => {
+
+          stored.memory = {
+
+            ...normalizeMemory(
+              stored.memory
+            ),
+
+            needsFullRebuild:
+              false
+
+          };
+
+        }
+
+      );
+
+    }
+
+
+    return;
+
+  }
+
+
+  memoryUpdateLocks.add(
+    lockKey
+  );
+
+
+  try {
+
+    let start =
+      processed;
+
+
+    if (
+      !fullRebuild &&
+      processed === 0 &&
+      totalMessages >
+        MEMORY_MAX_BATCH_MESSAGES
+    ) {
+
+      start =
+        totalMessages -
+        MEMORY_MAX_BATCH_MESSAGES;
+
+    }
+
+
+    const end =
+      Math.min(
+
+        totalMessages,
+
+        start +
+        MEMORY_MAX_BATCH_MESSAGES
+
+      );
+
+
+    const batch =
+      chat.messages.slice(
+        start,
+        end
+      );
+
+
+    console.log(
+      `🧠 Updating memory: ${character.name} (${batch.length} messages)`
+    );
+
+
+    const response =
+      await fetch(
+
+        "/api/memory",
+
+        {
+
+          method:
+            "POST",
+
+          headers: {
+
+            "Content-Type":
+              "application/json"
+
+          },
+
+          body:
+            JSON.stringify({
+
+              character,
+
+              memory:
+                createMemoryPayload(
+                  memory
+                ),
+
+              messages:
+                batch
+
+            })
+
+        }
+
+      );
+
+
+    if (
+      !response.ok
+    ) {
+
+      throw new Error(
+        "Memory request failed."
+      );
+
+    }
+
+
+    const data =
+      await response.json();
+
+
+    if (
+      !data.memory
+    ) {
+
+      throw new Error(
+        "Memory response was empty."
+      );
+
+    }
+
+
+    mutateStoredChat(
+
+      character.id,
+
+      chatId,
+
+      latestChat => {
+
+        const latestMemory =
+          normalizeMemory(
+            latestChat.memory
+          );
+
+
+        latestChat.memory = {
+
+          summary:
+            data.memory.summary ||
+            "",
+
+          importantFacts:
+            Array.isArray(
+              data.memory
+                .importantFacts
+            )
+              ? data.memory
+                  .importantFacts
+              : [],
+
+          currentScene:
+            data.memory
+              .currentScene ||
+            "",
+
+          relationshipState:
+            data.memory
+              .relationshipState ||
+            "",
+
+          unresolvedThreads:
+            Array.isArray(
+              data.memory
+                .unresolvedThreads
+            )
+              ? data.memory
+                  .unresolvedThreads
+              : [],
+
+          pinnedMemories:
+            latestMemory
+              .pinnedMemories,
+
+          lastProcessedMessageCount:
+            Math.max(
+
+              latestMemory
+                .lastProcessedMessageCount,
+
+              end
+
+            ),
+
+          updatedAt:
+            Date.now(),
+
+          needsFullRebuild:
+            latestMemory
+              .needsFullRebuild
+
+        };
+
+      }
+
+    );
+
+
+    console.log(
+      `✅ Memory saved for ${character.name}`
+    );
+
+
+    if (
+      !memoryModal
+        .classList
+        .contains(
+          "hidden"
+        ) &&
+      currentCharacter
+        ?.id ===
+        character.id &&
+      currentChatId ===
+        chatId
+    ) {
+
+      renderMemoryViewer();
+
+    }
+
+  }
+
+  catch (error) {
+
+    console.error(
+      "Memory update failed:",
+      error
+    );
+
+  }
+
+  finally {
+
+    memoryUpdateLocks.delete(
+      lockKey
+    );
+
+  }
+
+
+  chat =
+    getStoredChat(
+      character.id,
+      chatId
+    );
+
+
+  if (!chat) {
+
+    return;
+
+  }
+
+
+  memory =
+    normalizeMemory(
+      chat.memory
+    );
+
+
+  const waiting =
+    chat.messages.length -
+    memory
+      .lastProcessedMessageCount;
+
+
+  if (
+    memory.needsFullRebuild &&
+    waiting <= 0
+  ) {
+
+    mutateStoredChat(
+
+      character.id,
+
+      chatId,
+
+      stored => {
+
+        stored.memory = {
+
+          ...normalizeMemory(
+            stored.memory
+          ),
+
+          needsFullRebuild:
+            false
+
+        };
+
+      }
+
+    );
+
+
+    if (
+      !memoryModal
+        .classList
+        .contains(
+          "hidden"
+        )
+    ) {
+
+      renderMemoryViewer();
+
+    }
+
+
+    return;
+
+  }
+
+
+  if (
+    waiting >=
+      MEMORY_BATCH_THRESHOLD ||
+    (
+      memory.needsFullRebuild &&
+      waiting > 0
+    )
+  ) {
+
+    setTimeout(
+
+      () =>
+        updateMemoryForChat(
+
+          character,
+
+          chatId,
+
+          memory
+            .needsFullRebuild
+
+        ),
+
+      450
+
+    );
+
+  }
+
+}
+
+
+// =========================
+// REBUILD MEMORY
+// =========================
+
+function rebuildMemoryAfterHistoryChange(
+  character,
+  chatId
+) {
+
+  resetAutomaticMemory(
+
+    character.id,
+
+    chatId,
+
+    {
+      fullRebuild:
+        true
+    }
+
+  );
+
+
+  const chat =
+    getStoredChat(
+      character.id,
+      chatId
+    );
+
+
+  if (
+    chat
+      ?.messages
+      .length
+  ) {
+
+    setTimeout(
+
+      () =>
+        updateMemoryForChat(
+          character,
+          chatId,
+          true
+        ),
+
+      100
+
+    );
+
+  }
+
+}
+
+
+// =========================
+// MEMORY VIEWER
+// =========================
+
+function createMemoryListItem(
+  text,
+  empty = false
+) {
+
+  const item =
+    document.createElement(
+      "li"
+    );
+
+
+  item.textContent =
+    text;
+
+
+  if (
+    empty
+  ) {
+
+    item
       .classList
-      .remove(
-        "streaming"
+      .add(
+        "memory-empty-item"
       );
 
   }
 
 
-  return finalText.trim();
+  return item;
 
 }
+
+
+function fillMemoryList(
+  element,
+  items,
+  emptyText
+) {
+
+  element.innerHTML =
+    "";
+
+
+  if (
+    !items.length
+  ) {
+
+    element.appendChild(
+
+      createMemoryListItem(
+        emptyText,
+        true
+      )
+
+    );
+
+
+    return;
+
+  }
+
+
+  items.forEach(
+
+    item =>
+
+      element.appendChild(
+
+        createMemoryListItem(
+          item
+        )
+
+      )
+
+  );
+
+}
+
+
+function renderMemoryViewer() {
+
+  const chat =
+    getCurrentChat();
+
+
+  if (
+    !chat ||
+    !currentCharacter
+  ) {
+
+    return;
+
+  }
+
+
+  const memory =
+    normalizeMemory(
+      chat.memory
+    );
+
+
+  memoryCharacterLabel
+    .textContent =
+    (
+      currentCharacter.name +
+      " • " +
+      chat.title
+    );
+
+
+  const total =
+    chat.messages.length;
+
+
+  const processed =
+    Math.min(
+
+      memory
+        .lastProcessedMessageCount,
+
+      total
+
+    );
+
+
+  memoryMessageCount
+    .textContent =
+    (
+      processed +
+      " / " +
+      total +
+      " processed"
+    );
+
+
+  const hasAutoMemory =
+    Boolean(
+
+      memory.summary.trim() ||
+
+      memory
+        .importantFacts
+        .length ||
+
+      memory
+        .currentScene
+        .trim() ||
+
+      memory
+        .relationshipState
+        .trim() ||
+
+      memory
+        .unresolvedThreads
+        .length
+
+    );
+
+
+  if (
+    memory.needsFullRebuild
+  ) {
+
+    memoryStatusText
+      .textContent =
+      "Rebuilding memory...";
+
+  }
+
+  else if (
+    hasAutoMemory ||
+    memory
+      .pinnedMemories
+      .length
+  ) {
+
+    memoryStatusText
+      .textContent =
+      "Memory active";
+
+  }
+
+  else if (
+    total >=
+    MEMORY_BATCH_THRESHOLD
+  ) {
+
+    memoryStatusText
+      .textContent =
+      "Waiting for memory update";
+
+  }
+
+  else {
+
+    memoryStatusText
+      .textContent =
+      "Not enough messages yet";
+
+  }
+
+
+  fillMemoryList(
+
+    memoryPinned,
+
+    memory
+      .pinnedMemories
+      .map(
+        pin =>
+          pin.text
+      ),
+
+    "No pinned memories yet."
+
+  );
+
+
+  memorySummary
+    .textContent =
+    memory.summary.trim() ||
+    "No summary yet.";
+
+
+  fillMemoryList(
+
+    memoryFacts,
+
+    memory
+      .importantFacts,
+
+    "No important memories stored yet."
+
+  );
+
+
+  memoryScene
+    .textContent =
+    memory
+      .currentScene
+      .trim() ||
+    "No current scene stored.";
+
+
+  memoryRelationship
+    .textContent =
+    memory
+      .relationshipState
+      .trim() ||
+    "No relationship development stored.";
+
+
+  fillMemoryList(
+
+    memoryThreads,
+
+    memory
+      .unresolvedThreads,
+
+    "No unresolved threads."
+
+  );
+
+
+  memoryUpdatedAt
+    .textContent =
+    memory.updatedAt
+
+      ? (
+          "Last updated: " +
+          new Date(
+            memory.updatedAt
+          )
+            .toLocaleString()
+        )
+
+      : "Memory has not been updated yet.";
+
+}
+
+
+function openMemoryViewer() {
+
+  if (
+    !currentCharacter ||
+    !currentChatId
+  ) {
+
+    return;
+
+  }
+
+
+  closeAllFloatingUi();
+
+
+  renderMemoryViewer();
+
+
+  memoryModal
+    .classList
+    .remove(
+      "hidden"
+    );
+
+}
+
+
+function closeMemoryViewer() {
+
+  memoryModal
+    .classList
+    .add(
+      "hidden"
+    );
+
+}
+
+
+memoryBtn.addEventListener(
+
+  "click",
+
+  openMemoryViewer
+
+);
+
+
+closeMemoryBtn.addEventListener(
+
+  "click",
+
+  closeMemoryViewer
+
+);
+
+
+memoryOverlay.addEventListener(
+
+  "click",
+
+  closeMemoryViewer
+
+);
+
+
+// =========================
+// RIGHT CLICK HELPERS
+// =========================
+
+function findCurrentMessage(
+  messageId
+) {
+
+  return (
+
+    getCurrentChat()
+      ?.messages
+      .find(
+        message =>
+          message.id ===
+          messageId
+      ) ||
+    null
+
+  );
+
+}
+
+
+function isMessagePinned(
+  chat,
+  messageId
+) {
+
+  return normalizeMemory(
+    chat.memory
+  )
+    .pinnedMemories
+    .some(
+      pin =>
+        pin.sourceMessageId ===
+        messageId
+    );
+
+}
+
+
+// =========================
+// OPEN RIGHT CLICK MENU
+// =========================
+
+function openMessageContextMenu(
+  event,
+  messageId
+) {
+
+  event.preventDefault();
+
+
+  if (
+    isSending
+  ) {
+
+    return;
+
+  }
+
+
+  contextMessageId =
+    messageId;
+
+
+  const chat =
+    getCurrentChat();
+
+
+  if (!chat) {
+
+    return;
+
+  }
+
+
+  ctxPin
+    .lastChild
+    .textContent =
+    isMessagePinned(
+      chat,
+      messageId
+    )
+      ? "Unpin Memory"
+      : "Pin Memory";
+
+
+  messageContextMenu
+    .classList
+    .remove(
+      "hidden"
+    );
+
+
+  const rect =
+    messageContextMenu
+      .getBoundingClientRect();
+
+
+  let x =
+    event.clientX;
+
+
+  let y =
+    event.clientY;
+
+
+  if (
+    x +
+      rect.width >
+    window.innerWidth -
+      8
+  ) {
+
+    x =
+      window.innerWidth -
+      rect.width -
+      8;
+
+  }
+
+
+  if (
+    y +
+      rect.height >
+    window.innerHeight -
+      8
+  ) {
+
+    y =
+      window.innerHeight -
+      rect.height -
+      8;
+
+  }
+
+
+  messageContextMenu
+    .style
+    .left =
+    `${Math.max(8, x)}px`;
+
+
+  messageContextMenu
+    .style
+    .top =
+    `${Math.max(8, y)}px`;
+
+}
+
+
+function closeMessageContextMenu() {
+
+  messageContextMenu
+    .classList
+    .add(
+      "hidden"
+    );
+
+
+  contextMessageId =
+    null;
+
+}
+
+
+// =========================
+// COPY
+// =========================
+
+ctxCopy.addEventListener(
+
+  "click",
+
+  async () => {
+
+    const message =
+      findCurrentMessage(
+        contextMessageId
+      );
+
+
+    if (!message) {
+
+      return closeMessageContextMenu();
+
+    }
+
+
+    try {
+
+      await navigator
+        .clipboard
+        .writeText(
+          message.text
+        );
+
+    }
+
+    catch {
+
+      const area =
+        document.createElement(
+          "textarea"
+        );
+
+
+      area.value =
+        message.text;
+
+
+      document.body
+        .appendChild(
+          area
+        );
+
+
+      area.select();
+
+
+      document.execCommand(
+        "copy"
+      );
+
+
+      area.remove();
+
+    }
+
+
+    closeMessageContextMenu();
+
+  }
+
+);
+
+
+// =========================
+// EDIT
+// =========================
+
+ctxEdit.addEventListener(
+
+  "click",
+
+  () => {
+
+    const id =
+      contextMessageId;
+
+
+    const message =
+      findCurrentMessage(
+        id
+      );
+
+
+    if (!message) {
+
+      return closeMessageContextMenu();
+
+    }
+
+
+    const edited =
+      prompt(
+
+        "Edit this message:",
+
+        message.text
+
+      );
+
+
+    if (
+      edited === null ||
+      !edited.trim() ||
+      edited.trim() ===
+        message.text
+    ) {
+
+      return closeMessageContextMenu();
+
+    }
+
+
+    updateCurrentChat(
+
+      chat => {
+
+        const target =
+          chat.messages.find(
+            item =>
+              item.id ===
+              id
+          );
+
+
+        if (!target) {
+
+          return;
+
+        }
+
+
+        target.text =
+          edited.trim();
+
+
+        const memory =
+          normalizeMemory(
+            chat.memory
+          );
+
+
+        memory.pinnedMemories =
+          memory
+            .pinnedMemories
+            .map(
+
+              pin =>
+                pin.sourceMessageId ===
+                id
+
+                  ? {
+                      ...pin,
+
+                      text:
+                        edited.trim()
+                    }
+
+                  : pin
+
+            );
+
+
+        chat.memory =
+          memory;
+
+      }
+
+    );
+
+
+    closeMessageContextMenu();
+
+
+    renderMessages();
+
+
+    rebuildMemoryAfterHistoryChange(
+      currentCharacter,
+      currentChatId
+    );
+
+  }
+
+);
+
+
+// =========================
+// REWIND
+// =========================
+
+ctxRewind.addEventListener(
+
+  "click",
+
+  () => {
+
+    const id =
+      contextMessageId;
+
+
+    const chat =
+      getCurrentChat();
+
+
+    if (!chat) {
+
+      return closeMessageContextMenu();
+
+    }
+
+
+    const index =
+      chat.messages
+        .findIndex(
+          message =>
+            message.id ===
+            id
+        );
+
+
+    if (
+      index === -1
+    ) {
+
+      return closeMessageContextMenu();
+
+    }
+
+
+    const afterCount =
+      chat.messages.length -
+      index -
+      1;
+
+
+    if (
+      afterCount > 0
+    ) {
+
+      const confirmed =
+        confirm(
+
+          (
+            "Rewind to this message? " +
+            afterCount +
+            " later message" +
+            (
+              afterCount === 1
+                ? ""
+                : "s"
+            ) +
+            " will be removed."
+          )
+
+        );
+
+
+      if (
+        !confirmed
+      ) {
+
+        return closeMessageContextMenu();
+
+      }
+
+    }
+
+
+    updateCurrentChat(
+
+      stored => {
+
+        stored.messages =
+          stored.messages.slice(
+            0,
+            index + 1
+          );
+
+
+        removePinsForMissingMessages(
+          stored
+        );
+
+      }
+
+    );
+
+
+    closeMessageContextMenu();
+
+
+    renderMessages();
+
+
+    rebuildMemoryAfterHistoryChange(
+      currentCharacter,
+      currentChatId
+    );
+
+  }
+
+);
+
+
+// =========================
+// PIN MEMORY
+// =========================
+
+ctxPin.addEventListener(
+
+  "click",
+
+  () => {
+
+    const id =
+      contextMessageId;
+
+
+    const message =
+      findCurrentMessage(
+        id
+      );
+
+
+    if (!message) {
+
+      return closeMessageContextMenu();
+
+    }
+
+
+    updateCurrentChat(
+
+      chat => {
+
+        const memory =
+          normalizeMemory(
+            chat.memory
+          );
+
+
+        const pinIndex =
+          memory
+            .pinnedMemories
+            .findIndex(
+              pin =>
+                pin.sourceMessageId ===
+                id
+            );
+
+
+        if (
+          pinIndex >= 0
+        ) {
+
+          memory
+            .pinnedMemories
+            .splice(
+              pinIndex,
+              1
+            );
+
+        }
+
+        else {
+
+          memory
+            .pinnedMemories
+            .push({
+
+              id:
+                createPinId(),
+
+              text:
+                message.text,
+
+              sourceMessageId:
+                id,
+
+              createdAt:
+                Date.now()
+
+            });
+
+        }
+
+
+        chat.memory =
+          memory;
+
+      }
+
+    );
+
+
+    closeMessageContextMenu();
+
+
+    if (
+      !memoryModal
+        .classList
+        .contains(
+          "hidden"
+        )
+    ) {
+
+      renderMemoryViewer();
+
+    }
+
+  }
+
+);
+
+
+// =========================
+// DELETE MESSAGE
+// =========================
+
+ctxDelete.addEventListener(
+
+  "click",
+
+  () => {
+
+    const id =
+      contextMessageId;
+
+
+    const chat =
+      getCurrentChat();
+
+
+    if (!chat) {
+
+      return closeMessageContextMenu();
+
+    }
+
+
+    const message =
+      chat.messages
+        .find(
+          item =>
+            item.id ===
+            id
+        );
+
+
+    if (!message) {
+
+      return closeMessageContextMenu();
+
+    }
+
+
+    const confirmed =
+      confirm(
+        "Delete this character message?"
+      );
+
+
+    if (
+      !confirmed
+    ) {
+
+      return closeMessageContextMenu();
+
+    }
+
+
+    updateCurrentChat(
+
+      stored => {
+
+        stored.messages =
+          stored
+            .messages
+            .filter(
+              item =>
+                item.id !==
+                id
+            );
+
+
+        removePinsForMissingMessages(
+          stored
+        );
+
+      }
+
+    );
+
+
+    closeMessageContextMenu();
+
+
+    renderMessages();
+
+
+    rebuildMemoryAfterHistoryChange(
+      currentCharacter,
+      currentChatId
+    );
+
+  }
+
+);
+
+
+// =========================
+// NEW CHAT
+// =========================
+
+newChatBtn.addEventListener(
+
+  "click",
+
+  () => {
+
+    if (
+      !currentCharacter ||
+      isSending
+    ) {
+
+      return;
+
+    }
+
+
+    closeMemoryViewer();
+
+
+    createNewChat(
+      currentCharacter,
+      true
+    );
+
+  }
+
+);
+
+
+// =========================
+// THREE DOT MENU
+// =========================
+
+chatMenuBtn.addEventListener(
+
+  "click",
+
+  event => {
+
+    event.stopPropagation();
+
+
+    closeMessageContextMenu();
+
+
+    chatMenu
+      .classList
+      .toggle(
+        "hidden"
+      );
+
+  }
+
+);
+
+
+function closeChatMenu() {
+
+  chatMenu
+    .classList
+    .add(
+      "hidden"
+    );
+
+}
+
+
+// =========================
+// RENAME CHAT
+// =========================
+
+renameChatBtn.addEventListener(
+
+  "click",
+
+  () => {
+
+    const chat =
+      getCurrentChat();
+
+
+    if (!chat) {
+
+      return;
+
+    }
+
+
+    const newName =
+      prompt(
+
+        "Rename this chat:",
+
+        chat.title
+
+      );
+
+
+    if (
+      newName === null ||
+      !newName.trim()
+    ) {
+
+      return;
+
+    }
+
+
+    updateCurrentChat(
+
+      stored => {
+
+        stored.title =
+          newName.trim();
+
+      }
+
+    );
+
+
+    closeChatMenu();
+
+
+    renderMessages();
+
+  }
+
+);
+
+
+// =========================
+// CLEAR CHAT
+// =========================
+
+clearChatBtn.addEventListener(
+
+  "click",
+
+  () => {
+
+    if (
+      isSending
+    ) {
+
+      return;
+
+    }
+
+
+    const chat =
+      getCurrentChat();
+
+
+    if (!chat) {
+
+      return;
+
+    }
+
+
+    if (
+      !confirm(
+        `Clear all messages and memory from "${chat.title}"?`
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    updateCurrentChat(
+
+      stored => {
+
+        stored.messages =
+          [];
+
+        stored.title =
+          "New Chat";
+
+        stored.memory =
+          createEmptyMemory();
+
+      }
+
+    );
+
+
+    closeChatMenu();
+
+
+    closeMemoryViewer();
+
+
+    renderMessages();
+
+  }
+
+);
+
+
+// =========================
+// DELETE CHAT
+// =========================
+
+deleteChatBtn.addEventListener(
+
+  "click",
+
+  () => {
+
+    if (
+      isSending ||
+      !currentCharacter ||
+      !currentChatId
+    ) {
+
+      return;
+
+    }
+
+
+    const current =
+      getCurrentChat();
+
+
+    if (!current) {
+
+      return;
+
+    }
+
+
+    if (
+      !confirm(
+        `Delete "${current.title}" permanently?`
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    const character =
+      currentCharacter;
+
+
+    let chats =
+      getCharacterChats(
+        character.id
+      )
+        .filter(
+          chat =>
+            chat.id !==
+            currentChatId
+        );
+
+
+    saveCharacterChats(
+      character.id,
+      chats
+    );
+
+
+    closeChatMenu();
+
+
+    closeMemoryViewer();
+
+
+    if (
+      chats.length
+    ) {
+
+      chats =
+        chats.sort(
+
+          (a, b) =>
+            b.updatedAt -
+            a.updatedAt
+
+        );
+
+
+      openChat(
+
+        character,
+
+        chats[0].id
+
+      );
+
+    }
+
+    else {
+
+      createNewChat(
+
+        character,
+
+        true
+
+      );
+
+    }
+
+  }
+
+);
+
+
+// =========================
+// SAVE MESSAGE
+// =========================
+
+function saveMessageToChat(
+  characterId,
+  chatId,
+  message
+) {
+
+  return mutateStoredChat(
+
+    characterId,
+
+    chatId,
+
+    chat => {
+
+      chat.messages.push(
+
+        normalizeMessage(
+          message
+        )
+
+      );
+
+    }
+
+  );
+
+}
+
+
+// =========================
+// REQUEST CHARACTER
+// =========================
+
+async function requestCharacterReply(
+  character,
+  chatId
+) {
+
+  const chat =
+    getStoredChat(
+      character.id,
+      chatId
+    );
+
+
+  if (
+    !chat ||
+    !chat.messages.length
+  ) {
+
+    throw new Error(
+      "Chat is empty."
+    );
+
+  }
+
+
+  const requestMessages =
+    chat.messages
+      .slice(
+        -CHAT_RECENT_LIMIT
+      )
+      .map(
+        message => ({
+          ...message
+        })
+      );
+
+
+  const requestMemory =
+    createMemoryPayload(
+      chat.memory
+    );
+
+
+  const response =
+    await fetch(
+
+      "/api/chat",
+
+      {
+
+        method:
+          "POST",
+
+        headers: {
+
+          "Content-Type":
+            "application/json"
+
+        },
+
+        body:
+          JSON.stringify({
+
+            character,
+
+            messages:
+              requestMessages,
+
+            memory:
+              requestMemory
+
+          })
+
+      }
+
+    );
+
+
+  if (
+    !response.ok
+  ) {
+
+    let errorMessage =
+      "Something went wrong.";
+
+
+    try {
+
+      const data =
+        await response.json();
+
+
+      errorMessage =
+        data.error ||
+        errorMessage;
+
+    }
+
+    catch {
+
+      // ignore
+
+    }
+
+
+    throw new Error(
+      errorMessage
+    );
+
+  }
+
+
+  return readAIStream(
+    response
+  );
+
+}
+
+
+// =========================
+// SENDING STATE
+// =========================
+
+function setSendingState(
+  value
+) {
+
+  isSending =
+    value;
+
+
+  messageInput.disabled =
+    value;
+
+
+  sendBtn.disabled =
+    value;
+
+
+  document
+    .querySelectorAll(
+      ".message-regenerate"
+    )
+    .forEach(
+
+      button => {
+
+        button.disabled =
+          value;
+
+      }
+
+    );
+
+}
+
+
+// =========================
+// MULTILINE INPUT
+// =========================
+
+function autoGrowMessageInput() {
+
+  messageInput
+    .style
+    .height =
+    "auto";
+
+
+  const nextHeight =
+    Math.min(
+
+      messageInput
+        .scrollHeight,
+
+      180
+
+    );
+
+
+  messageInput
+    .style
+    .height =
+    `${nextHeight}px`;
+
+
+  messageInput
+    .style
+    .overflowY =
+    (
+      messageInput
+        .scrollHeight >
+      180
+
+        ? "auto"
+
+        : "hidden"
+    );
+
+}
+
+
+messageInput.addEventListener(
+
+  "input",
+
+  autoGrowMessageInput
+
+);
+
+
+messageInput.addEventListener(
+
+  "keydown",
+
+  event => {
+
+    if (
+      event.key ===
+        "Enter" &&
+      !event.shiftKey
+    ) {
+
+      event.preventDefault();
+
+
+      if (
+        !isSending &&
+        messageInput
+          .value
+          .trim()
+      ) {
+
+        chatForm.requestSubmit();
+
+      }
+
+    }
+
+  }
+
+);
 
 
 // =========================
@@ -3396,7 +5091,7 @@ chatForm.addEventListener(
 
   "submit",
 
-  async function(event) {
+  async event => {
 
     event.preventDefault();
 
@@ -3430,117 +5125,70 @@ chatForm.addEventListener(
     };
 
 
-    const requestCharacterId =
-      currentCharacter.id;
-
-
     const requestChatId =
       currentChatId;
 
 
-    let chats =
-      getCharacterChats(
-        requestCharacterId
-      );
+    mutateStoredChat(
 
+      requestCharacter.id,
 
-    const chatIndex =
-      chats.findIndex(
-        chat =>
-          chat.id ===
-          requestChatId
-      );
+      requestChatId,
 
+      chat => {
 
-    if (
-      chatIndex === -1
-    ) {
+        chat.messages.push(
 
-      return;
+          normalizeMessage({
 
-    }
+            sender:
+              "user",
 
+            text,
 
-    const chat =
-      chats[chatIndex];
+            time:
+              Date.now()
 
-
-    chat.messages.push({
-
-      sender:
-        "user",
-
-      text:
-        text,
-
-      time:
-        Date.now()
-
-    });
-
-
-    if (
-      chat.title ===
-        "New Chat" &&
-      chat.messages.length ===
-        1
-    ) {
-
-      chat.title =
-        makeChatTitle(
-          text
-        );
-
-    }
-
-
-    chat.updatedAt =
-      Date.now();
-
-
-    chats[chatIndex] =
-      chat;
-
-
-    saveCharacterChats(
-      requestCharacterId,
-      chats
-    );
-
-
-    const requestMessages =
-      chat.messages
-        .slice(
-          -CHAT_RECENT_LIMIT
-        )
-        .map(
-          message => ({
-            ...message
           })
+
         );
 
 
-    const requestMemory =
-      createMemoryPayload(
-        chat.memory
-      );
+        if (
+          chat.title ===
+            "New Chat" &&
+          chat.messages.length ===
+            1
+        ) {
+
+          chat.title =
+            makeChatTitle(
+              text
+            );
+
+        }
+
+      }
+
+    );
 
 
     messageInput.value =
       "";
 
 
+    autoGrowMessageInput();
+
+
     renderMessages();
+
 
     renderChatHistory();
 
 
-    isSending =
-      true;
-
-
-    messageInput.disabled =
-      true;
+    setSendingState(
+      true
+    );
 
 
     showTypingIndicator();
@@ -3548,79 +5196,20 @@ chatForm.addEventListener(
 
     try {
 
-      const response =
-        await fetch(
+      const {
+        text:
+          finalReply,
 
-          "/api/chat",
+        row:
+          temporaryRow
 
-          {
+      } =
+        await requestCharacterReply(
 
-            method:
-              "POST",
+          requestCharacter,
 
-            headers: {
+          requestChatId
 
-              "Content-Type":
-                "application/json"
-
-            },
-
-            body:
-              JSON.stringify({
-
-                character:
-                  requestCharacter,
-
-                messages:
-                  requestMessages,
-
-                memory:
-                  requestMemory
-
-              })
-
-          }
-
-        );
-
-
-      if (
-        !response.ok
-      ) {
-
-        let errorMessage =
-          "Something went wrong.";
-
-
-        try {
-
-          const data =
-            await response.json();
-
-
-          errorMessage =
-            data.error ||
-            errorMessage;
-
-        }
-
-        catch {
-
-          // Ignore JSON issue.
-
-        }
-
-
-        throw new Error(
-          errorMessage
-        );
-
-      }
-
-
-      const finalReply =
-        await readAIStream(
-          response
         );
 
 
@@ -3638,13 +5227,12 @@ chatForm.addEventListener(
       }
 
 
-      addMessageToStoredChat(
+      temporaryRow
+        ?.remove();
 
-        requestCharacterId,
 
-        requestChatId,
-
-        {
+      const saved =
+        normalizeMessage({
 
           sender:
             "character",
@@ -3655,9 +5243,21 @@ chatForm.addEventListener(
           time:
             Date.now()
 
-        }
+        });
+
+
+      saveMessageToChat(
+
+        requestCharacter.id,
+
+        requestChatId,
+
+        saved
 
       );
+
+
+      renderMessages();
 
 
       renderChatHistory();
@@ -3678,33 +5278,57 @@ chatForm.addEventListener(
       removeTypingIndicator();
 
 
+      document
+        .querySelector(
+          ".message.streaming"
+        )
+        ?.closest(
+          ".message-row"
+        )
+        ?.remove();
+
+
       console.error(
         "Chat error:",
         error
       );
 
 
-      const unfinished =
-        messages.querySelector(
-          ".message.streaming"
-        );
+      const system =
+        normalizeMessage({
+
+          sender:
+            "user",
+
+          text:
+            "Could not generate a response right now.",
+
+          time:
+            Date.now()
+
+        });
 
 
-      if (
-        unfinished
-      ) {
+      const row =
+        createMessageRow(
 
-        unfinished.remove();
+          {
+            ...system,
 
-      }
+            sender:
+              "system"
+          },
+
+          {
+            hideRegenerate:
+              true
+          }
+
+        ).row;
 
 
-      addMessageBubble(
-
-        "system",
-
-        "Could not generate a response right now."
-
+      messages.appendChild(
+        row
       );
 
 
@@ -3714,12 +5338,9 @@ chatForm.addEventListener(
 
     finally {
 
-      isSending =
-        false;
-
-
-      messageInput.disabled =
-        false;
+      setSendingState(
+        false
+      );
 
 
       if (
@@ -3742,8 +5363,417 @@ chatForm.addEventListener(
 
 
 // =========================
-// START APP
+// REGENERATE
 // =========================
+
+async function regenerateMessage(
+  messageId
+) {
+
+  if (
+    isSending ||
+    !currentCharacter ||
+    !currentChatId
+  ) {
+
+    return;
+
+  }
+
+
+  const character = {
+    ...currentCharacter
+  };
+
+
+  const chatId =
+    currentChatId;
+
+
+  const chat =
+    getStoredChat(
+      character.id,
+      chatId
+    );
+
+
+  if (!chat) {
+
+    return;
+
+  }
+
+
+  const index =
+    chat.messages
+      .findIndex(
+        message =>
+          message.id ===
+          messageId
+      );
+
+
+  if (
+    index === -1 ||
+    chat.messages[index]
+      .sender !==
+      "character"
+  ) {
+
+    return;
+
+  }
+
+
+  const laterCount =
+    chat.messages.length -
+    index -
+    1;
+
+
+  if (
+    laterCount > 0
+  ) {
+
+    const confirmed =
+      confirm(
+
+        (
+          "Regenerating this older reply will remove it and " +
+          laterCount +
+          " later message" +
+          (
+            laterCount === 1
+              ? ""
+              : "s"
+          ) +
+          ". Continue?"
+        )
+
+      );
+
+
+    if (
+      !confirmed
+    ) {
+
+      return;
+
+    }
+
+  }
+
+
+  mutateStoredChat(
+
+    character.id,
+
+    chatId,
+
+    stored => {
+
+      stored.messages =
+        stored.messages.slice(
+          0,
+          index
+        );
+
+
+      removePinsForMissingMessages(
+        stored
+      );
+
+
+      const oldPins =
+        normalizeMemory(
+          stored.memory
+        )
+          .pinnedMemories;
+
+
+      stored.memory = {
+
+        ...createEmptyMemory(),
+
+        pinnedMemories:
+          oldPins,
+
+        needsFullRebuild:
+          true
+
+      };
+
+    }
+
+  );
+
+
+  renderMessages();
+
+
+  renderChatHistory();
+
+
+  setSendingState(
+    true
+  );
+
+
+  showTypingIndicator();
+
+
+  try {
+
+    const remainingChat =
+      getStoredChat(
+        character.id,
+        chatId
+      );
+
+
+    if (
+      !remainingChat
+        ?.messages
+        .length
+    ) {
+
+      throw new Error(
+        "Nothing remains before this response."
+      );
+
+    }
+
+
+    const {
+      text:
+        finalReply,
+
+      row:
+        temporaryRow
+
+    } =
+      await requestCharacterReply(
+
+        character,
+
+        chatId
+
+      );
+
+
+    removeTypingIndicator();
+
+
+    if (
+      !finalReply
+    ) {
+
+      throw new Error(
+        "The character returned an empty response."
+      );
+
+    }
+
+
+    temporaryRow
+      ?.remove();
+
+
+    saveMessageToChat(
+
+      character.id,
+
+      chatId,
+
+      {
+
+        sender:
+          "character",
+
+        text:
+          finalReply,
+
+        time:
+          Date.now()
+
+      }
+
+    );
+
+
+    renderMessages();
+
+
+    renderChatHistory();
+
+
+    rebuildMemoryAfterHistoryChange(
+
+      character,
+
+      chatId
+
+    );
+
+  }
+
+  catch (error) {
+
+    removeTypingIndicator();
+
+
+    document
+      .querySelector(
+        ".message.streaming"
+      )
+      ?.closest(
+        ".message-row"
+      )
+      ?.remove();
+
+
+    console.error(
+      "Regenerate error:",
+      error
+    );
+
+
+    const row =
+      document.createElement(
+        "div"
+      );
+
+
+    row.className =
+      "message-row system";
+
+
+    const bubble =
+      document.createElement(
+        "div"
+      );
+
+
+    bubble.className =
+      "message system";
+
+
+    bubble.textContent =
+      "Could not regenerate the response right now.";
+
+
+    row.appendChild(
+      bubble
+    );
+
+
+    messages.appendChild(
+      row
+    );
+
+  }
+
+  finally {
+
+    setSendingState(
+      false
+    );
+
+
+    messageInput.focus();
+
+  }
+
+}
+
+
+// =========================
+// GLOBAL EVENTS
+// =========================
+
+document.addEventListener(
+
+  "click",
+
+  event => {
+
+    if (
+      !event.target.closest(
+        ".chat-menu-wrapper"
+      )
+    ) {
+
+      closeChatMenu();
+
+    }
+
+
+    if (
+      !event.target.closest(
+        "#messageContextMenu"
+      )
+    ) {
+
+      closeMessageContextMenu();
+
+    }
+
+  }
+
+);
+
+
+document.addEventListener(
+
+  "scroll",
+
+  closeMessageContextMenu,
+
+  true
+
+);
+
+
+window.addEventListener(
+
+  "resize",
+
+  closeMessageContextMenu
+
+);
+
+
+document.addEventListener(
+
+  "keydown",
+
+  event => {
+
+    if (
+      event.key ===
+      "Escape"
+    ) {
+
+      closeMemoryViewer();
+
+      closeChatMenu();
+
+      closeMessageContextMenu();
+
+    }
+
+  }
+
+);
+
+
+// =========================
+// START
+// =========================
+
+autoGrowMessageInput();
+
+saveCharacters();
 
 renderCharacters();
 

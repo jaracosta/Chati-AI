@@ -1,19 +1,32 @@
 import express from "express";
+
 import dotenv from "dotenv";
+
 import OpenAI from "openai";
+
 import path from "path";
-import { fileURLToPath } from "url";
+
+import {
+  fileURLToPath
+} from "url";
+
 
 dotenv.config();
 
-const app = express();
+
+const app =
+  express();
+
 
 const PORT =
-  process.env.PORT || 3000;
+  process.env.PORT ||
+  3000;
+
 
 const MODEL =
   process.env.OPENAI_MODEL ||
   "gpt-5.6-terra";
+
 
 const MEMORY_MODEL =
   process.env.OPENAI_MEMORY_MODEL ||
@@ -21,15 +34,21 @@ const MEMORY_MODEL =
 
 
 // =========================
-// CHECK API KEY
+// API KEY CHECK
 // =========================
 
-if (!process.env.OPENAI_API_KEY) {
+if (
+  !process.env
+    .OPENAI_API_KEY
+) {
+
   console.error(
     "❌ OPENAI_API_KEY is missing from .env"
   );
 
+
   process.exit(1);
+
 }
 
 
@@ -39,8 +58,11 @@ if (!process.env.OPENAI_API_KEY) {
 
 const openai =
   new OpenAI({
+
     apiKey:
-      process.env.OPENAI_API_KEY
+      process.env
+        .OPENAI_API_KEY
+
   });
 
 
@@ -53,6 +75,7 @@ const __filename =
     import.meta.url
   );
 
+
 const __dirname =
   path.dirname(
     __filename
@@ -64,32 +87,137 @@ const __dirname =
 // =========================
 
 app.use(
+
   express.json({
-    limit: "2mb"
+
+    limit:
+      "3mb"
+
   })
+
 );
 
 
 app.use(
+
   express.static(
+
     __dirname,
+
     {
-      dotfiles: "deny"
+      dotfiles:
+        "deny"
     }
+
   )
+
 );
 
 
 // =========================
-// MEMORY HELPERS
+// PINNED MEMORY
+// =========================
+
+function normalizePinnedMemories(
+  value
+) {
+
+  if (
+    !Array.isArray(
+      value
+    )
+  ) {
+
+    return [];
+
+  }
+
+
+  return value
+    .map(
+
+      item => {
+
+        if (
+          typeof item ===
+          "string"
+        ) {
+
+          return {
+
+            id:
+              "legacy",
+
+            text:
+              item,
+
+            sourceMessageId:
+              null,
+
+            createdAt:
+              null
+
+          };
+
+        }
+
+
+        if (
+          !item ||
+          typeof item !==
+            "object" ||
+          typeof item.text !==
+            "string"
+        ) {
+
+          return null;
+
+        }
+
+
+        return {
+
+          id:
+            item.id ||
+            "legacy",
+
+          text:
+            item.text,
+
+          sourceMessageId:
+            item.sourceMessageId ||
+            null,
+
+          createdAt:
+            item.createdAt ||
+            null
+
+        };
+
+      }
+
+    )
+    .filter(Boolean);
+
+}
+
+
+// =========================
+// MEMORY NORMALIZER
 // =========================
 
 function normalizeMemory(
   memory
 ) {
+
   return {
+
     summary:
-      memory?.summary || "",
+      typeof memory?.summary ===
+      "string"
+        ? memory.summary
+        : "",
+
 
     importantFacts:
       Array.isArray(
@@ -98,52 +226,105 @@ function normalizeMemory(
         ? memory.importantFacts
         : [],
 
+
     currentScene:
-      memory?.currentScene || "",
+      typeof memory?.currentScene ===
+      "string"
+        ? memory.currentScene
+        : "",
+
 
     relationshipState:
-      memory?.relationshipState || "",
+      typeof memory?.relationshipState ===
+      "string"
+        ? memory.relationshipState
+        : "",
+
 
     unresolvedThreads:
       Array.isArray(
         memory?.unresolvedThreads
       )
         ? memory.unresolvedThreads
-        : []
+        : [],
+
+
+    pinnedMemories:
+      normalizePinnedMemories(
+        memory?.pinnedMemories
+      )
+
   };
+
 }
 
+
+// =========================
+// MEMORY PROMPT
+// =========================
 
 function formatMemoryForPrompt(
   memory
 ) {
+
   const clean =
     normalizeMemory(
       memory
     );
 
+
+  const pinned =
+    clean
+      .pinnedMemories
+      .length
+
+      ? clean
+          .pinnedMemories
+          .map(
+            item =>
+              `- ${item.text}`
+          )
+          .join("\n")
+
+      : "- None.";
+
+
   const facts =
-    clean.importantFacts.length
-      ? clean.importantFacts
+    clean
+      .importantFacts
+      .length
+
+      ? clean
+          .importantFacts
           .map(
             fact =>
               `- ${fact}`
           )
           .join("\n")
+
       : "- None yet.";
 
+
   const threads =
-    clean.unresolvedThreads.length
-      ? clean.unresolvedThreads
+    clean
+      .unresolvedThreads
+      .length
+
+      ? clean
+          .unresolvedThreads
           .map(
             item =>
               `- ${item}`
           )
           .join("\n")
+
       : "- None yet.";
 
 
   return `
+PINNED MEMORIES — user-selected and especially important:
+${pinned}
+
 CHAT SUMMARY:
 ${clean.summary || "No long-term summary yet."}
 
@@ -159,6 +340,7 @@ ${clean.relationshipState || "No relationship development stored yet."}
 UNRESOLVED THREADS:
 ${threads}
   `.trim();
+
 }
 
 
@@ -167,9 +349,13 @@ ${threads}
 // =========================
 
 app.post(
+
   "/api/chat",
 
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
 
     try {
 
@@ -177,36 +363,42 @@ app.post(
         character,
         messages,
         memory
-      } = req.body;
+      } =
+        req.body;
 
-
-      // =========================
-      // VALIDATION
-      // =========================
 
       if (
-        !character ||
-        !character.name
+        !character?.name
       ) {
+
         return res
           .status(400)
           .json({
+
             error:
               "Character information is missing."
+
           });
+
       }
 
 
       if (
-        !Array.isArray(messages) ||
+        !Array.isArray(
+          messages
+        ) ||
         messages.length === 0
       ) {
+
         return res
           .status(400)
           .json({
+
             error:
               "Conversation is empty."
+
           });
+
       }
 
 
@@ -216,13 +408,8 @@ app.post(
         );
 
 
-      // =========================
-      // CHARACTER PROMPT
-      // =========================
-
       const instructions = `
 You are roleplaying as ${character.name}.
-
 
 CHARACTER PROFILE
 
@@ -251,246 +438,202 @@ ${memoryText}
 
 MEMORY RULES
 
-The memory above belongs ONLY to this current chat.
+- This memory belongs ONLY to this chat/timeline.
 
-Never assume events from another conversation happened here.
+- Never import events from another chat.
 
-A New Chat represents a different timeline / conversation and has separate memory.
+- Pinned memories are intentionally selected by the user.
 
-Use the memory to maintain continuity with older events from THIS chat.
+- Preserve and respect pinned memories unless the current conversation explicitly changes them.
 
-Recent conversation messages take priority if they clearly contradict an older memory.
+- Use old memories naturally only when relevant.
 
-Do not randomly mention memories when they are irrelevant.
-
-Remember details naturally when the current situation makes them relevant.
+- Recent messages override an older automatic-memory detail if they clearly conflict.
 
 
 =================================
-CORE ROLEPLAY RULES
+ROLEPLAY CORE
 =================================
 
-Stay naturally in character.
+- Stay naturally in character.
 
-Speak AS the character, not as someone explaining or analyzing the character.
+- Speak AS the character.
 
-Never begin with phrases such as:
-"As ${character.name}..."
+- Never speak as an assistant analyzing the character.
 
-Do not mention prompts, system instructions, APIs, language models, memory systems, or being an AI unless leaving character is necessary for safety.
+- Never mention prompts, APIs, models, hidden instructions, memory systems, or being an AI unless leaving character is necessary for safety.
 
-Do not write dialogue, thoughts, feelings, decisions, or actions for the user.
+- Never write the user's dialogue.
 
-Never decide how the user's character reacts.
+- Never write the user's thoughts.
 
-Maintain continuity with established events.
+- Never decide the user's feelings.
 
-Treat established roleplay events as events that genuinely happened inside this fictional story.
+- Never decide the user's actions.
 
-Pay attention to established:
-- relationships
-- promises
-- arguments
-- jokes
-- locations
-- objects
-- gifts
-- missions
-- injuries
-- plans
-- secrets
-- important conversations
-- major story events
+- Never force the user's reaction to an attack or event.
 
-Creator instructions and established roleplay events take priority when they intentionally differ from original canon.
+- Maintain continuity with established relationships, promises, jokes, objects, gifts, missions, injuries, plans, secrets, locations, conflicts, and major events.
+
+- Creator instructions and events established in this roleplay take priority when they intentionally differ from canon.
 
 
 =================================
-NATURAL CONVERSATION STYLE
+HUMAN-LIKE STYLE
 =================================
 
-Make the conversation feel human rather than like an assistant answering questions.
+Sound like a real person inside the scene rather than an AI answering a prompt.
 
 Do not sound like customer service.
 
 Do not sound like Wikipedia.
 
+Do not summarize the user's message back to them.
+
 Do not constantly explain yourself.
 
-Do not summarize what the user just said.
+Do not make every response perfectly polished.
 
-Do not unnecessarily repeat information.
+Do not end every response with a question.
 
-Do not turn every response into a question.
+The character may naturally:
 
-The character may:
-- disagree
-- joke
 - tease
 - hesitate
-- misunderstand something
-- become annoyed
-- become embarrassed
+- interrupt
+- misunderstand
+- disagree
+- become irritated
 - become suspicious
-- become curious
-- become confident
+- become embarrassed
 - become worried
-- become serious
+- go quiet
+- become curious
 - react emotionally
+- give a short or incomplete answer
 
-Let the character's personality strongly influence wording and reactions.
+Use contractions, pauses, unfinished sentences, sarcasm, dry remarks, interruptions, and natural rhythm whenever it fits the character.
 
-Use contractions, pauses, interruptions, sarcasm, hesitation, dry responses, and informal language when appropriate.
+A very short response is acceptable when it feels believable.
 
-Match the language currently being used by the user unless creator instructions specify otherwise.
+Match the language the user is currently using unless creator instructions say otherwise.
+
+
+=================================
+DIALOGUE + ACTION FORMATTING
+=================================
+
+Put physical actions, narration, atmosphere, and scene description inside DOUBLE ASTERISKS.
+
+Example:
+
+**She lowers the blade, frost curling around her feet.**
+
+Keep spoken dialogue OUTSIDE the double asterisks.
+
+Example:
+
+**Rukia folds her arms and looks away.**
+
+What are you staring at, Ichigo?
+
+**A thin layer of frost spreads beneath her sandals.**
+
+Separate action and dialogue with line breaks when it feels natural.
+
+Do not use markdown headings in the roleplay response.
+
+Do not use bullet lists in the roleplay response.
+
+Do not label sections as "Action", "Dialogue", or "Thought".
 
 
 =================================
 RESPONSE LENGTH
 =================================
 
-For normal casual conversation:
-respond naturally and relatively concisely.
+For casual conversation:
+
+Usually respond naturally and relatively concisely.
+
+Often 1–4 sentences or a few short dialogue/action beats are enough.
 
 A one-line response is completely acceptable.
 
-Do not turn simple comments into long speeches.
+Do not turn a simple comment into a speech.
 
-Casual responses will usually be around 1 to 4 sentences depending on the character and situation.
 
-For emotional scenes, major story moments, fights, dramatic confrontations, important discoveries, serious explanations, or revelations:
-responses may become significantly longer.
+For emotional scenes, battles, transformations, revelations, major discoveries, serious confrontations, important explanations, and signature abilities:
 
-The response length should follow the intensity of the scene.
+Responses may become significantly longer and more cinematic.
 
-Do not force every response to be short.
-
-Do not force every response to be long.
+Let the intensity of the scene control the response length.
 
 
 =================================
-ROLEPLAY ACTIONS
+CINEMATIC ACTION
 =================================
 
-Use physical actions naturally.
-
-Actions may be written between asterisks.
-
-Example:
-
-*Tch. She crosses her arms.*
-
-During casual conversation:
-keep actions brief.
-
-Usually zero to two short action beats are enough.
-
-Do not describe every breath, blink, tiny movement, or facial expression.
-
-Dialogue should normally remain the main focus.
-
-
-=================================
-CINEMATIC ACTION AND COMBAT
-=================================
-
-During combat, transformations, dramatic scenes, or major character moments:
-actions may become much more descriptive.
-
-When the character uses an important ability or technique, describe relevant details such as:
+During important combat, transformations, or dramatic scenes, describe relevant:
 
 - movement
 - stance
 - activation
-- changes in the environment
+- environment
 - visual effects
 - sound
-- energy or power effects
+- energy
 - expression
-- changes to appearance
 - atmosphere
-- immediate effects of the technique
+- immediate consequences
 
-Signature abilities should feel powerful and memorable.
+Signature powers should feel memorable.
 
-Do not rush through important transformations or signature techniques.
+Do not rush through an iconic transformation, Bankai, Domain Expansion, ultimate technique, spell, or major ability.
 
-If the character uses something iconic such as a Bankai, transformation, Domain Expansion, ultimate technique, spell, or major power:
-allow the scene to breathe.
+Do not automatically decide that an attack hits the user's character.
 
-Build anticipation when appropriate.
-
-Dialogue and action should flow together naturally.
-
-
-IMPORTANT ACTION RULES
-
-Describe what the character does.
-
-Do NOT control the user's character.
-
-Do NOT automatically decide that an attack hits the user.
-
-Do NOT automatically decide that the user is injured, defeated, frightened, surprised, or unable to respond.
-
-You may describe an attack moving toward the user or affecting the environment, but allow the user to determine their own reaction unless the established story clearly requires otherwise.
+Do not automatically decide that the user is injured, defeated, frightened, surprised, or unable to respond.
 
 
 =================================
-EMOTIONAL CONTINUITY
+SCENE AWARENESS
 =================================
 
-Do not instantly forget emotional tension.
+Track where everyone currently is.
 
-If the character was angry, embarrassed, worried, suspicious, hurt, amused, or affected by something, allow that emotion to influence later responses naturally.
+Track important objects and environmental conditions.
 
-Relationships should develop gradually through the events of THIS chat.
+Do not randomly change location.
 
-Do not reset the character's attitude every message.
+Do not introduce a giant plot twist every turn.
 
+React primarily to the latest message and current scene.
 
-=================================
-CANON AND CREATOR INFORMATION
-=================================
-
-Use known information about the fictional character naturally when relevant.
-
-Do not randomly dump lore.
-
-Do not recite biographies.
-
-The creator's description, personality, scenario, instructions, and events established in THIS roleplay are the primary source for this version of the character.
-
-If this roleplay intentionally changes canon, follow the roleplay version.
+Do not force the story forward when a quiet interaction is more natural.
 
 
 =================================
-FINAL RESPONSE RULE
+FINAL RULE
 =================================
-
-React primarily to the user's latest message and the current situation.
 
 Return only what the character says or does.
-
-Do not include analysis.
-
-Do not explain why you responded a certain way.
 
 Keep the interaction age-appropriate and safe.
       `.trim();
 
 
-      // =========================
-      // RECENT CONVERSATION
-      // =========================
-
       const recentMessages =
-        messages.slice(-50);
+        messages.slice(
+          -50
+        );
 
 
       const input =
         recentMessages.map(
+
           message => ({
+
             role:
               message.sender ===
               "character"
@@ -499,76 +642,93 @@ Keep the interaction age-appropriate and safe.
 
             content:
               message.text
+
           })
+
         );
 
 
-      // =========================
-      // OPENAI STREAM
-      // =========================
-
       const stream =
-        await openai.responses.create({
+        await openai
+          .responses
+          .create({
 
-          model: MODEL,
+            model:
+              MODEL,
 
-          store: false,
+            store:
+              false,
 
-          reasoning: {
-            effort: "none"
-          },
+            reasoning: {
+              effort:
+                "none"
+            },
 
-          text: {
-            verbosity: "low"
-          },
+            text: {
+              verbosity:
+                "low"
+            },
 
-          instructions,
+            instructions,
 
-          input,
+            input,
 
-          max_output_tokens:
-            700,
+            max_output_tokens:
+              900,
 
-          stream: true
+            stream:
+              true
 
-        });
+          });
 
 
-      // =========================
-      // STREAM TO BROWSER
-      // =========================
-
-      res.status(200);
+      res.status(
+        200
+      );
 
 
       res.setHeader(
+
         "Content-Type",
+
         "application/x-ndjson; charset=utf-8"
+
       );
 
 
       res.setHeader(
+
         "Cache-Control",
+
         "no-cache, no-transform"
+
       );
 
 
       res.setHeader(
+
         "Connection",
+
         "keep-alive"
+
       );
 
 
       res.setHeader(
+
         "X-Accel-Buffering",
+
         "no"
+
       );
 
 
       if (
         res.flushHeaders
       ) {
+
         res.flushHeaders();
+
       }
 
 
@@ -582,10 +742,6 @@ Keep the interaction age-appropriate and safe.
           const event of stream
         ) {
 
-          // =====================
-          // TEXT DELTA
-          // =====================
-
           if (
             event.type ===
             "response.output_text.delta"
@@ -598,19 +754,20 @@ Keep the interaction age-appropriate and safe.
             res.write(
 
               JSON.stringify({
-                type: "delta",
+
+                type:
+                  "delta",
+
                 delta:
                   event.delta
-              }) + "\n"
+
+              }) +
+              "\n"
 
             );
 
           }
 
-
-          // =====================
-          // FAILURE
-          // =====================
 
           if (
             event.type ===
@@ -634,17 +791,23 @@ Keep the interaction age-appropriate and safe.
         if (
           !generatedText.trim()
         ) {
+
           throw new Error(
             "The model returned an empty response."
           );
+
         }
 
 
         res.write(
 
           JSON.stringify({
-            type: "done"
-          }) + "\n"
+
+            type:
+              "done"
+
+          }) +
+          "\n"
 
         );
 
@@ -667,12 +830,14 @@ Keep the interaction age-appropriate and safe.
 
           JSON.stringify({
 
-            type: "error",
+            type:
+              "error",
 
             message:
               "The response stream stopped unexpectedly."
 
-          }) + "\n"
+          }) +
+          "\n"
 
         );
 
@@ -708,12 +873,15 @@ Keep the interaction age-appropriate and safe.
       }
 
       else {
+
         res.end();
+
       }
 
     }
 
   }
+
 );
 
 
@@ -722,9 +890,13 @@ Keep the interaction age-appropriate and safe.
 // =========================
 
 app.post(
+
   "/api/memory",
 
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
 
     try {
 
@@ -732,34 +904,40 @@ app.post(
         character,
         memory,
         messages
-      } = req.body;
+      } =
+        req.body;
 
 
       if (
-        !character ||
-        !character.name
+        !character?.name
       ) {
 
         return res
           .status(400)
           .json({
+
             error:
               "Character is missing."
+
           });
 
       }
 
 
       if (
-        !Array.isArray(messages) ||
+        !Array.isArray(
+          messages
+        ) ||
         messages.length === 0
       ) {
 
         return res
           .status(400)
           .json({
+
             error:
               "No new messages to remember."
+
           });
 
       }
@@ -774,21 +952,26 @@ app.post(
       const formattedMessages =
         messages
           .map(
-            message => {
 
-              const speaker =
-                message.sender ===
-                "character"
-                  ? character.name
-                  : "User";
+            message =>
 
-              return (
-                `${speaker}: ${message.text}`
-              );
+              (
+                (
+                  message.sender ===
+                  "character"
 
-            }
+                    ? character.name
+
+                    : "User"
+                ) +
+                ": " +
+                message.text
+              )
+
           )
-          .join("\n\n");
+          .join(
+            "\n\n"
+          );
 
 
       const memoryInstructions = `
@@ -796,22 +979,52 @@ You maintain long-term memory for ONE fictional roleplay conversation.
 
 This memory belongs ONLY to the current chat.
 
-Never import information from other chats.
-
-Your job is to update the stored memory using the NEW conversation messages.
-
+Never import another chat.
 
 CHARACTER:
 ${character.name}
 
 
-EXISTING MEMORY:
+EXISTING AUTOMATIC MEMORY:
 
 ${JSON.stringify(
-  oldMemory,
+  {
+    summary:
+      oldMemory.summary,
+
+    importantFacts:
+      oldMemory.importantFacts,
+
+    currentScene:
+      oldMemory.currentScene,
+
+    relationshipState:
+      oldMemory.relationshipState,
+
+    unresolvedThreads:
+      oldMemory.unresolvedThreads
+  },
   null,
   2
 )}
+
+
+USER-PINNED MEMORIES
+(do not rewrite these; they are stored separately):
+
+${
+  oldMemory.pinnedMemories.length
+
+    ? oldMemory
+        .pinnedMemories
+        .map(
+          memory =>
+            `- ${memory.text}`
+        )
+        .join("\n")
+
+    : "- None"
+}
 
 
 NEW MESSAGES:
@@ -821,215 +1034,168 @@ ${formattedMessages}
 
 MEMORY RULES
 
-Preserve important information from the existing memory unless the new messages clearly update or contradict it.
+- Preserve important older information unless new messages clearly update it.
 
-Only store things that actually happened, were explicitly stated, or are strongly established by context.
+- Store only facts and events that were actually stated or strongly established by context.
 
-Do not invent facts.
+- Never invent memories.
 
-Do not store ordinary greetings or meaningless small talk.
+- Ignore ordinary greetings and meaningless filler.
 
-Do not store every sentence.
+- Prioritize details that could matter hundreds or thousands of messages later.
 
-Prioritize information that might matter dozens, hundreds, or thousands of messages later.
+- Keep the story summary compact but useful.
 
+- Track the current location and immediate situation in currentScene.
 
-IMPORTANT FACTS CAN INCLUDE:
+- Track meaningful trust, rivalry, teamwork, tension, friendship, etc. in relationshipState.
 
-- important objects
-- gifts
-- promises
-- secrets
-- injuries
-- abilities discovered
-- names
-- important preferences
-- locations
-- relationships
-- agreements
-- arguments
-- major emotional moments
-- important jokes or recurring references
-- missions
-- plans
-- important discoveries
-- important changes to the story
+- Do not invent romantic development.
 
+- unresolvedThreads should contain genuinely unfinished missions, promises, mysteries, plans, conflicts, threats, or important questions.
 
-SUMMARY
+- Remove unresolved threads when they are clearly resolved.
 
-Maintain a compact but useful summary of the story so far.
+- importantFacts should be concise and specific.
 
-Do not rewrite the entire conversation.
+- Merge duplicate facts.
 
-Preserve older important events while incorporating important new developments.
+- Update a fact instead of keeping contradictory duplicates.
 
-
-CURRENT SCENE
-
-Track the current location and immediate situation.
-
-Update it when the scene clearly changes.
-
-
-RELATIONSHIP STATE
-
-Describe the relationship between the character and user inside THIS chat only.
-
-Track meaningful changes in trust, friendship, rivalry, tension, teamwork, etc.
-
-Do not invent romantic development.
-
-
-UNRESOLVED THREADS
-
-Keep track of meaningful unfinished things such as:
-
-- promises not fulfilled
-- ongoing missions
-- unanswered mysteries
-- plans
-- conflicts
-- important questions
-- objects currently being sought
-- threats or problems still active
-
-Remove an unresolved thread when it is clearly resolved.
-
-
-IMPORTANT FACTS
-
-Keep facts concise and specific.
-
-Merge duplicates.
-
-When a fact changes, update it instead of keeping contradictory versions unless the historical change itself matters.
-
-Return ONLY the structured memory object.
+- Return ONLY the structured memory object.
       `.trim();
 
 
-      // =========================
-      // STRUCTURED MEMORY
-      // =========================
-
       const response =
-        await openai.responses.create({
+        await openai
+          .responses
+          .create({
 
-          model:
-            MEMORY_MODEL,
+            model:
+              MEMORY_MODEL,
 
-          store: false,
+            store:
+              false,
 
-          reasoning: {
-            effort: "none"
-          },
+            reasoning: {
+              effort:
+                "none"
+            },
 
-          instructions:
-            memoryInstructions,
+            instructions:
+              memoryInstructions,
 
-          input:
-            "Update the conversation memory using the supplied messages.",
+            input:
+              "Update the automatic memory using the supplied messages.",
 
-          max_output_tokens:
-            1400,
+            max_output_tokens:
+              1400,
 
-          text: {
+            text: {
 
-            format: {
-
-              type:
-                "json_schema",
-
-              name:
-                "chat_memory",
-
-              strict:
-                true,
-
-              schema: {
+              format: {
 
                 type:
-                  "object",
+                  "json_schema",
 
-                additionalProperties:
-                  false,
+                name:
+                  "chat_memory",
 
-                properties: {
+                strict:
+                  true,
 
-                  summary: {
-                    type:
-                      "string"
-                  },
+                schema: {
 
-                  importantFacts: {
+                  type:
+                    "object",
 
-                    type:
-                      "array",
+                  additionalProperties:
+                    false,
 
-                    items: {
+                  properties: {
+
+                    summary: {
                       type:
                         "string"
                     },
 
-                    maxItems:
-                      80
+                    importantFacts: {
 
-                  },
+                      type:
+                        "array",
 
-                  currentScene: {
-                    type:
-                      "string"
-                  },
+                      items: {
+                        type:
+                          "string"
+                      },
 
-                  relationshipState: {
-                    type:
-                      "string"
-                  },
+                      maxItems:
+                        80
 
-                  unresolvedThreads: {
+                    },
 
-                    type:
-                      "array",
-
-                    items: {
+                    currentScene: {
                       type:
                         "string"
                     },
 
-                    maxItems:
-                      30
+                    relationshipState: {
+                      type:
+                        "string"
+                    },
 
-                  }
+                    unresolvedThreads: {
 
-                },
+                      type:
+                        "array",
 
-                required: [
-                  "summary",
-                  "importantFacts",
-                  "currentScene",
-                  "relationshipState",
-                  "unresolvedThreads"
-                ]
+                      items: {
+                        type:
+                          "string"
+                      },
+
+                      maxItems:
+                        30
+
+                    }
+
+                  },
+
+                  required: [
+
+                    "summary",
+
+                    "importantFacts",
+
+                    "currentScene",
+
+                    "relationshipState",
+
+                    "unresolvedThreads"
+
+                  ]
+
+                }
 
               }
 
             }
 
-          }
-
-        });
+          });
 
 
       const raw =
-        response.output_text
+        response
+          .output_text
           ?.trim();
 
 
       if (!raw) {
+
         throw new Error(
           "Memory model returned nothing."
         );
+
       }
 
 
@@ -1045,8 +1211,10 @@ Return ONLY the structured memory object.
 
 
       res.json({
+
         memory:
           updatedMemory
+
       });
 
     }
@@ -1062,13 +1230,16 @@ Return ONLY the structured memory object.
       res
         .status(500)
         .json({
+
           error:
             "Could not update chat memory."
+
         });
 
     }
 
   }
+
 );
 
 
@@ -1077,6 +1248,7 @@ Return ONLY the structured memory object.
 // =========================
 
 app.listen(
+
   PORT,
 
   () => {
@@ -1116,10 +1288,15 @@ app.listen(
     );
 
     console.log(
+      "📌 Pinned memory enabled"
+    );
+
+    console.log(
       "================================="
     );
 
     console.log("");
 
   }
+
 );

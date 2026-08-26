@@ -1,68 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chati-AI</title>
-
-  <link
-    rel="stylesheet"
-    href="style.css"
-  >
+  <link rel="stylesheet" href="style.css">
 </head>
-
 
 <body>
 
   <div class="app">
 
-
-    <!-- =========================
-         SIDEBAR
-    ========================== -->
-
     <aside class="sidebar">
 
-      <h1 class="logo">
-        Chati-AI
-      </h1>
-
+      <h1 class="logo">Chati-AI</h1>
 
       <nav>
-
-        <button
-          class="nav-btn active"
-          id="chatsBtn"
-        >
+        <button class="nav-btn active" id="chatsBtn">
           💬 Chats
         </button>
 
-
-        <button
-          class="nav-btn"
-          id="createBtn"
-        >
+        <button class="nav-btn" id="createBtn">
           ＋ Create Character
         </button>
-
       </nav>
 
-
       <div class="sidebar-divider"></div>
-
 
       <div class="chat-history-section">
 
         <p class="sidebar-section-title">
           Recent Chats
         </p>
-
 
         <div
           id="chatHistoryList"
@@ -71,7 +40,6 @@
 
       </div>
 
-
       <button class="settings-btn">
         ⚙ Settings
       </button>
@@ -79,17 +47,10 @@
     </aside>
 
 
-
-    <!-- =========================
-         MAIN CONTENT
-    ========================== -->
-
     <main class="main-content">
 
 
-      <!-- =========================
-           HOME
-      ========================== -->
+      <!-- HOME -->
 
       <section
         id="homeView"
@@ -112,12 +73,10 @@
 
         </div>
 
-
         <div
           id="charactersGrid"
           class="characters-grid"
         ></div>
-
 
         <div
           id="emptyState"
@@ -128,16 +87,13 @@
             🤖
           </div>
 
-
           <h2>
             No characters yet
           </h2>
 
-
           <p>
             Create your first AI character and start chatting.
           </p>
-
 
           <button
             class="main-create-btn"
@@ -151,10 +107,7 @@
       </section>
 
 
-
-      <!-- =========================
-           CREATE CHARACTER
-      ========================== -->
+      <!-- CREATE CHARACTER -->
 
       <section
         id="createView"
@@ -170,7 +123,6 @@
             ←
           </button>
 
-
           <div>
 
             <h2>
@@ -178,13 +130,12 @@
             </h2>
 
             <p>
-              Build the personality and identity of your AI.
+              Build the personality, look, and identity of your AI.
             </p>
 
           </div>
 
         </div>
-
 
 
         <form
@@ -213,8 +164,25 @@
             <input
               type="url"
               id="characterImage"
-              placeholder="https://example.com/image.jpg"
+              placeholder="https://example.com/avatar.jpg"
             >
+
+          </label>
+
+
+          <label>
+
+            Chat Background Image URL
+
+            <input
+              type="url"
+              id="characterBackground"
+              placeholder="https://example.com/background.jpg"
+            >
+
+            <small class="field-help">
+              Optional. This image appears behind this character's chat.
+            </small>
 
           </label>
 
@@ -263,7 +231,7 @@
 
             <textarea
               id="characterInstructions"
-              placeholder="Example: Stay in character. Use canon knowledge. Remember important events..."
+              placeholder="Stay in character, follow this version of the story, etc."
             ></textarea>
 
           </label>
@@ -281,21 +249,21 @@
       </section>
 
 
-
-      <!-- =========================
-           CHAT
-      ========================== -->
+      <!-- CHAT -->
 
       <section
         id="chatView"
         class="view hidden"
       >
 
+        <div
+          id="chatBackground"
+          class="chat-background"
+          aria-hidden="true"
+        ></div>
 
-        <!-- HEADER -->
 
-        <div class="chat-header">
-
+        <div class="chat-header chat-layer">
 
           <div class="chat-header-left">
 
@@ -306,20 +274,17 @@
               ←
             </button>
 
-
             <img
               id="chatCharacterImage"
               class="chat-avatar"
               alt="Character"
             >
 
-
             <div class="chat-character-info">
 
               <h2 id="chatCharacterName">
                 Character
               </h2>
-
 
               <p id="chatCharacterDescription">
                 AI Character
@@ -330,13 +295,7 @@
           </div>
 
 
-
-          <!-- CHAT ACTIONS -->
-
           <div class="chat-actions">
-
-
-            <!-- MEMORY -->
 
             <button
               id="memoryBtn"
@@ -347,18 +306,12 @@
               🧠
             </button>
 
-
-            <!-- NEW CHAT -->
-
             <button
               id="newChatBtn"
               class="new-chat-btn"
             >
               ＋ New Chat
             </button>
-
-
-            <!-- MENU -->
 
             <div class="chat-menu-wrapper">
 
@@ -370,7 +323,6 @@
                 ⋯
               </button>
 
-
               <div
                 id="chatMenu"
                 class="chat-menu hidden"
@@ -380,14 +332,11 @@
                   Rename Chat
                 </button>
 
-
                 <button id="clearChatBtn">
                   Clear Chat
                 </button>
 
-
                 <div class="menu-divider"></div>
-
 
                 <button
                   id="deleteChatBtn"
@@ -405,10 +354,7 @@
         </div>
 
 
-
-        <!-- CURRENT CHAT -->
-
-        <div class="current-chat-bar">
+        <div class="current-chat-bar chat-layer">
 
           <span>
             Conversation:
@@ -421,33 +367,29 @@
         </div>
 
 
-
-        <!-- MESSAGES -->
-
         <div
           id="messages"
-          class="messages"
+          class="messages chat-layer"
         ></div>
 
 
-
-        <!-- MESSAGE INPUT -->
-
         <form
           id="chatForm"
-          class="chat-form"
+          class="chat-form chat-layer"
         >
 
-          <input
+          <textarea
             id="messageInput"
-            type="text"
+            class="message-input"
             placeholder="Message..."
-            autocomplete="off"
+            rows="1"
             required
+          ></textarea>
+
+          <button
+            id="sendBtn"
+            type="submit"
           >
-
-
-          <button type="submit">
             Send
           </button>
 
@@ -460,10 +402,65 @@
   </div>
 
 
+  <!-- RIGHT CLICK MESSAGE MENU -->
 
-  <!-- =========================
-       MEMORY VIEWER
-  ========================== -->
+  <div
+    id="messageContextMenu"
+    class="message-context-menu hidden"
+    role="menu"
+  >
+
+    <button
+      id="ctxCopy"
+      class="context-action"
+      type="button"
+    >
+      <span>▣</span>
+      Copy
+    </button>
+
+    <button
+      id="ctxEdit"
+      class="context-action"
+      type="button"
+    >
+      <span>✎</span>
+      Edit
+    </button>
+
+    <button
+      id="ctxRewind"
+      class="context-action"
+      type="button"
+    >
+      <span>↩</span>
+      Rewind to here
+    </button>
+
+    <button
+      id="ctxPin"
+      class="context-action"
+      type="button"
+    >
+      <span>🧠</span>
+      Pin Memory
+    </button>
+
+    <div class="context-divider"></div>
+
+    <button
+      id="ctxDelete"
+      class="context-action context-danger"
+      type="button"
+    >
+      <span>🗑</span>
+      Delete
+    </button>
+
+  </div>
+
+
+  <!-- MEMORY VIEWER -->
 
   <div
     id="memoryModal"
@@ -478,8 +475,6 @@
 
     <div class="memory-panel">
 
-
-      <!-- MEMORY HEADER -->
 
       <div class="memory-header">
 
@@ -497,13 +492,11 @@
 
           </div>
 
-
           <p id="memoryCharacterLabel">
             Current conversation
           </p>
 
         </div>
-
 
         <button
           id="closeMemoryBtn"
@@ -515,9 +508,6 @@
 
       </div>
 
-
-
-      <!-- MEMORY STATUS -->
 
       <div class="memory-status-card">
 
@@ -533,7 +523,6 @@
 
         </div>
 
-
         <div class="memory-progress">
 
           <span id="memoryMessageCount">
@@ -545,8 +534,19 @@
       </div>
 
 
+      <section class="memory-section">
 
-      <!-- SUMMARY -->
+        <h3>
+          📌 Pinned Memories
+        </h3>
+
+        <ul
+          id="memoryPinned"
+          class="memory-list"
+        ></ul>
+
+      </section>
+
 
       <section class="memory-section">
 
@@ -564,9 +564,6 @@
       </section>
 
 
-
-      <!-- IMPORTANT MEMORIES -->
-
       <section class="memory-section">
 
         <h3>
@@ -580,9 +577,6 @@
 
       </section>
 
-
-
-      <!-- CURRENT SCENE -->
 
       <section class="memory-section">
 
@@ -600,9 +594,6 @@
       </section>
 
 
-
-      <!-- RELATIONSHIP -->
-
       <section class="memory-section">
 
         <h3>
@@ -619,9 +610,6 @@
       </section>
 
 
-
-      <!-- UNRESOLVED -->
-
       <section class="memory-section">
 
         <h3>
@@ -636,13 +624,11 @@
       </section>
 
 
-
       <div class="memory-footer">
 
         <span id="memoryUpdatedAt">
           Memory has not been updated yet.
         </span>
-
 
         <span>
           This memory belongs only to this chat.
@@ -655,9 +641,7 @@
   </div>
 
 
-
   <script src="script.js"></script>
 
 </body>
-
 </html>
