@@ -1,4 +1,15 @@
 // =========================
+// CONFIG
+// =========================
+
+const CHAT_RECENT_LIMIT = 50;
+
+const MEMORY_BATCH_THRESHOLD = 10;
+
+const MEMORY_MAX_BATCH_MESSAGES = 80;
+
+
+// =========================
 // PAGE ELEMENTS
 // =========================
 
@@ -97,6 +108,68 @@ const chatHistoryList =
 
 
 // =========================
+// MEMORY VIEWER ELEMENTS
+// =========================
+
+const memoryBtn =
+  document.getElementById("memoryBtn");
+
+const memoryModal =
+  document.getElementById("memoryModal");
+
+const memoryOverlay =
+  document.getElementById("memoryOverlay");
+
+const closeMemoryBtn =
+  document.getElementById("closeMemoryBtn");
+
+const memoryCharacterLabel =
+  document.getElementById(
+    "memoryCharacterLabel"
+  );
+
+const memoryStatusText =
+  document.getElementById(
+    "memoryStatusText"
+  );
+
+const memoryMessageCount =
+  document.getElementById(
+    "memoryMessageCount"
+  );
+
+const memorySummary =
+  document.getElementById(
+    "memorySummary"
+  );
+
+const memoryFacts =
+  document.getElementById(
+    "memoryFacts"
+  );
+
+const memoryScene =
+  document.getElementById(
+    "memoryScene"
+  );
+
+const memoryRelationship =
+  document.getElementById(
+    "memoryRelationship"
+  );
+
+const memoryThreads =
+  document.getElementById(
+    "memoryThreads"
+  );
+
+const memoryUpdatedAt =
+  document.getElementById(
+    "memoryUpdatedAt"
+  );
+
+
+// =========================
 // STATE
 // =========================
 
@@ -115,15 +188,184 @@ let currentChatId = null;
 let isSending = false;
 
 
+const memoryUpdateLocks =
+  new Set();
+
+
+// =========================
+// EMPTY MEMORY
+// =========================
+
+function createEmptyMemory() {
+
+  return {
+
+    summary: "",
+
+    importantFacts: [],
+
+    currentScene: "",
+
+    relationshipState: "",
+
+    unresolvedThreads: [],
+
+    lastProcessedMessageCount: 0,
+
+    updatedAt: null
+
+  };
+
+}
+
+
+// =========================
+// NORMALIZE MEMORY
+// =========================
+
+function normalizeMemory(
+  memory
+) {
+
+  const empty =
+    createEmptyMemory();
+
+
+  if (
+    !memory ||
+    typeof memory !== "object"
+  ) {
+
+    return empty;
+
+  }
+
+
+  return {
+
+    summary:
+      typeof memory.summary ===
+      "string"
+        ? memory.summary
+        : "",
+
+
+    importantFacts:
+      Array.isArray(
+        memory.importantFacts
+      )
+        ? memory.importantFacts.filter(
+            item =>
+              typeof item ===
+              "string"
+          )
+        : [],
+
+
+    currentScene:
+      typeof memory.currentScene ===
+      "string"
+        ? memory.currentScene
+        : "",
+
+
+    relationshipState:
+      typeof memory.relationshipState ===
+      "string"
+        ? memory.relationshipState
+        : "",
+
+
+    unresolvedThreads:
+      Array.isArray(
+        memory.unresolvedThreads
+      )
+        ? memory.unresolvedThreads.filter(
+            item =>
+              typeof item ===
+              "string"
+          )
+        : [],
+
+
+    lastProcessedMessageCount:
+      Number.isFinite(
+        memory.lastProcessedMessageCount
+      )
+        ? memory.lastProcessedMessageCount
+        : 0,
+
+
+    updatedAt:
+      memory.updatedAt ||
+      null
+
+  };
+
+}
+
+
+// =========================
+// NORMALIZE CHAT
+// =========================
+
+function normalizeChat(
+  chat
+) {
+
+  return {
+
+    ...chat,
+
+    id:
+      chat.id ||
+      createChatId(),
+
+    title:
+      chat.title ||
+      "New Chat",
+
+    createdAt:
+      chat.createdAt ||
+      Date.now(),
+
+    updatedAt:
+      chat.updatedAt ||
+      Date.now(),
+
+    messages:
+      Array.isArray(
+        chat.messages
+      )
+        ? chat.messages
+        : [],
+
+    memory:
+      normalizeMemory(
+        chat.memory
+      )
+
+  };
+
+}
+
+
 // =========================
 // CHARACTER STORAGE
 // =========================
 
 function saveCharacters() {
+
   localStorage.setItem(
+
     "chatiCharacters",
-    JSON.stringify(characters)
+
+    JSON.stringify(
+      characters
+    )
+
   );
+
 }
 
 
@@ -131,18 +373,39 @@ function saveCharacters() {
 // STORAGE KEYS
 // =========================
 
-function getChatsKey(characterId) {
-  return "chatiChats_" + characterId;
+function getChatsKey(
+  characterId
+) {
+
+  return (
+    "chatiChats_" +
+    characterId
+  );
+
 }
 
 
-function getActiveChatKey(characterId) {
-  return "chatiActiveChat_" + characterId;
+function getActiveChatKey(
+  characterId
+) {
+
+  return (
+    "chatiActiveChat_" +
+    characterId
+  );
+
 }
 
 
-function getOldChatKey(characterId) {
-  return "chatiChat_" + characterId;
+function getOldChatKey(
+  characterId
+) {
+
+  return (
+    "chatiChat_" +
+    characterId
+  );
+
 }
 
 
@@ -151,13 +414,19 @@ function getOldChatKey(characterId) {
 // =========================
 
 function createChatId() {
+
   return (
+
     Date.now().toString() +
+
     "_" +
+
     Math.random()
       .toString(36)
       .slice(2, 8)
+
   );
+
 }
 
 
@@ -165,52 +434,81 @@ function createChatId() {
 // MIGRATE OLD CHAT
 // =========================
 
-function migrateOldChat(characterId) {
+function migrateOldChat(
+  characterId
+) {
 
   const newKey =
-    getChatsKey(characterId);
+    getChatsKey(
+      characterId
+    );
 
 
   if (
-    localStorage.getItem(newKey) !== null
+    localStorage.getItem(
+      newKey
+    ) !== null
   ) {
+
     return;
+
   }
 
 
   const oldKey =
-    getOldChatKey(characterId);
+    getOldChatKey(
+      characterId
+    );
+
 
   const oldRaw =
-    localStorage.getItem(oldKey);
+    localStorage.getItem(
+      oldKey
+    );
 
 
   if (!oldRaw) {
+
     localStorage.setItem(
+
       newKey,
+
       JSON.stringify([])
+
     );
 
+
     return;
+
   }
 
 
   try {
+
     const oldMessages =
-      JSON.parse(oldRaw);
+      JSON.parse(
+        oldRaw
+      );
 
 
     if (
-      Array.isArray(oldMessages) &&
+      Array.isArray(
+        oldMessages
+      ) &&
       oldMessages.length > 0
     ) {
-      const migratedChat = {
-        id: createChatId(),
 
-        title: "Previous Chat",
+      const migratedChat = {
+
+        id:
+          createChatId(),
+
+        title:
+          "Previous Chat",
 
         createdAt:
-          oldMessages[0]?.time ||
+          oldMessages[0]
+            ?.time ||
           Date.now(),
 
         updatedAt:
@@ -220,41 +518,58 @@ function migrateOldChat(characterId) {
           Date.now(),
 
         messages:
-          oldMessages
+          oldMessages,
+
+        memory:
+          createEmptyMemory()
+
       };
 
 
       localStorage.setItem(
+
         newKey,
+
         JSON.stringify([
           migratedChat
         ])
+
       );
 
 
       localStorage.setItem(
+
         getActiveChatKey(
           characterId
         ),
 
         migratedChat.id
+
       );
+
     }
 
     else {
+
       localStorage.setItem(
+
         newKey,
+
         JSON.stringify([])
+
       );
+
     }
 
 
     localStorage.removeItem(
       oldKey
     );
+
   }
 
   catch (error) {
+
     console.error(
       "Could not migrate old chat:",
       error
@@ -262,84 +577,152 @@ function migrateOldChat(characterId) {
 
 
     localStorage.setItem(
+
       newKey,
+
       JSON.stringify([])
+
     );
+
   }
+
 }
 
 
 // =========================
-// GET CHATS
+// GET CHARACTER CHATS
 // =========================
 
 function getCharacterChats(
   characterId
 ) {
+
   migrateOldChat(
     characterId
   );
 
 
   try {
-    return (
+
+    const raw =
       JSON.parse(
+
         localStorage.getItem(
           getChatsKey(
             characterId
           )
         )
-      ) || []
-    );
+
+      ) || [];
+
+
+    const normalized =
+      raw.map(
+        normalizeChat
+      );
+
+
+    if (
+      JSON.stringify(raw) !==
+      JSON.stringify(normalized)
+    ) {
+
+      localStorage.setItem(
+
+        getChatsKey(
+          characterId
+        ),
+
+        JSON.stringify(
+          normalized
+        )
+
+      );
+
+    }
+
+
+    return normalized;
+
   }
 
   catch (error) {
+
     console.error(
       "Could not load chats:",
       error
     );
 
+
     return [];
+
   }
+
 }
 
 
 // =========================
-// SAVE CHATS
+// SAVE CHARACTER CHATS
 // =========================
 
 function saveCharacterChats(
   characterId,
   chats
 ) {
-  localStorage.setItem(
-    getChatsKey(characterId),
 
-    JSON.stringify(chats)
+  const cleanChats =
+    chats.map(
+      normalizeChat
+    );
+
+
+  localStorage.setItem(
+
+    getChatsKey(
+      characterId
+    ),
+
+    JSON.stringify(
+      cleanChats
+    )
+
   );
+
 }
 
 
 // =========================
-// BUILD NEW CHAT
+// NEW CHAT OBJECT
 // =========================
 
 function buildNewChat() {
+
   const now =
     Date.now();
 
 
   return {
-    id: createChatId(),
 
-    title: "New Chat",
+    id:
+      createChatId(),
 
-    createdAt: now,
+    title:
+      "New Chat",
 
-    updatedAt: now,
+    createdAt:
+      now,
 
-    messages: []
+    updatedAt:
+      now,
+
+    messages:
+      [],
+
+    memory:
+      createEmptyMemory()
+
   };
+
 }
 
 
@@ -351,8 +734,11 @@ function createNewChat(
   character,
   openImmediately = true
 ) {
+
   if (!character) {
+
     return null;
+
   }
 
 
@@ -378,19 +764,25 @@ function createNewChat(
 
 
   localStorage.setItem(
+
     getActiveChatKey(
       character.id
     ),
 
     newChat.id
+
   );
 
 
-  if (openImmediately) {
+  if (
+    openImmediately
+  ) {
+
     openChat(
       character,
       newChat.id
     );
+
   }
 
 
@@ -398,6 +790,7 @@ function createNewChat(
 
 
   return newChat;
+
 }
 
 
@@ -411,7 +804,9 @@ function getCurrentChat() {
     !currentCharacter ||
     !currentChatId
   ) {
+
     return null;
+
   }
 
 
@@ -422,27 +817,61 @@ function getCurrentChat() {
 
 
   return (
+
     chats.find(
       chat =>
         chat.id ===
         currentChatId
     ) || null
+
   );
+
 }
 
 
 // =========================
-// UPDATE CHAT
+// SPECIFIC CHAT
+// =========================
+
+function getStoredChat(
+  characterId,
+  chatId
+) {
+
+  const chats =
+    getCharacterChats(
+      characterId
+    );
+
+
+  return (
+
+    chats.find(
+      chat =>
+        chat.id ===
+        chatId
+    ) || null
+
+  );
+
+}
+
+
+// =========================
+// UPDATE CURRENT CHAT
 // =========================
 
 function updateCurrentChat(
   callback
 ) {
+
   if (
     !currentCharacter ||
     !currentChatId
   ) {
+
     return null;
+
   }
 
 
@@ -460,8 +889,12 @@ function updateCurrentChat(
     );
 
 
-  if (index === -1) {
+  if (
+    index === -1
+  ) {
+
     return null;
+
   }
 
 
@@ -484,6 +917,7 @@ function updateCurrentChat(
 
 
   return chats[index];
+
 }
 
 
@@ -492,6 +926,16 @@ function updateCurrentChat(
 // =========================
 
 function showHomeView() {
+
+  if (isSending) {
+
+    return;
+
+  }
+
+
+  closeMemoryViewer();
+
 
   homeView.classList.remove(
     "hidden"
@@ -511,10 +955,21 @@ function showHomeView() {
   renderCharacters();
 
   renderChatHistory();
+
 }
 
 
 function showCreateView() {
+
+  if (isSending) {
+
+    return;
+
+  }
+
+
+  closeMemoryViewer();
+
 
   homeView.classList.add(
     "hidden"
@@ -530,6 +985,7 @@ function showCreateView() {
 
 
   closeChatMenu();
+
 }
 
 
@@ -541,6 +997,17 @@ function openChat(
   character,
   requestedChatId = null
 ) {
+
+  if (isSending) {
+
+    return;
+
+  }
+
+
+  closeMemoryViewer();
+
+
   currentCharacter =
     character;
 
@@ -551,7 +1018,9 @@ function openChat(
     );
 
 
-  if (chats.length === 0) {
+  if (
+    chats.length === 0
+  ) {
 
     const firstChat =
       buildNewChat();
@@ -566,29 +1035,39 @@ function openChat(
       character.id,
       chats
     );
+
   }
 
 
-  let selectedChat = null;
+  let selectedChat =
+    null;
 
 
-  if (requestedChatId) {
+  if (
+    requestedChatId
+  ) {
+
     selectedChat =
       chats.find(
         chat =>
           chat.id ===
           requestedChatId
       );
+
   }
 
 
-  if (!selectedChat) {
+  if (
+    !selectedChat
+  ) {
 
     const activeId =
       localStorage.getItem(
+
         getActiveChatKey(
           character.id
         )
+
       );
 
 
@@ -598,21 +1077,27 @@ function openChat(
           chat.id ===
           activeId
       );
+
   }
 
 
-  if (!selectedChat) {
+  if (
+    !selectedChat
+  ) {
 
     const sorted =
       [...chats].sort(
+
         (a, b) =>
           b.updatedAt -
           a.updatedAt
+
       );
 
 
     selectedChat =
       sorted[0];
+
   }
 
 
@@ -621,11 +1106,13 @@ function openChat(
 
 
   localStorage.setItem(
+
     getActiveChatKey(
       character.id
     ),
 
     currentChatId
+
   );
 
 
@@ -651,19 +1138,26 @@ function openChat(
     "AI Character";
 
 
-  if (character.image) {
+  if (
+    character.image
+  ) {
 
     chatCharacterImage.src =
       character.image;
 
+
     chatCharacterImage.style.display =
       "block";
+
   }
 
   else {
-    chatCharacterImage.removeAttribute(
-      "src"
-    );
+
+    chatCharacterImage
+      .removeAttribute(
+        "src"
+      );
+
   }
 
 
@@ -675,9 +1169,11 @@ function openChat(
 
 
   setTimeout(
-    () => messageInput.focus(),
+    () =>
+      messageInput.focus(),
     100
   );
+
 }
 
 
@@ -720,6 +1216,7 @@ chatBackBtn.addEventListener(
 // =========================
 
 characterForm.addEventListener(
+
   "submit",
 
   function(event) {
@@ -728,6 +1225,7 @@ characterForm.addEventListener(
 
 
     const character = {
+
       id:
         Date.now(),
 
@@ -781,6 +1279,7 @@ characterForm.addEventListener(
 
       createdAt:
         Date.now()
+
     };
 
 
@@ -794,7 +1293,9 @@ characterForm.addEventListener(
     characterForm.reset();
 
     showHomeView();
+
   }
+
 );
 
 
@@ -811,10 +1312,13 @@ function renderCharacters() {
   if (
     characters.length === 0
   ) {
+
     emptyState.style.display =
       "flex";
 
+
     return;
+
   }
 
 
@@ -823,6 +1327,7 @@ function renderCharacters() {
 
 
   characters.forEach(
+
     function(character) {
 
       const card =
@@ -836,9 +1341,9 @@ function renderCharacters() {
       );
 
 
-      // IMAGE
-
-      if (character.image) {
+      if (
+        character.image
+      ) {
 
         const image =
           document.createElement(
@@ -849,9 +1354,11 @@ function renderCharacters() {
         image.src =
           character.image;
 
+
         image.classList.add(
           "character-image"
         );
+
 
         image.alt =
           character.name;
@@ -860,6 +1367,7 @@ function renderCharacters() {
         card.appendChild(
           image
         );
+
       }
 
       else {
@@ -874,6 +1382,7 @@ function renderCharacters() {
           "character-placeholder"
         );
 
+
         placeholder.textContent =
           "🤖";
 
@@ -881,10 +1390,9 @@ function renderCharacters() {
         card.appendChild(
           placeholder
         );
+
       }
 
-
-      // INFO
 
       const info =
         document.createElement(
@@ -922,9 +1430,11 @@ function renderCharacters() {
         name
       );
 
+
       info.appendChild(
         description
       );
+
 
       card.appendChild(
         info
@@ -932,48 +1442,67 @@ function renderCharacters() {
 
 
       card.addEventListener(
+
         "click",
 
         function() {
+
           openChat(
             character
           );
+
         }
+
       );
 
 
       charactersGrid.appendChild(
         card
       );
+
     }
+
   );
+
 }
 
 
 // =========================
-// AUTOMATIC CHAT TITLE
+// AUTO CHAT TITLE
 // =========================
 
-function makeChatTitle(text) {
+function makeChatTitle(
+  text
+) {
 
   const cleaned =
     text
-      .replace(/\s+/g, " ")
+      .replace(
+        /\s+/g,
+        " "
+      )
       .trim();
 
 
-  if (cleaned.length <= 28) {
+  if (
+    cleaned.length <= 28
+  ) {
+
     return cleaned;
+
   }
 
 
   return (
+
     cleaned.slice(
       0,
       28
     ) +
     "..."
+
   );
+
 }
 
 
@@ -987,10 +1516,12 @@ function renderChatHistory() {
     "";
 
 
-  const allChats = [];
+  const allChats =
+    [];
 
 
   characters.forEach(
+
     function(character) {
 
       const chats =
@@ -1000,22 +1531,29 @@ function renderChatHistory() {
 
 
       chats.forEach(
+
         function(chat) {
 
           allChats.push({
             character,
             chat
           });
+
         }
+
       );
+
     }
+
   );
 
 
   allChats.sort(
+
     (a, b) =>
       b.chat.updatedAt -
       a.chat.updatedAt
+
   );
 
 
@@ -1044,10 +1582,12 @@ function renderChatHistory() {
 
 
     return;
+
   }
 
 
   allChats.forEach(
+
     function(item) {
 
       const button =
@@ -1069,9 +1609,11 @@ function renderChatHistory() {
         currentChatId ===
           item.chat.id
       ) {
+
         button.classList.add(
           "active"
         );
+
       }
 
 
@@ -1110,32 +1652,46 @@ function renderChatHistory() {
         characterName
       );
 
+
       button.appendChild(
         title
       );
 
 
       button.addEventListener(
+
         "click",
 
         function() {
+
           if (isSending) {
+
             return;
+
           }
 
+
           openChat(
+
             item.character,
+
             item.chat.id
+
           );
+
         }
+
       );
 
 
       chatHistoryList.appendChild(
         button
       );
+
     }
+
   );
+
 }
 
 
@@ -1145,7 +1701,8 @@ function renderChatHistory() {
 
 function renderMessages() {
 
-  messages.innerHTML = "";
+  messages.innerHTML =
+    "";
 
 
   const chat =
@@ -1153,7 +1710,9 @@ function renderMessages() {
 
 
   if (!chat) {
+
     return;
+
   }
 
 
@@ -1177,7 +1736,9 @@ function renderMessages() {
     );
 
 
-    if (currentCharacter.image) {
+    if (
+      currentCharacter.image
+    ) {
 
       const avatar =
         document.createElement(
@@ -1193,6 +1754,7 @@ function renderMessages() {
       avatar.src =
         currentCharacter.image;
 
+
       avatar.alt =
         currentCharacter.name;
 
@@ -1200,6 +1762,7 @@ function renderMessages() {
       empty.appendChild(
         avatar
       );
+
     }
 
 
@@ -1227,6 +1790,7 @@ function renderMessages() {
       title
     );
 
+
     empty.appendChild(
       text
     );
@@ -1238,21 +1802,29 @@ function renderMessages() {
 
 
     return;
+
   }
 
 
   chat.messages.forEach(
+
     function(message) {
 
       addMessageBubble(
+
         message.sender,
+
         message.text
+
       );
+
     }
+
   );
 
 
   scrollToBottom();
+
 }
 
 
@@ -1287,6 +1859,7 @@ function addMessageBubble(
 
 
   return bubble;
+
 }
 
 
@@ -1298,11 +1871,12 @@ function scrollToBottom() {
 
   messages.scrollTop =
     messages.scrollHeight;
+
 }
 
 
 // =========================
-// TYPING DOTS
+// TYPING INDICATOR
 // =========================
 
 function showTypingIndicator() {
@@ -1353,6 +1927,7 @@ function showTypingIndicator() {
     indicator.appendChild(
       dot
     );
+
   }
 
 
@@ -1367,6 +1942,7 @@ function showTypingIndicator() {
 
 
   scrollToBottom();
+
 }
 
 
@@ -1379,9 +1955,374 @@ function removeTypingIndicator() {
 
 
   if (typing) {
+
     typing.remove();
+
   }
+
 }
+
+
+// =========================
+// MEMORY VIEWER
+// =========================
+
+function createMemoryListItem(
+  text,
+  empty = false
+) {
+
+  const item =
+    document.createElement(
+      "li"
+    );
+
+
+  item.textContent =
+    text;
+
+
+  if (empty) {
+
+    item.classList.add(
+      "memory-empty-item"
+    );
+
+  }
+
+
+  return item;
+
+}
+
+
+function renderMemoryViewer() {
+
+  const chat =
+    getCurrentChat();
+
+
+  if (
+    !chat ||
+    !currentCharacter
+  ) {
+
+    return;
+
+  }
+
+
+  const memory =
+    normalizeMemory(
+      chat.memory
+    );
+
+
+  memoryCharacterLabel.textContent =
+    `${currentCharacter.name} • ${chat.title}`;
+
+
+  const totalMessages =
+    chat.messages.length;
+
+
+  const processed =
+    Math.min(
+
+      memory
+        .lastProcessedMessageCount,
+
+      totalMessages
+
+    );
+
+
+  memoryMessageCount.textContent =
+    `${processed} / ${totalMessages} processed`;
+
+
+  const hasMemory =
+
+    Boolean(
+      memory.summary.trim()
+    ) ||
+
+    memory
+      .importantFacts
+      .length > 0 ||
+
+    Boolean(
+      memory.currentScene.trim()
+    ) ||
+
+    Boolean(
+      memory
+        .relationshipState
+        .trim()
+    ) ||
+
+    memory
+      .unresolvedThreads
+      .length > 0;
+
+
+  if (hasMemory) {
+
+    memoryStatusText.textContent =
+      "Memory active";
+
+  }
+
+  else if (
+    totalMessages >=
+    MEMORY_BATCH_THRESHOLD
+  ) {
+
+    memoryStatusText.textContent =
+      "Waiting for memory update";
+
+  }
+
+  else {
+
+    memoryStatusText.textContent =
+      "Not enough messages yet";
+
+  }
+
+
+  memorySummary.textContent =
+    memory.summary.trim() ||
+    "No summary yet.";
+
+
+  memoryScene.textContent =
+    memory.currentScene.trim() ||
+    "No current scene stored.";
+
+
+  memoryRelationship.textContent =
+    memory
+      .relationshipState
+      .trim() ||
+    "No relationship development stored.";
+
+
+  // IMPORTANT FACTS
+
+  memoryFacts.innerHTML =
+    "";
+
+
+  if (
+    memory
+      .importantFacts
+      .length === 0
+  ) {
+
+    memoryFacts.appendChild(
+
+      createMemoryListItem(
+        "No important memories stored yet.",
+        true
+      )
+
+    );
+
+  }
+
+  else {
+
+    memory
+      .importantFacts
+      .forEach(
+
+        fact => {
+
+          memoryFacts.appendChild(
+
+            createMemoryListItem(
+              fact
+            )
+
+          );
+
+        }
+
+      );
+
+  }
+
+
+  // UNRESOLVED THREADS
+
+  memoryThreads.innerHTML =
+    "";
+
+
+  if (
+    memory
+      .unresolvedThreads
+      .length === 0
+  ) {
+
+    memoryThreads.appendChild(
+
+      createMemoryListItem(
+        "No unresolved threads.",
+        true
+      )
+
+    );
+
+  }
+
+  else {
+
+    memory
+      .unresolvedThreads
+      .forEach(
+
+        thread => {
+
+          memoryThreads.appendChild(
+
+            createMemoryListItem(
+              thread
+            )
+
+          );
+
+        }
+
+      );
+
+  }
+
+
+  // UPDATED DATE
+
+  if (
+    memory.updatedAt
+  ) {
+
+    const date =
+      new Date(
+        memory.updatedAt
+      );
+
+
+    memoryUpdatedAt.textContent =
+      `Last updated: ${date.toLocaleString()}`;
+
+  }
+
+  else {
+
+    memoryUpdatedAt.textContent =
+      "Memory has not been updated yet.";
+
+  }
+
+}
+
+
+function openMemoryViewer() {
+
+  if (
+    !currentCharacter ||
+    !currentChatId
+  ) {
+
+    return;
+
+  }
+
+
+  closeChatMenu();
+
+
+  renderMemoryViewer();
+
+
+  memoryModal.classList.remove(
+    "hidden"
+  );
+
+
+  document.body.style.overflow =
+    "hidden";
+
+}
+
+
+function closeMemoryViewer() {
+
+  if (!memoryModal) {
+
+    return;
+
+  }
+
+
+  memoryModal.classList.add(
+    "hidden"
+  );
+
+
+  document.body.style.overflow =
+    "";
+
+}
+
+
+memoryBtn.addEventListener(
+
+  "click",
+
+  openMemoryViewer
+
+);
+
+
+closeMemoryBtn.addEventListener(
+
+  "click",
+
+  closeMemoryViewer
+
+);
+
+
+memoryOverlay.addEventListener(
+
+  "click",
+
+  closeMemoryViewer
+
+);
+
+
+document.addEventListener(
+
+  "keydown",
+
+  function(event) {
+
+    if (
+      event.key ===
+      "Escape"
+    ) {
+
+      closeMemoryViewer();
+
+      closeChatMenu();
+
+    }
+
+  }
+
+);
 
 
 // =========================
@@ -1389,6 +2330,7 @@ function removeTypingIndicator() {
 // =========================
 
 newChatBtn.addEventListener(
+
   "click",
 
   function() {
@@ -1397,15 +2339,22 @@ newChatBtn.addEventListener(
       !currentCharacter ||
       isSending
     ) {
+
       return;
+
     }
+
+
+    closeMemoryViewer();
 
 
     createNewChat(
       currentCharacter,
       true
     );
+
   }
+
 );
 
 
@@ -1414,6 +2363,7 @@ newChatBtn.addEventListener(
 // =========================
 
 chatMenuBtn.addEventListener(
+
   "click",
 
   function(event) {
@@ -1424,7 +2374,9 @@ chatMenuBtn.addEventListener(
     chatMenu.classList.toggle(
       "hidden"
     );
+
   }
+
 );
 
 
@@ -1433,10 +2385,12 @@ function closeChatMenu() {
   chatMenu.classList.add(
     "hidden"
   );
+
 }
 
 
 document.addEventListener(
+
   "click",
 
   function(event) {
@@ -1446,9 +2400,13 @@ document.addEventListener(
         ".chat-menu-wrapper"
       )
     ) {
+
       closeChatMenu();
+
     }
+
   }
+
 );
 
 
@@ -1457,6 +2415,7 @@ document.addEventListener(
 // =========================
 
 renameChatBtn.addEventListener(
+
   "click",
 
   function() {
@@ -1466,19 +2425,28 @@ renameChatBtn.addEventListener(
 
 
     if (!chat) {
+
       return;
+
     }
 
 
     const newName =
       prompt(
+
         "Rename this chat:",
+
         chat.title
+
       );
 
 
-    if (newName === null) {
+    if (
+      newName === null
+    ) {
+
       return;
+
     }
 
 
@@ -1487,15 +2455,21 @@ renameChatBtn.addEventListener(
 
 
     if (!cleaned) {
+
       return;
+
     }
 
 
     updateCurrentChat(
+
       function(chat) {
+
         chat.title =
           cleaned;
+
       }
+
     );
 
 
@@ -1504,7 +2478,9 @@ renameChatBtn.addEventListener(
     renderMessages();
 
     renderChatHistory();
+
   }
+
 );
 
 
@@ -1513,12 +2489,15 @@ renameChatBtn.addEventListener(
 // =========================
 
 clearChatBtn.addEventListener(
+
   "click",
 
   function() {
 
     if (isSending) {
+
       return;
+
     }
 
 
@@ -1527,38 +2506,55 @@ clearChatBtn.addEventListener(
 
 
     if (!chat) {
+
       return;
+
     }
 
 
     const confirmed =
       confirm(
-        `Clear all messages from "${chat.title}"?`
+
+        `Clear all messages and memory from "${chat.title}"?`
+
       );
 
 
     if (!confirmed) {
+
       return;
+
     }
 
 
     updateCurrentChat(
+
       function(chat) {
 
-        chat.messages = [];
+        chat.messages =
+          [];
 
         chat.title =
           "New Chat";
+
+        chat.memory =
+          createEmptyMemory();
+
       }
+
     );
 
 
     closeChatMenu();
 
+    closeMemoryViewer();
+
     renderMessages();
 
     renderChatHistory();
+
   }
+
 );
 
 
@@ -1567,6 +2563,7 @@ clearChatBtn.addEventListener(
 // =========================
 
 deleteChatBtn.addEventListener(
+
   "click",
 
   function() {
@@ -1576,7 +2573,9 @@ deleteChatBtn.addEventListener(
       !currentCharacter ||
       !currentChatId
     ) {
+
       return;
+
     }
 
 
@@ -1585,19 +2584,28 @@ deleteChatBtn.addEventListener(
 
 
     if (!current) {
+
       return;
+
     }
 
 
     const confirmed =
       confirm(
+
         `Delete "${current.title}" permanently?`
+
       );
 
 
     if (!confirmed) {
+
       return;
+
     }
+
+
+    closeMemoryViewer();
 
 
     const character =
@@ -1612,9 +2620,11 @@ deleteChatBtn.addEventListener(
 
     chats =
       chats.filter(
+
         chat =>
           chat.id !==
           currentChatId
+
       );
 
 
@@ -1624,38 +2634,53 @@ deleteChatBtn.addEventListener(
     );
 
 
-    if (chats.length > 0) {
+    if (
+      chats.length > 0
+    ) {
 
       chats.sort(
+
         (a, b) =>
           b.updatedAt -
           a.updatedAt
+
       );
 
 
       openChat(
+
         character,
+
         chats[0].id
+
       );
+
     }
 
     else {
+
       createNewChat(
+
         character,
+
         true
+
       );
+
     }
 
 
     closeChatMenu();
 
     renderChatHistory();
+
   }
+
 );
 
 
 // =========================
-// ADD MESSAGE TO CHAT
+// SAVE MESSAGE
 // =========================
 
 function addMessageToStoredChat(
@@ -1678,14 +2703,20 @@ function addMessageToStoredChat(
     );
 
 
-  if (index === -1) {
-    return;
+  if (
+    index === -1
+  ) {
+
+    return null;
+
   }
 
 
   chats[index]
     .messages
-    .push(message);
+    .push(
+      message
+    );
 
 
   chats[index].updatedAt =
@@ -1696,6 +2727,423 @@ function addMessageToStoredChat(
     characterId,
     chats
   );
+
+
+  return chats[index];
+
+}
+
+
+// =========================
+// MEMORY PAYLOAD
+// =========================
+
+function createMemoryPayload(
+  memory
+) {
+
+  const clean =
+    normalizeMemory(
+      memory
+    );
+
+
+  return {
+
+    summary:
+      clean.summary,
+
+    importantFacts:
+      clean.importantFacts,
+
+    currentScene:
+      clean.currentScene,
+
+    relationshipState:
+      clean.relationshipState,
+
+    unresolvedThreads:
+      clean.unresolvedThreads
+
+  };
+
+}
+
+
+// =========================
+// MEMORY UPDATE
+// =========================
+
+async function updateMemoryForChat(
+  character,
+  chatId
+) {
+
+  if (
+    !character ||
+    !chatId
+  ) {
+
+    return;
+
+  }
+
+
+  const lockKey =
+    `${character.id}_${chatId}`;
+
+
+  if (
+    memoryUpdateLocks.has(
+      lockKey
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  let chat =
+    getStoredChat(
+      character.id,
+      chatId
+    );
+
+
+  if (!chat) {
+
+    return;
+
+  }
+
+
+  const memory =
+    normalizeMemory(
+      chat.memory
+    );
+
+
+  const totalMessages =
+    chat.messages.length;
+
+
+  let processed =
+    Math.min(
+
+      memory
+        .lastProcessedMessageCount,
+
+      totalMessages
+
+    );
+
+
+  const unprocessedCount =
+    totalMessages -
+    processed;
+
+
+  if (
+    unprocessedCount <
+    MEMORY_BATCH_THRESHOLD
+  ) {
+
+    return;
+
+  }
+
+
+  memoryUpdateLocks.add(
+    lockKey
+  );
+
+
+  try {
+
+    let start =
+      processed;
+
+
+    if (
+      processed === 0 &&
+      totalMessages >
+      MEMORY_MAX_BATCH_MESSAGES
+    ) {
+
+      start =
+        totalMessages -
+        MEMORY_MAX_BATCH_MESSAGES;
+
+    }
+
+
+    const end =
+      Math.min(
+
+        totalMessages,
+
+        start +
+        MEMORY_MAX_BATCH_MESSAGES
+
+      );
+
+
+    const batch =
+      chat.messages.slice(
+        start,
+        end
+      );
+
+
+    console.log(
+      `🧠 Updating memory: ${character.name} (${batch.length} messages)`
+    );
+
+
+    const response =
+      await fetch(
+
+        "/api/memory",
+
+        {
+
+          method:
+            "POST",
+
+          headers: {
+
+            "Content-Type":
+              "application/json"
+
+          },
+
+          body:
+            JSON.stringify({
+
+              character:
+                character,
+
+              memory:
+                createMemoryPayload(
+                  memory
+                ),
+
+              messages:
+                batch
+
+            })
+
+        }
+
+      );
+
+
+    if (
+      !response.ok
+    ) {
+
+      throw new Error(
+        "Memory request failed."
+      );
+
+    }
+
+
+    const data =
+      await response.json();
+
+
+    if (
+      !data.memory
+    ) {
+
+      throw new Error(
+        "Memory response was empty."
+      );
+
+    }
+
+
+    const latestChats =
+      getCharacterChats(
+        character.id
+      );
+
+
+    const index =
+      latestChats.findIndex(
+        item =>
+          item.id ===
+          chatId
+      );
+
+
+    if (
+      index === -1
+    ) {
+
+      return;
+
+    }
+
+
+    const latestMemory =
+      normalizeMemory(
+        latestChats[index]
+          .memory
+      );
+
+
+    latestChats[index].memory = {
+
+      summary:
+        data.memory.summary ||
+        "",
+
+      importantFacts:
+        Array.isArray(
+          data.memory
+            .importantFacts
+        )
+          ? data.memory
+              .importantFacts
+          : [],
+
+      currentScene:
+        data.memory
+          .currentScene ||
+        "",
+
+      relationshipState:
+        data.memory
+          .relationshipState ||
+        "",
+
+      unresolvedThreads:
+        Array.isArray(
+          data.memory
+            .unresolvedThreads
+        )
+          ? data.memory
+              .unresolvedThreads
+          : [],
+
+      lastProcessedMessageCount:
+        Math.max(
+          latestMemory
+            .lastProcessedMessageCount,
+          end
+        ),
+
+      updatedAt:
+        Date.now()
+
+    };
+
+
+    saveCharacterChats(
+      character.id,
+      latestChats
+    );
+
+
+    console.log(
+      `✅ Memory saved for ${character.name}`
+    );
+
+
+    // If viewer happens to be open,
+    // refresh it automatically.
+
+    if (
+      !memoryModal
+        .classList
+        .contains(
+          "hidden"
+        ) &&
+      currentCharacter &&
+      currentCharacter.id ===
+        character.id &&
+      currentChatId ===
+        chatId
+    ) {
+
+      renderMemoryViewer();
+
+    }
+
+  }
+
+  catch (error) {
+
+    console.error(
+      "Memory update failed:",
+      error
+    );
+
+  }
+
+  finally {
+
+    memoryUpdateLocks.delete(
+      lockKey
+    );
+
+  }
+
+
+  const newestChat =
+    getStoredChat(
+      character.id,
+      chatId
+    );
+
+
+  if (
+    newestChat
+  ) {
+
+    const newestMemory =
+      normalizeMemory(
+        newestChat.memory
+      );
+
+
+    const stillWaiting =
+
+      newestChat
+        .messages
+        .length -
+
+      newestMemory
+        .lastProcessedMessageCount;
+
+
+    if (
+      stillWaiting >=
+      MEMORY_BATCH_THRESHOLD
+    ) {
+
+      setTimeout(
+
+        () => {
+
+          updateMemoryForChat(
+            character,
+            chatId
+          );
+
+        },
+
+        500
+
+      );
+
+    }
+
+  }
+
 }
 
 
@@ -1707,26 +3155,34 @@ async function readAIStream(
   response
 ) {
 
-  if (!response.body) {
+  if (
+    !response.body
+  ) {
+
     throw new Error(
       "Streaming is not supported by this browser."
     );
+
   }
 
 
   const reader =
-    response.body.getReader();
+    response.body
+      .getReader();
 
 
   const decoder =
     new TextDecoder();
 
 
-  let buffer = "";
+  let buffer =
+    "";
 
-  let finalText = "";
+  let finalText =
+    "";
 
-  let streamingBubble = null;
+  let streamingBubble =
+    null;
 
 
   while (true) {
@@ -1739,7 +3195,9 @@ async function readAIStream(
 
 
     if (done) {
+
       break;
+
     }
 
 
@@ -1747,23 +3205,33 @@ async function readAIStream(
       decoder.decode(
         value,
         {
-          stream: true
+          stream:
+            true
         }
       );
 
 
     const lines =
-      buffer.split("\n");
+      buffer.split(
+        "\n"
+      );
 
 
     buffer =
-      lines.pop() || "";
+      lines.pop() ||
+      "";
 
 
-    for (const line of lines) {
+    for (
+      const line of lines
+    ) {
 
-      if (!line.trim()) {
+      if (
+        !line.trim()
+      ) {
+
         continue;
+
       }
 
 
@@ -1771,25 +3239,29 @@ async function readAIStream(
 
 
       try {
+
         packet =
-          JSON.parse(line);
+          JSON.parse(
+            line
+          );
+
       }
 
       catch {
+
         continue;
+
       }
 
-
-      // =====================
-      // TEXT DELTA
-      // =====================
 
       if (
         packet.type ===
         "delta"
       ) {
 
-        if (!streamingBubble) {
+        if (
+          !streamingBubble
+        ) {
 
           removeTypingIndicator();
 
@@ -1801,9 +3273,12 @@ async function readAIStream(
             );
 
 
-          streamingBubble.classList.add(
-            "streaming"
-          );
+          streamingBubble
+            .classList
+            .add(
+              "streaming"
+            );
+
         }
 
 
@@ -1811,40 +3286,45 @@ async function readAIStream(
           packet.delta;
 
 
-        streamingBubble.textContent =
+        streamingBubble
+          .textContent =
           finalText;
 
 
         scrollToBottom();
+
       }
 
-
-      // =====================
-      // STREAM ERROR
-      // =====================
 
       if (
         packet.type ===
         "error"
       ) {
+
         throw new Error(
+
           packet.message ||
           "Streaming failed."
+
         );
+
       }
+
     }
+
   }
 
 
-  // Parse anything remaining
-  // after the final newline.
-
-  if (buffer.trim()) {
+  if (
+    buffer.trim()
+  ) {
 
     try {
 
       const packet =
-        JSON.parse(buffer);
+        JSON.parse(
+          buffer
+        );
 
 
       if (
@@ -1852,7 +3332,9 @@ async function readAIStream(
         "delta"
       ) {
 
-        if (!streamingBubble) {
+        if (
+          !streamingBubble
+        ) {
 
           removeTypingIndicator();
 
@@ -1862,6 +3344,7 @@ async function readAIStream(
               "character",
               ""
             );
+
         }
 
 
@@ -1869,25 +3352,39 @@ async function readAIStream(
           packet.delta;
 
 
-        streamingBubble.textContent =
+        streamingBubble
+          .textContent =
           finalText;
+
       }
+
     }
 
     catch {
-      // Ignore incomplete leftovers.
+
+      // Ignore incomplete
+      // leftover packet.
+
     }
+
   }
 
 
-  if (streamingBubble) {
-    streamingBubble.classList.remove(
-      "streaming"
-    );
+  if (
+    streamingBubble
+  ) {
+
+    streamingBubble
+      .classList
+      .remove(
+        "streaming"
+      );
+
   }
 
 
   return finalText.trim();
+
 }
 
 
@@ -1896,6 +3393,7 @@ async function readAIStream(
 // =========================
 
 chatForm.addEventListener(
+
   "submit",
 
   async function(event) {
@@ -1908,7 +3406,9 @@ chatForm.addEventListener(
       !currentChatId ||
       isSending
     ) {
+
       return;
+
     }
 
 
@@ -1919,7 +3419,9 @@ chatForm.addEventListener(
 
 
     if (!text) {
+
       return;
+
     }
 
 
@@ -1936,10 +3438,6 @@ chatForm.addEventListener(
       currentChatId;
 
 
-    // =====================
-    // SAVE USER MESSAGE
-    // =====================
-
     let chats =
       getCharacterChats(
         requestCharacterId
@@ -1954,8 +3452,12 @@ chatForm.addEventListener(
       );
 
 
-    if (chatIndex === -1) {
+    if (
+      chatIndex === -1
+    ) {
+
       return;
+
     }
 
 
@@ -1964,28 +3466,31 @@ chatForm.addEventListener(
 
 
     chat.messages.push({
-      sender: "user",
 
-      text,
+      sender:
+        "user",
+
+      text:
+        text,
 
       time:
         Date.now()
+
     });
 
-
-    // Automatically title
-    // the first message.
 
     if (
       chat.title ===
         "New Chat" &&
-      chat.messages.length === 1
+      chat.messages.length ===
+        1
     ) {
 
       chat.title =
         makeChatTitle(
           text
         );
+
     }
 
 
@@ -2004,25 +3509,35 @@ chatForm.addEventListener(
 
 
     const requestMessages =
-      chat.messages.map(
-        message => ({
-          ...message
-        })
+      chat.messages
+        .slice(
+          -CHAT_RECENT_LIMIT
+        )
+        .map(
+          message => ({
+            ...message
+          })
+        );
+
+
+    const requestMemory =
+      createMemoryPayload(
+        chat.memory
       );
 
 
-    // =====================
-    // UPDATE UI
-    // =====================
+    messageInput.value =
+      "";
 
-    messageInput.value = "";
 
     renderMessages();
 
     renderChatHistory();
 
 
-    isSending = true;
+    isSending =
+      true;
+
 
     messageInput.disabled =
       true;
@@ -2033,44 +3548,52 @@ chatForm.addEventListener(
 
     try {
 
-      // =====================
-      // ASK BACKEND
-      // =====================
-
       const response =
         await fetch(
+
           "/api/chat",
 
           {
-            method: "POST",
+
+            method:
+              "POST",
 
             headers: {
+
               "Content-Type":
                 "application/json"
+
             },
 
             body:
               JSON.stringify({
+
                 character:
                   requestCharacter,
 
                 messages:
-                  requestMessages
+                  requestMessages,
+
+                memory:
+                  requestMemory
+
               })
+
           }
+
         );
 
 
-      // Normal server error
-      // before streaming starts.
-
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
 
         let errorMessage =
           "Something went wrong.";
 
 
         try {
+
           const data =
             await response.json();
 
@@ -2078,22 +3601,22 @@ chatForm.addEventListener(
           errorMessage =
             data.error ||
             errorMessage;
+
         }
 
         catch {
-          // Ignore JSON error.
+
+          // Ignore JSON issue.
+
         }
 
 
         throw new Error(
           errorMessage
         );
+
       }
 
-
-      // =====================
-      // READ LIVE RESPONSE
-      // =====================
 
       const finalReply =
         await readAIStream(
@@ -2104,23 +3627,25 @@ chatForm.addEventListener(
       removeTypingIndicator();
 
 
-      if (!finalReply) {
+      if (
+        !finalReply
+      ) {
+
         throw new Error(
           "The character returned an empty response."
         );
+
       }
 
 
-      // =====================
-      // SAVE AI RESPONSE
-      // =====================
-
       addMessageToStoredChat(
+
         requestCharacterId,
 
         requestChatId,
 
         {
+
           sender:
             "character",
 
@@ -2129,11 +3654,23 @@ chatForm.addEventListener(
 
           time:
             Date.now()
+
         }
+
       );
 
 
       renderChatHistory();
+
+
+      updateMemoryForChat(
+
+        requestCharacter,
+
+        requestChatId
+
+      );
+
     }
 
     catch (error) {
@@ -2147,33 +3684,38 @@ chatForm.addEventListener(
       );
 
 
-      // Remove unfinished
-      // streamed bubble.
-
       const unfinished =
         messages.querySelector(
           ".message.streaming"
         );
 
 
-      if (unfinished) {
+      if (
+        unfinished
+      ) {
+
         unfinished.remove();
+
       }
 
 
       addMessageBubble(
+
         "system",
 
         "Could not generate a response right now."
+
       );
 
 
       scrollToBottom();
+
     }
 
     finally {
 
-      isSending = false;
+      isSending =
+        false;
 
 
       messageInput.disabled =
@@ -2181,14 +3723,21 @@ chatForm.addEventListener(
 
 
       if (
-        !chatView.classList.contains(
-          "hidden"
-        )
+        !chatView
+          .classList
+          .contains(
+            "hidden"
+          )
       ) {
+
         messageInput.focus();
+
       }
+
     }
+
   }
+
 );
 
 

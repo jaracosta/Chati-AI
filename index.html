@@ -57,8 +57,6 @@
       <div class="sidebar-divider"></div>
 
 
-      <!-- RECENT CHATS -->
-
       <div class="chat-history-section">
 
         <p class="sidebar-section-title">
@@ -194,7 +192,6 @@
           class="character-form"
         >
 
-
           <label>
 
             Character Name
@@ -207,7 +204,6 @@
             >
 
           </label>
-
 
 
           <label>
@@ -223,7 +219,6 @@
           </label>
 
 
-
           <label>
 
             Short Description
@@ -235,7 +230,6 @@
             >
 
           </label>
-
 
 
           <label>
@@ -251,7 +245,6 @@
           </label>
 
 
-
           <label>
 
             Scenario
@@ -264,7 +257,6 @@
           </label>
 
 
-
           <label>
 
             Character Instructions
@@ -275,7 +267,6 @@
             ></textarea>
 
           </label>
-
 
 
           <button
@@ -301,7 +292,7 @@
       >
 
 
-        <!-- CHAT HEADER -->
+        <!-- HEADER -->
 
         <div class="chat-header">
 
@@ -325,16 +316,12 @@
 
             <div class="chat-character-info">
 
-              <h2
-                id="chatCharacterName"
-              >
+              <h2 id="chatCharacterName">
                 Character
               </h2>
 
 
-              <p
-                id="chatCharacterDescription"
-              >
+              <p id="chatCharacterDescription">
                 AI Character
               </p>
 
@@ -349,6 +336,20 @@
           <div class="chat-actions">
 
 
+            <!-- MEMORY -->
+
+            <button
+              id="memoryBtn"
+              class="memory-btn"
+              title="View chat memory"
+              aria-label="View chat memory"
+            >
+              🧠
+            </button>
+
+
+            <!-- NEW CHAT -->
+
             <button
               id="newChatBtn"
               class="new-chat-btn"
@@ -357,6 +358,7 @@
             </button>
 
 
+            <!-- MENU -->
 
             <div class="chat-menu-wrapper">
 
@@ -374,16 +376,12 @@
                 class="chat-menu hidden"
               >
 
-                <button
-                  id="renameChatBtn"
-                >
+                <button id="renameChatBtn">
                   Rename Chat
                 </button>
 
 
-                <button
-                  id="clearChatBtn"
-                >
+                <button id="clearChatBtn">
                   Clear Chat
                 </button>
 
@@ -408,7 +406,7 @@
 
 
 
-        <!-- CURRENT CHAT NAME -->
+        <!-- CURRENT CHAT -->
 
         <div class="current-chat-bar">
 
@@ -416,9 +414,7 @@
             Conversation:
           </span>
 
-          <strong
-            id="currentChatTitle"
-          >
+          <strong id="currentChatTitle">
             New Chat
           </strong>
 
@@ -462,6 +458,202 @@
     </main>
 
   </div>
+
+
+
+  <!-- =========================
+       MEMORY VIEWER
+  ========================== -->
+
+  <div
+    id="memoryModal"
+    class="memory-modal hidden"
+  >
+
+    <div
+      id="memoryOverlay"
+      class="memory-overlay"
+    ></div>
+
+
+    <div class="memory-panel">
+
+
+      <!-- MEMORY HEADER -->
+
+      <div class="memory-header">
+
+        <div>
+
+          <div class="memory-title-row">
+
+            <span class="memory-title-icon">
+              🧠
+            </span>
+
+            <h2>
+              Chat Memory
+            </h2>
+
+          </div>
+
+
+          <p id="memoryCharacterLabel">
+            Current conversation
+          </p>
+
+        </div>
+
+
+        <button
+          id="closeMemoryBtn"
+          class="memory-close-btn"
+          aria-label="Close memory"
+        >
+          ×
+        </button>
+
+      </div>
+
+
+
+      <!-- MEMORY STATUS -->
+
+      <div class="memory-status-card">
+
+        <div>
+
+          <span class="memory-status-label">
+            Memory status
+          </span>
+
+          <strong id="memoryStatusText">
+            No memories yet
+          </strong>
+
+        </div>
+
+
+        <div class="memory-progress">
+
+          <span id="memoryMessageCount">
+            0 / 0 processed
+          </span>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- SUMMARY -->
+
+      <section class="memory-section">
+
+        <h3>
+          Story Summary
+        </h3>
+
+        <p
+          id="memorySummary"
+          class="memory-text"
+        >
+          No summary yet.
+        </p>
+
+      </section>
+
+
+
+      <!-- IMPORTANT MEMORIES -->
+
+      <section class="memory-section">
+
+        <h3>
+          Important Memories
+        </h3>
+
+        <ul
+          id="memoryFacts"
+          class="memory-list"
+        ></ul>
+
+      </section>
+
+
+
+      <!-- CURRENT SCENE -->
+
+      <section class="memory-section">
+
+        <h3>
+          Current Scene
+        </h3>
+
+        <p
+          id="memoryScene"
+          class="memory-text"
+        >
+          No current scene stored.
+        </p>
+
+      </section>
+
+
+
+      <!-- RELATIONSHIP -->
+
+      <section class="memory-section">
+
+        <h3>
+          Relationship / Social State
+        </h3>
+
+        <p
+          id="memoryRelationship"
+          class="memory-text"
+        >
+          No relationship development stored.
+        </p>
+
+      </section>
+
+
+
+      <!-- UNRESOLVED -->
+
+      <section class="memory-section">
+
+        <h3>
+          Unresolved Threads
+        </h3>
+
+        <ul
+          id="memoryThreads"
+          class="memory-list"
+        ></ul>
+
+      </section>
+
+
+
+      <div class="memory-footer">
+
+        <span id="memoryUpdatedAt">
+          Memory has not been updated yet.
+        </span>
+
+
+        <span>
+          This memory belongs only to this chat.
+        </span>
+
+      </div>
+
+    </div>
+
+  </div>
+
 
 
   <script src="script.js"></script>
