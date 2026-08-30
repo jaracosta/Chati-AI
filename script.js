@@ -2,14 +2,7 @@ const CHAT_RECENT_LIMIT = 50;
 const MEMORY_BATCH_THRESHOLD = 10;
 const MEMORY_MAX_BATCH_MESSAGES = 80;
 
-
-// =========================
-// DOM
-// =========================
-
-const $ = id =>
-  document.getElementById(id);
-
+const $ = (id) => document.getElementById(id);
 
 const homeView = $("homeView");
 const createView = $("createView");
@@ -62,13 +55,11 @@ const chatCharacterName = $("chatCharacterName");
 const chatCharacterDescription = $("chatCharacterDescription");
 
 const currentChatTitle = $("currentChatTitle");
-
 const messages = $("messages");
 
 const chatForm = $("chatForm");
 const messageInput = $("messageInput");
 const sendBtn = $("sendBtn");
-
 const newChatBtn = $("newChatBtn");
 
 const chatMenuBtn = $("chatMenuBtn");
@@ -104,10 +95,6 @@ const ctxPinLabel = $("ctxPinLabel");
 const ctxDelete = $("ctxDelete");
 
 
-// =========================
-// STATE
-// =========================
-
 let characters =
   JSON.parse(
     localStorage.getItem(
@@ -131,10 +118,6 @@ const memoryUpdateLocks =
   new Set();
 
 
-// =========================
-// IDS
-// =========================
-
 function uid(prefix) {
 
   return (
@@ -148,17 +131,29 @@ function uid(prefix) {
 
 
 function createChatId() {
-  return uid("chat");
+
+  return uid(
+    "chat"
+  );
+
 }
 
 
 function createMessageId() {
-  return uid("msg");
+
+  return uid(
+    "msg"
+  );
+
 }
 
 
 function createPinId() {
-  return uid("pin");
+
+  return uid(
+    "pin"
+  );
+
 }
 
 
@@ -169,19 +164,18 @@ function clamp(
 ) {
 
   return Math.max(
+
     minimum,
+
     Math.min(
       maximum,
       number
     )
+
   );
 
 }
 
-
-// =========================
-// EMPTY MEMORY
-// =========================
 
 function createEmptyMemory() {
 
@@ -209,10 +203,6 @@ function createEmptyMemory() {
 
 }
 
-
-// =========================
-// PINNED MEMORY
-// =========================
 
 function normalizePinnedMemories(
   value
@@ -296,17 +286,9 @@ function normalizePinnedMemories(
 }
 
 
-// =========================
-// NORMALIZE MEMORY
-// =========================
-
 function normalizeMemory(
   memory
 ) {
-
-  const empty =
-    createEmptyMemory();
-
 
   if (
     !memory ||
@@ -314,7 +296,7 @@ function normalizeMemory(
       "object"
   ) {
 
-    return empty;
+    return createEmptyMemory();
 
   }
 
@@ -335,9 +317,11 @@ function normalizeMemory(
         ? memory
             .importantFacts
             .filter(
+
               item =>
                 typeof item ===
                 "string"
+
             )
         : [],
 
@@ -363,9 +347,11 @@ function normalizeMemory(
         ? memory
             .unresolvedThreads
             .filter(
+
               item =>
                 typeof item ===
                 "string"
+
             )
         : [],
 
@@ -398,10 +384,6 @@ function normalizeMemory(
 
 }
 
-
-// =========================
-// MESSAGE VERSIONS
-// =========================
 
 function normalizeMessage(
   message
@@ -441,11 +423,15 @@ function normalizeMessage(
     ) {
 
       variants =
-        message.variants.filter(
-          item =>
-            typeof item ===
-            "string"
-        );
+        message
+          .variants
+          .filter(
+
+            item =>
+              typeof item ===
+              "string"
+
+          );
 
     }
 
@@ -534,7 +520,9 @@ function getMessageText(
 ) {
 
   if (!message) {
+
     return "";
+
   }
 
 
@@ -570,10 +558,6 @@ function getMessageText(
 
 }
 
-
-// =========================
-// CHAT
-// =========================
 
 function normalizeChat(
   chat
@@ -618,10 +602,6 @@ function normalizeChat(
 }
 
 
-// =========================
-// EXAMPLE MESSAGES
-// =========================
-
 function normalizeExamples(
   value
 ) {
@@ -656,17 +636,15 @@ function normalizeExamples(
 
     )
     .filter(
+
       example =>
         example.user ||
         example.character
+
     );
 
 }
 
-
-// =========================
-// CHARACTER MIGRATION
-// =========================
 
 function normalizeCharacter(
   character
@@ -799,10 +777,6 @@ characters =
   );
 
 
-// =========================
-// STORAGE
-// =========================
-
 function saveCharacters() {
 
   localStorage.setItem(
@@ -823,8 +797,7 @@ function getChatsKey(
 ) {
 
   return (
-    "chatiChats_" +
-    characterId
+    `chatiChats_${characterId}`
   );
 
 }
@@ -835,8 +808,7 @@ function getActiveChatKey(
 ) {
 
   return (
-    "chatiActiveChat_" +
-    characterId
+    `chatiActiveChat_${characterId}`
   );
 
 }
@@ -847,16 +819,11 @@ function getOldChatKey(
 ) {
 
   return (
-    "chatiChat_" +
-    characterId
+    `chatiChat_${characterId}`
   );
 
 }
 
-
-// =========================
-// OLD CHAT MIGRATION
-// =========================
 
 function migrateOldChat(
   characterId
@@ -1016,10 +983,6 @@ function migrateOldChat(
 }
 
 
-// =========================
-// GET / SAVE CHATS
-// =========================
-
 function getCharacterChats(
   characterId
 ) {
@@ -1125,9 +1088,11 @@ function getStoredChat(
       characterId
     )
       .find(
+
         chat =>
           chat.id ===
           chatId
+
       ) ||
 
     null
@@ -1159,10 +1124,6 @@ function getCurrentChat() {
 
 }
 
-
-// =========================
-// MUTATE CHAT
-// =========================
 
 function mutateStoredChat(
   characterId,
@@ -1249,10 +1210,6 @@ function updateCurrentChat(
 }
 
 
-// =========================
-// NEW CHAT
-// =========================
-
 function buildNewChat() {
 
   const now =
@@ -1290,7 +1247,9 @@ function createNewChat(
 ) {
 
   if (!character) {
+
     return null;
+
   }
 
 
@@ -1345,10 +1304,6 @@ function createNewChat(
 
 }
 
-
-// =========================
-// CREATE / EDIT CHARACTER
-// =========================
 
 function setPronouns(
   value
@@ -1465,7 +1420,7 @@ function updateBackgroundPreview() {
       .backgroundImage =
       `url("${url.replace(
         /"/g,
-        "\\\""
+        '\\"'
       )}")`;
 
 
@@ -1510,10 +1465,6 @@ function togglePowersFields() {
 
 }
 
-
-// =========================
-// EXAMPLE MESSAGE EDITOR
-// =========================
 
 function createExampleEditor(
   example = {
@@ -1652,10 +1603,6 @@ function collectExamples() {
 }
 
 
-// =========================
-// RESET CHARACTER FORM
-// =========================
-
 function resetCharacterForm() {
 
   characterForm.reset();
@@ -1698,10 +1645,6 @@ function resetCharacterForm() {
 
 }
 
-
-// =========================
-// EDIT CHARACTER FORM
-// =========================
 
 function fillCharacterForm(
   character
@@ -1802,16 +1745,23 @@ function fillCharacterForm(
 }
 
 
-// =========================
-// NAVIGATION
-// =========================
+function closeAllFloatingUi() {
+
+  closeChatMenu();
+
+  closeMessageContextMenu();
+
+}
+
 
 function showCreateView(
   characterToEdit = null
 ) {
 
   if (isSending) {
+
     return;
+
   }
 
 
@@ -1837,19 +1787,25 @@ function showCreateView(
   }
 
 
-  homeView.classList.add(
-    "hidden"
-  );
+  homeView
+    .classList
+    .add(
+      "hidden"
+    );
 
 
-  chatView.classList.add(
-    "hidden"
-  );
+  chatView
+    .classList
+    .add(
+      "hidden"
+    );
 
 
-  createView.classList.remove(
-    "hidden"
-  );
+  createView
+    .classList
+    .remove(
+      "hidden"
+    );
 
 
   document
@@ -1865,7 +1821,9 @@ function showCreateView(
 function showHomeView() {
 
   if (isSending) {
+
     return;
+
   }
 
 
@@ -1874,19 +1832,25 @@ function showHomeView() {
   closeAllFloatingUi();
 
 
-  homeView.classList.remove(
-    "hidden"
-  );
+  homeView
+    .classList
+    .remove(
+      "hidden"
+    );
 
 
-  createView.classList.add(
-    "hidden"
-  );
+  createView
+    .classList
+    .add(
+      "hidden"
+    );
 
 
-  chatView.classList.add(
-    "hidden"
-  );
+  chatView
+    .classList
+    .add(
+      "hidden"
+    );
 
 
   renderCharacters();
@@ -1895,10 +1859,6 @@ function showHomeView() {
 
 }
 
-
-// =========================
-// FORM EVENTS
-// =========================
 
 pronounPicker.addEventListener(
 
@@ -1973,6 +1933,18 @@ mainCreateBtn.addEventListener(
 );
 
 
+chatsBtn.addEventListener(
+  "click",
+  showHomeView
+);
+
+
+chatBackBtn.addEventListener(
+  "click",
+  showHomeView
+);
+
+
 backBtn.addEventListener(
 
   "click",
@@ -2031,18 +2003,6 @@ cancelCharacterBtn.addEventListener(
 );
 
 
-chatsBtn.addEventListener(
-  "click",
-  showHomeView
-);
-
-
-chatBackBtn.addEventListener(
-  "click",
-  showHomeView
-);
-
-
 settingsBtn.addEventListener(
 
   "click",
@@ -2096,10 +2056,6 @@ editCharacterMenuBtn.addEventListener(
 );
 
 
-// =========================
-// SAVE CHARACTER
-// =========================
-
 characterForm.addEventListener(
 
   "submit",
@@ -2113,9 +2069,11 @@ characterForm.addEventListener(
       editingCharacterId
 
         ? characters.find(
+
             character =>
               character.id ===
               editingCharacterId
+
           )
 
         : null;
@@ -2222,9 +2180,11 @@ characterForm.addEventListener(
 
       const index =
         characters.findIndex(
+
           item =>
             item.id ===
             existing.id
+
         );
 
 
@@ -2255,7 +2215,6 @@ characterForm.addEventListener(
 
     saveCharacters();
 
-
     resetCharacterForm();
 
 
@@ -2280,10 +2239,6 @@ characterForm.addEventListener(
 
 );
 
-
-// =========================
-// CHARACTER CARDS
-// =========================
 
 function renderCharacters() {
 
@@ -2429,10 +2384,6 @@ function renderCharacters() {
 }
 
 
-// =========================
-// CHAT TITLES
-// =========================
-
 function makeChatTitle(
   text
 ) {
@@ -2459,10 +2410,6 @@ function makeChatTitle(
 
 }
 
-
-// =========================
-// CHAT HISTORY
-// =========================
 
 function renderChatHistory() {
 
@@ -2563,9 +2510,11 @@ function renderChatHistory() {
           chat.id
       ) {
 
-        button.classList.add(
-          "active"
-        );
+        button
+          .classList
+          .add(
+            "active"
+          );
 
       }
 
@@ -2637,10 +2586,6 @@ function renderChatHistory() {
 }
 
 
-// =========================
-// CHAT BACKGROUND
-// =========================
-
 function applyCharacterBackground(
   character
 ) {
@@ -2676,7 +2621,7 @@ function applyCharacterBackground(
     .backgroundImage =
     `url("${url.replace(
       /"/g,
-      "\\\""
+      '\\"'
     )}")`;
 
 
@@ -2689,17 +2634,15 @@ function applyCharacterBackground(
 }
 
 
-// =========================
-// OPEN CHAT
-// =========================
-
 function openChat(
   character,
   requestedChatId = null
 ) {
 
   if (isSending) {
+
     return;
+
   }
 
 
@@ -2716,9 +2659,11 @@ function openChat(
 
   const characterIndex =
     characters.findIndex(
+
       item =>
         item.id ===
         currentCharacter.id
+
     );
 
 
@@ -2768,9 +2713,11 @@ function openChat(
     requestedChatId
 
       ? chats.find(
+
           chat =>
             chat.id ===
             requestedChatId
+
         )
 
       : null;
@@ -2792,9 +2739,11 @@ function openChat(
 
     selected =
       chats.find(
+
         chat =>
           chat.id ===
           active
+
       );
 
   }
@@ -2832,19 +2781,25 @@ function openChat(
   );
 
 
-  homeView.classList.add(
-    "hidden"
-  );
+  homeView
+    .classList
+    .add(
+      "hidden"
+    );
 
 
-  createView.classList.add(
-    "hidden"
-  );
+  createView
+    .classList
+    .add(
+      "hidden"
+    );
 
 
-  chatView.classList.remove(
-    "hidden"
-  );
+  chatView
+    .classList
+    .remove(
+      "hidden"
+    );
 
 
   chatCharacterName.textContent =
@@ -2904,10 +2859,6 @@ function openChat(
 
 }
 
-
-// =========================
-// RICH ACTION TEXT
-// =========================
 
 function renderRichText(
   element,
@@ -3024,10 +2975,6 @@ function renderRichText(
 }
 
 
-// =========================
-// MESSAGE ROW + VARIANTS
-// =========================
-
 function createMessageRow(
   message,
   options = {}
@@ -3099,215 +3046,227 @@ function createMessageRow(
 
   if (
     normalized.sender ===
-    "character"
+      "character" ||
+    normalized.sender ===
+      "user"
   ) {
 
     bubble.addEventListener(
 
       "contextmenu",
 
-      event =>
+      event => {
+
         openMessageContextMenu(
 
           event,
 
           normalized.id
 
+        );
+
+      }
+
+    );
+
+  }
+
+
+  if (
+    normalized.sender ===
+      "character" &&
+    !options.hideTools
+  ) {
+
+    const tools =
+      document.createElement(
+        "div"
+      );
+
+
+    tools.className =
+      "message-tools";
+
+
+    const left =
+      document.createElement(
+        "button"
+      );
+
+
+    left.type =
+      "button";
+
+
+    left.className =
+      "message-tool-btn";
+
+
+    left.textContent =
+      "←";
+
+
+    left.title =
+      "Previous version";
+
+
+    const count =
+      document.createElement(
+        "span"
+      );
+
+
+    count.className =
+      "variant-count";
+
+
+    count.textContent =
+      `${normalized.activeVariant + 1}/${normalized.variants.length}`;
+
+
+    const right =
+      document.createElement(
+        "button"
+      );
+
+
+    right.type =
+      "button";
+
+
+    right.className =
+      "message-tool-btn";
+
+
+    right.textContent =
+      "→";
+
+
+    right.title =
+      "Next version";
+
+
+    const regenerate =
+      document.createElement(
+        "button"
+      );
+
+
+    regenerate.type =
+      "button";
+
+
+    regenerate.className =
+      "message-tool-btn message-regenerate";
+
+
+    regenerate.textContent =
+      "↻";
+
+
+    regenerate.title =
+      "Generate another version";
+
+
+    left.disabled =
+      isSending ||
+      normalized.activeVariant <=
+      0;
+
+
+    right.disabled =
+      isSending ||
+      normalized.activeVariant >=
+      normalized.variants.length -
+      1;
+
+
+    regenerate.disabled =
+      isSending;
+
+
+    left.addEventListener(
+
+      "click",
+
+      () => {
+
+        selectVariant(
+
+          normalized.id,
+
+          normalized.activeVariant -
+          1
+
+        );
+
+      }
+
+    );
+
+
+    right.addEventListener(
+
+      "click",
+
+      () => {
+
+        selectVariant(
+
+          normalized.id,
+
+          normalized.activeVariant +
+          1
+
+        );
+
+      }
+
+    );
+
+
+    regenerate.addEventListener(
+
+      "click",
+
+      () =>
+        regenerateMessage(
+          normalized.id
         )
 
     );
 
 
-    if (
-      !options.hideTools
-    ) {
+    tools.append(
 
-      const tools =
-        document.createElement(
-          "div"
-        );
+      left,
 
+      count,
 
-      tools.className =
-        "message-tools";
+      right,
 
+      regenerate
 
-      const left =
-        document.createElement(
-          "button"
-        );
+    );
 
 
-      left.type =
-        "button";
-
-
-      left.className =
-        "message-tool-btn";
-
-
-      left.textContent =
-        "←";
-
-
-      left.title =
-        "Previous version";
-
-
-      const count =
-        document.createElement(
-          "span"
-        );
-
-
-      count.className =
-        "variant-count";
-
-
-      count.textContent =
-        `${normalized.activeVariant + 1}/${normalized.variants.length}`;
-
-
-      const right =
-        document.createElement(
-          "button"
-        );
-
-
-      right.type =
-        "button";
-
-
-      right.className =
-        "message-tool-btn";
-
-
-      right.textContent =
-        "→";
-
-
-      right.title =
-        "Next version";
-
-
-      const regenerate =
-        document.createElement(
-          "button"
-        );
-
-
-      regenerate.type =
-        "button";
-
-
-      regenerate.className =
-        "message-tool-btn message-regenerate";
-
-
-      regenerate.textContent =
-        "↻";
-
-
-      regenerate.title =
-        "Generate another version";
-
-
-      left.disabled =
-        isSending ||
-        normalized.activeVariant <=
-        0;
-
-
-      right.disabled =
-        isSending ||
-        normalized.activeVariant >=
-        normalized.variants.length -
-        1;
-
-
-      regenerate.disabled =
-        isSending;
-
-
-      left.addEventListener(
-
-        "click",
-
-        () =>
-          selectVariant(
-
-            normalized.id,
-
-            normalized.activeVariant -
-            1
-
-          )
-
-      );
-
-
-      right.addEventListener(
-
-        "click",
-
-        () =>
-          selectVariant(
-
-            normalized.id,
-
-            normalized.activeVariant +
-            1
-
-          )
-
-      );
-
-
-      regenerate.addEventListener(
-
-        "click",
-
-        () =>
-          regenerateMessage(
-            normalized.id
-          )
-
-      );
-
-
-      tools.append(
-
-        left,
-
-        count,
-
-        right,
-
-        regenerate
-
-      );
-
-
-      row.appendChild(
-        tools
-      );
-
-    }
+    row.appendChild(
+      tools
+    );
 
   }
 
 
   return {
+
     row,
+
     bubble
+
   };
 
 }
 
-
-// =========================
-// RENDER MESSAGES
-// =========================
 
 function renderMessages() {
 
@@ -3320,7 +3279,9 @@ function renderMessages() {
 
 
   if (!chat) {
+
     return;
+
   }
 
 
@@ -3438,10 +3399,6 @@ function scrollToBottom() {
 }
 
 
-// =========================
-// TYPING
-// =========================
-
 function showTypingIndicator() {
 
   removeTypingIndicator();
@@ -3484,7 +3441,7 @@ function showTypingIndicator() {
   for (
     let index = 0;
     index < 3;
-    index++
+    index += 1
   ) {
 
     indicator.appendChild(
@@ -3520,181 +3477,11 @@ function showTypingIndicator() {
 
 function removeTypingIndicator() {
 
-  document
-    .getElementById(
-      "typingIndicator"
-    )
+  $("typingIndicator")
     ?.remove();
 
 }
 
-
-// =========================
-// PIN SYNC WHEN VERSION CHANGES
-// =========================
-
-function syncPinsForMessage(
-  chat,
-  messageId
-) {
-
-  const target =
-    chat.messages.find(
-      message =>
-        message.id ===
-        messageId
-    );
-
-
-  if (!target) {
-    return;
-  }
-
-
-  const memory =
-    normalizeMemory(
-      chat.memory
-    );
-
-
-  const text =
-    getMessageText(
-      target
-    );
-
-
-  memory.pinnedMemories =
-    memory
-      .pinnedMemories
-      .map(
-
-        pin =>
-          pin.sourceMessageId ===
-          messageId
-
-            ? {
-                ...pin,
-                text
-              }
-
-            : pin
-
-      );
-
-
-  chat.memory =
-    memory;
-
-}
-
-
-// =========================
-// SELECT OLD / NEW VERSION
-// =========================
-
-function selectVariant(
-  messageId,
-  newIndex
-) {
-
-  if (isSending) {
-    return;
-  }
-
-
-  const chat =
-    getCurrentChat();
-
-
-  const message =
-    chat
-      ?.messages
-      .find(
-        item =>
-          item.id ===
-          messageId
-      );
-
-
-  if (
-    !message ||
-    message.sender !==
-    "character"
-  ) {
-
-    return;
-
-  }
-
-
-  const normalized =
-    normalizeMessage(
-      message
-    );
-
-
-  if (
-    newIndex < 0 ||
-    newIndex >=
-      normalized.variants.length ||
-    newIndex ===
-      normalized.activeVariant
-  ) {
-
-    return;
-
-  }
-
-
-  updateCurrentChat(
-
-    stored => {
-
-      const target =
-        stored.messages.find(
-          item =>
-            item.id ===
-            messageId
-        );
-
-
-      target.activeVariant =
-        newIndex;
-
-
-      target.text =
-        target.variants[
-          newIndex
-        ];
-
-
-      syncPinsForMessage(
-        stored,
-        messageId
-      );
-
-    }
-
-  );
-
-
-  renderMessages();
-
-
-  rebuildMemoryAfterHistoryChange(
-
-    currentCharacter,
-
-    currentChatId
-
-  );
-
-}
-
-
-// =========================
-// STREAM READER
-// =========================
 
 async function readAIStream(
   response
@@ -3712,7 +3499,8 @@ async function readAIStream(
 
 
   const reader =
-    response.body.getReader();
+    response.body
+      .getReader();
 
 
   const decoder =
@@ -3740,7 +3528,9 @@ async function readAIStream(
 
 
     if (done) {
+
       break;
+
     }
 
 
@@ -3750,7 +3540,8 @@ async function readAIStream(
         value,
 
         {
-          stream: true
+          stream:
+            true
         }
 
       );
@@ -3880,6 +3671,87 @@ async function readAIStream(
   }
 
 
+  if (
+    buffer.trim()
+  ) {
+
+    try {
+
+      const packet =
+        JSON.parse(
+          buffer
+        );
+
+
+      if (
+        packet.type ===
+        "delta"
+      ) {
+
+        if (
+          !streamingBubble
+        ) {
+
+          removeTypingIndicator();
+
+
+          streamingRow =
+            document.createElement(
+              "div"
+            );
+
+
+          streamingRow.className =
+            "message-row character";
+
+
+          streamingBubble =
+            document.createElement(
+              "div"
+            );
+
+
+          streamingBubble.className =
+            "message character streaming";
+
+
+          streamingRow.appendChild(
+            streamingBubble
+          );
+
+
+          messages.appendChild(
+            streamingRow
+          );
+
+        }
+
+
+        finalText +=
+          packet.delta;
+
+
+        renderRichText(
+
+          streamingBubble,
+
+          finalText
+
+        );
+
+      }
+
+    }
+
+    catch {
+
+      // incomplete packet
+
+    }
+
+  }
+
+
   streamingBubble
     ?.classList
     .remove(
@@ -3900,9 +3772,177 @@ async function readAIStream(
 }
 
 
-// =========================
-// MEMORY PAYLOAD
-// =========================
+function syncPinsForMessage(
+  chat,
+  messageId
+) {
+
+  const target =
+    chat.messages.find(
+
+      message =>
+        message.id ===
+        messageId
+
+    );
+
+
+  if (!target) {
+
+    return;
+
+  }
+
+
+  const memory =
+    normalizeMemory(
+      chat.memory
+    );
+
+
+  const text =
+    getMessageText(
+      target
+    );
+
+
+  memory.pinnedMemories =
+    memory
+      .pinnedMemories
+      .map(
+
+        pin =>
+          pin.sourceMessageId ===
+          messageId
+
+            ? {
+                ...pin,
+                text
+              }
+
+            : pin
+
+      );
+
+
+  chat.memory =
+    memory;
+
+}
+
+
+function selectVariant(
+  messageId,
+  newIndex
+) {
+
+  if (isSending) {
+
+    return;
+
+  }
+
+
+  const chat =
+    getCurrentChat();
+
+
+  const message =
+    chat
+      ?.messages
+      .find(
+
+        item =>
+          item.id ===
+          messageId
+
+      );
+
+
+  if (
+    !message ||
+    message.sender !==
+    "character"
+  ) {
+
+    return;
+
+  }
+
+
+  const normalized =
+    normalizeMessage(
+      message
+    );
+
+
+  if (
+    newIndex < 0 ||
+    newIndex >=
+      normalized.variants.length ||
+    newIndex ===
+      normalized.activeVariant
+  ) {
+
+    return;
+
+  }
+
+
+  updateCurrentChat(
+
+    stored => {
+
+      const target =
+        stored.messages.find(
+
+          item =>
+            item.id ===
+            messageId
+
+        );
+
+
+      if (!target) {
+
+        return;
+
+      }
+
+
+      target.activeVariant =
+        newIndex;
+
+
+      target.text =
+        target.variants[
+          newIndex
+        ];
+
+
+      syncPinsForMessage(
+        stored,
+        messageId
+      );
+
+    }
+
+  );
+
+
+  renderMessages();
+
+
+  rebuildMemoryAfterHistoryChange(
+
+    currentCharacter,
+
+    currentChatId
+
+  );
+
+}
+
 
 function createMemoryPayload(
   memory
@@ -3939,19 +3979,17 @@ function createMemoryPayload(
 }
 
 
-// =========================
-// ONLY ACTIVE VARIANTS COUNT
-// =========================
-
 function getActiveMessages(
   chat
 ) {
 
   return chat.messages
     .filter(
+
       message =>
         message.sender !==
         "system"
+
     )
     .map(
 
@@ -3980,10 +4018,6 @@ function getActiveMessages(
 
 }
 
-
-// =========================
-// RESET AUTO MEMORY
-// =========================
 
 function resetAutomaticMemory(
   characterId,
@@ -4026,10 +4060,6 @@ function resetAutomaticMemory(
 }
 
 
-// =========================
-// REMOVE INVALID PINS
-// =========================
-
 function removePinsForMissingMessages(
   chat
 ) {
@@ -4038,8 +4068,10 @@ function removePinsForMissingMessages(
     new Set(
 
       chat.messages.map(
+
         message =>
           message.id
+
       )
 
     );
@@ -4070,10 +4102,6 @@ function removePinsForMissingMessages(
 
 }
 
-
-// =========================
-// UPDATE MEMORY
-// =========================
 
 async function updateMemoryForChat(
   character,
@@ -4114,7 +4142,9 @@ async function updateMemoryForChat(
 
 
   if (!chat) {
+
     return;
+
   }
 
 
@@ -4220,7 +4250,7 @@ async function updateMemoryForChat(
       !fullRebuild &&
       processed === 0 &&
       totalMessages >
-      MEMORY_MAX_BATCH_MESSAGES
+        MEMORY_MAX_BATCH_MESSAGES
     ) {
 
       start =
@@ -4314,6 +4344,31 @@ async function updateMemoryForChat(
     }
 
 
+    const latestChatBeforeSave =
+      getStoredChat(
+        character.id,
+        chatId
+      );
+
+
+    if (
+      !latestChatBeforeSave ||
+      getActiveMessages(
+        latestChatBeforeSave
+      ).length <
+        end
+    ) {
+
+      console.log(
+        "🧠 Ignored stale memory result after chat history changed."
+      );
+
+
+      return;
+
+    }
+
+
     mutateStoredChat(
 
       character.id,
@@ -4391,9 +4446,7 @@ async function updateMemoryForChat(
 
 
     console.log(
-
       `✅ Memory saved for ${character.name}`
-
     );
 
 
@@ -4441,7 +4494,9 @@ async function updateMemoryForChat(
 
 
   if (!chat) {
+
     return;
+
   }
 
 
@@ -4542,14 +4597,20 @@ async function updateMemoryForChat(
 }
 
 
-// =========================
-// MEMORY REBUILD
-// =========================
-
 function rebuildMemoryAfterHistoryChange(
   character,
   chatId
 ) {
+
+  if (
+    !character ||
+    !chatId
+  ) {
+
+    return;
+
+  }
+
 
   resetAutomaticMemory(
 
@@ -4574,9 +4635,11 @@ function rebuildMemoryAfterHistoryChange(
 
   if (
     getActiveMessages(
+
       chat || {
         messages: []
       }
+
     ).length
   ) {
 
@@ -4602,10 +4665,6 @@ function rebuildMemoryAfterHistoryChange(
 }
 
 
-// =========================
-// MEMORY VIEWER
-// =========================
-
 function createMemoryListItem(
   text,
   empty = false
@@ -4623,9 +4682,11 @@ function createMemoryListItem(
 
   if (empty) {
 
-    item.classList.add(
-      "memory-empty-item"
-    );
+    item
+      .classList
+      .add(
+        "memory-empty-item"
+      );
 
   }
 
@@ -4791,8 +4852,10 @@ function renderMemoryViewer() {
     memory
       .pinnedMemories
       .map(
+
         pin =>
           pin.text
+
       ),
 
     "No pinned memories yet."
@@ -4916,10 +4979,6 @@ memoryOverlay.addEventListener(
 );
 
 
-// =========================
-// CONTEXT MENU
-// =========================
-
 function findCurrentMessage(
   id
 ) {
@@ -4929,9 +4988,11 @@ function findCurrentMessage(
     getCurrentChat()
       ?.messages
       .find(
+
         message =>
           message.id ===
           id
+
       ) ||
 
     null
@@ -4961,6 +5022,39 @@ function isMessagePinned(
 }
 
 
+function setContextMenuForSender(
+  sender
+) {
+
+  const isCharacter =
+    sender ===
+    "character";
+
+
+  ctxRewind
+    .classList
+    .toggle(
+
+      "hidden",
+
+      !isCharacter
+
+    );
+
+
+  ctxPin
+    .classList
+    .toggle(
+
+      "hidden",
+
+      !isCharacter
+
+    );
+
+}
+
+
 function openMessageContextMenu(
   event,
   id
@@ -4970,7 +5064,35 @@ function openMessageContextMenu(
 
 
   if (isSending) {
+
     return;
+
+  }
+
+
+  const chat =
+    getCurrentChat();
+
+
+  const message =
+    chat
+      ?.messages
+      .find(
+
+        item =>
+          item.id ===
+          id
+
+      );
+
+
+  if (
+    !chat ||
+    !message
+  ) {
+
+    return;
+
   }
 
 
@@ -4978,24 +5100,27 @@ function openMessageContextMenu(
     id;
 
 
-  const chat =
-    getCurrentChat();
+  setContextMenuForSender(
+    message.sender
+  );
 
 
-  if (!chat) {
-    return;
+  if (
+    message.sender ===
+    "character"
+  ) {
+
+    ctxPinLabel.textContent =
+      isMessagePinned(
+        chat,
+        id
+      )
+
+        ? "Unpin Memory"
+
+        : "Pin Memory";
+
   }
-
-
-  ctxPinLabel.textContent =
-    isMessagePinned(
-      chat,
-      id
-    )
-
-      ? "Unpin Memory"
-
-      : "Pin Memory";
 
 
   messageContextMenu
@@ -5020,9 +5145,9 @@ function openMessageContextMenu(
 
   if (
     x +
-    rectangle.width >
+      rectangle.width >
     window.innerWidth -
-    8
+      8
   ) {
 
     x =
@@ -5035,9 +5160,9 @@ function openMessageContextMenu(
 
   if (
     y +
-    rectangle.height >
+      rectangle.height >
     window.innerHeight -
-    8
+      8
   ) {
 
     y =
@@ -5080,10 +5205,22 @@ function closeMessageContextMenu() {
   contextMessageId =
     null;
 
+
+  ctxRewind
+    .classList
+    .remove(
+      "hidden"
+    );
+
+
+  ctxPin
+    .classList
+    .remove(
+      "hidden"
+    );
+
 }
 
-
-// COPY
 
 ctxCopy.addEventListener(
 
@@ -5134,9 +5271,10 @@ ctxCopy.addEventListener(
         text;
 
 
-      document.body.appendChild(
-        area
-      );
+      document.body
+        .appendChild(
+          area
+        );
 
 
       area.select();
@@ -5158,8 +5296,6 @@ ctxCopy.addEventListener(
 
 );
 
-
-// EDIT CURRENT VERSION
 
 ctxEdit.addEventListener(
 
@@ -5206,7 +5342,7 @@ ctxEdit.addEventListener(
       edited === null ||
       !edited.trim() ||
       edited.trim() ===
-      current
+        current
     ) {
 
       closeMessageContextMenu();
@@ -5222,10 +5358,19 @@ ctxEdit.addEventListener(
 
         const target =
           chat.messages.find(
+
             item =>
               item.id ===
               id
+
           );
+
+
+        if (!target) {
+
+          return;
+
+        }
 
 
         if (
@@ -5248,6 +5393,12 @@ ctxEdit.addEventListener(
           target.text =
             edited.trim();
 
+
+          syncPinsForMessage(
+            chat,
+            id
+          );
+
         }
 
         else {
@@ -5256,12 +5407,6 @@ ctxEdit.addEventListener(
             edited.trim();
 
         }
-
-
-        syncPinsForMessage(
-          chat,
-          id
-        );
 
       }
 
@@ -5286,8 +5431,6 @@ ctxEdit.addEventListener(
 );
 
 
-// REWIND
-
 ctxRewind.addEventListener(
 
   "click",
@@ -5302,7 +5445,18 @@ ctxRewind.addEventListener(
       getCurrentChat();
 
 
-    if (!chat) {
+    const message =
+      findCurrentMessage(
+        id
+      );
+
+
+    if (
+      !chat ||
+      !message ||
+      message.sender !==
+        "character"
+    ) {
 
       closeMessageContextMenu();
 
@@ -5314,9 +5468,11 @@ ctxRewind.addEventListener(
     const index =
       chat.messages
         .findIndex(
-          message =>
-            message.id ===
+
+          item =>
+            item.id ===
             id
+
         );
 
 
@@ -5391,8 +5547,6 @@ ctxRewind.addEventListener(
 );
 
 
-// PIN / UNPIN
-
 ctxPin.addEventListener(
 
   "click",
@@ -5409,7 +5563,11 @@ ctxPin.addEventListener(
       );
 
 
-    if (!message) {
+    if (
+      !message ||
+      message.sender !==
+        "character"
+    ) {
 
       closeMessageContextMenu();
 
@@ -5506,8 +5664,6 @@ ctxPin.addEventListener(
 );
 
 
-// DELETE MESSAGE
-
 ctxDelete.addEventListener(
 
   "click",
@@ -5522,7 +5678,16 @@ ctxDelete.addEventListener(
       getCurrentChat();
 
 
-    if (!chat) {
+    const message =
+      findCurrentMessage(
+        id
+      );
+
+
+    if (
+      !chat ||
+      !message
+    ) {
 
       closeMessageContextMenu();
 
@@ -5531,9 +5696,18 @@ ctxDelete.addEventListener(
     }
 
 
+    const label =
+      message.sender ===
+      "user"
+
+        ? "your message"
+
+        : "this character message";
+
+
     if (
       !confirm(
-        "Delete this message?"
+        `Delete ${label}?`
       )
     ) {
 
@@ -5551,8 +5725,8 @@ ctxDelete.addEventListener(
         stored.messages =
           stored.messages.filter(
 
-            message =>
-              message.id !==
+            item =>
+              item.id !==
               id
 
           );
@@ -5571,6 +5745,8 @@ ctxDelete.addEventListener(
 
     renderMessages();
 
+    renderChatHistory();
+
 
     rebuildMemoryAfterHistoryChange(
 
@@ -5585,10 +5761,6 @@ ctxDelete.addEventListener(
 );
 
 
-// =========================
-// CHAT MENU
-// =========================
-
 newChatBtn.addEventListener(
 
   "click",
@@ -5596,22 +5768,25 @@ newChatBtn.addEventListener(
   () => {
 
     if (
-      currentCharacter &&
-      !isSending
+      !currentCharacter ||
+      isSending
     ) {
 
-      closeMemoryViewer();
-
-
-      createNewChat(
-
-        currentCharacter,
-
-        true
-
-      );
+      return;
 
     }
+
+
+    closeMemoryViewer();
+
+
+    createNewChat(
+
+      currentCharacter,
+
+      true
+
+    );
 
   }
 
@@ -5652,8 +5827,6 @@ function closeChatMenu() {
 }
 
 
-// RENAME
-
 renameChatBtn.addEventListener(
 
   "click",
@@ -5665,7 +5838,9 @@ renameChatBtn.addEventListener(
 
 
     if (!chat) {
+
       return;
+
     }
 
 
@@ -5707,87 +5882,16 @@ renameChatBtn.addEventListener(
 );
 
 
-// =========================
-// FIXED CLEAR CHAT
-// =========================
-
 clearChatBtn.addEventListener(
 
   "click",
 
-  () => {
+  event => {
 
-    if (isSending) {
-      return;
-    }
+    event.preventDefault();
 
+    event.stopPropagation();
 
-    const chat =
-      getCurrentChat();
-
-
-    if (!chat) {
-      return;
-    }
-
-
-    const confirmed =
-      confirm(
-
-        `Clear every message and memory from "${chat.title}"?`
-
-      );
-
-
-    if (!confirmed) {
-      return;
-    }
-
-
-    updateCurrentChat(
-
-      stored => {
-
-        stored.messages =
-          [];
-
-
-        stored.title =
-          "New Chat";
-
-
-        stored.memory =
-          createEmptyMemory();
-
-      }
-
-    );
-
-
-    closeChatMenu();
-
-    closeMemoryViewer();
-
-    renderMessages();
-
-    renderChatHistory();
-
-    messageInput.focus();
-
-  }
-
-);
-
-
-// =========================
-// FIXED DELETE CHAT
-// =========================
-
-deleteChatBtn.addEventListener(
-
-  "click",
-
-  () => {
 
     if (
       isSending ||
@@ -5800,12 +5904,171 @@ deleteChatBtn.addEventListener(
     }
 
 
+    const characterId =
+      currentCharacter.id;
+
+
+    const chatId =
+      currentChatId;
+
+
     const chat =
-      getCurrentChat();
+      getStoredChat(
+        characterId,
+        chatId
+      );
 
 
     if (!chat) {
+
       return;
+
+    }
+
+
+    const confirmed =
+      confirm(
+
+        `Clear all messages and memory from "${chat.title}"? The character will stay.`
+
+      );
+
+
+    if (
+      !confirmed
+    ) {
+
+      closeChatMenu();
+
+      return;
+
+    }
+
+
+    const chats =
+      getCharacterChats(
+        characterId
+      );
+
+
+    const index =
+      chats.findIndex(
+
+        item =>
+          item.id ===
+          chatId
+
+      );
+
+
+    if (
+      index === -1
+    ) {
+
+      return;
+
+    }
+
+
+    chats[index] = {
+
+      ...chats[index],
+
+      title:
+        "New Chat",
+
+      messages:
+        [],
+
+      memory:
+        createEmptyMemory(),
+
+      updatedAt:
+        Date.now()
+
+    };
+
+
+    saveCharacterChats(
+      characterId,
+      chats
+    );
+
+
+    localStorage.setItem(
+
+      getActiveChatKey(
+        characterId
+      ),
+
+      chatId
+
+    );
+
+
+    closeChatMenu();
+
+    closeMemoryViewer();
+
+    renderMessages();
+
+    renderChatHistory();
+
+
+    messageInput.value =
+      "";
+
+
+    autoGrowMessageInput();
+
+    messageInput.focus();
+
+  }
+
+);
+
+
+deleteChatBtn.addEventListener(
+
+  "click",
+
+  event => {
+
+    event.preventDefault();
+
+    event.stopPropagation();
+
+
+    if (
+      isSending ||
+      !currentCharacter ||
+      !currentChatId
+    ) {
+
+      return;
+
+    }
+
+
+    const character =
+      currentCharacter;
+
+
+    const deletedChatId =
+      currentChatId;
+
+
+    const chat =
+      getStoredChat(
+        character.id,
+        deletedChatId
+      );
+
+
+    if (!chat) {
+
+      return;
+
     }
 
 
@@ -5817,20 +6080,18 @@ deleteChatBtn.addEventListener(
       );
 
 
-    if (!confirmed) {
+    if (
+      !confirmed
+    ) {
+
+      closeChatMenu();
+
       return;
+
     }
 
 
-    const character =
-      currentCharacter;
-
-
-    const deletedId =
-      currentChatId;
-
-
-    let chats =
+    const remainingChats =
       getCharacterChats(
         character.id
       )
@@ -5838,7 +6099,7 @@ deleteChatBtn.addEventListener(
 
           item =>
             item.id !==
-            deletedId
+            deletedChatId
 
         );
 
@@ -5847,7 +6108,7 @@ deleteChatBtn.addEventListener(
 
       character.id,
 
-      chats
+      remainingChats
 
     );
 
@@ -5858,10 +6119,10 @@ deleteChatBtn.addEventListener(
 
 
     if (
-      chats.length
+      remainingChats.length
     ) {
 
-      chats.sort(
+      remainingChats.sort(
 
         (a, b) =>
           b.updatedAt -
@@ -5870,11 +6131,30 @@ deleteChatBtn.addEventListener(
       );
 
 
+      const nextChat =
+        remainingChats[0];
+
+
+      localStorage.setItem(
+
+        getActiveChatKey(
+          character.id
+        ),
+
+        nextChat.id
+
+      );
+
+
+      currentChatId =
+        nextChat.id;
+
+
       openChat(
 
         character,
 
-        chats[0].id
+        nextChat.id
 
       );
 
@@ -5882,13 +6162,24 @@ deleteChatBtn.addEventListener(
 
     else {
 
-      createNewChat(
+      localStorage.removeItem(
 
-        character,
-
-        true
+        getActiveChatKey(
+          character.id
+        )
 
       );
+
+
+      currentChatId =
+        null;
+
+
+      currentCharacter =
+        null;
+
+
+      showHomeView();
 
     }
 
@@ -5899,10 +6190,6 @@ deleteChatBtn.addEventListener(
 
 );
 
-
-// =========================
-// SAVE MESSAGE
-// =========================
 
 function saveMessageToChat(
   characterId,
@@ -5932,10 +6219,6 @@ function saveMessageToChat(
 
 }
 
-
-// =========================
-// REQUEST AI
-// =========================
 
 async function requestCharacterReply(
   character,
@@ -6049,7 +6332,11 @@ async function requestCharacterReply(
 
     }
 
-    catch {}
+    catch {
+
+      // ignore bad error body
+
+    }
 
 
     throw new Error(
@@ -6065,10 +6352,6 @@ async function requestCharacterReply(
 
 }
 
-
-// =========================
-// SENDING STATE
-// =========================
 
 function setSendingState(
   value
@@ -6107,10 +6390,6 @@ function setSendingState(
 
 }
 
-
-// =========================
-// MULTILINE INPUT
-// =========================
 
 function autoGrowMessageInput() {
 
@@ -6158,7 +6437,8 @@ messageInput.addEventListener(
     if (
       event.key ===
         "Enter" &&
-      !event.shiftKey
+      !event.shiftKey &&
+      !event.isComposing
     ) {
 
       event.preventDefault();
@@ -6181,10 +6461,6 @@ messageInput.addEventListener(
 
 );
 
-
-// =========================
-// SYSTEM MESSAGE
-// =========================
 
 function addSystemMessage(
   text
@@ -6229,10 +6505,6 @@ function addSystemMessage(
 }
 
 
-// =========================
-// SEND NORMAL MESSAGE
-// =========================
-
 chatForm.addEventListener(
 
   "submit",
@@ -6260,7 +6532,9 @@ chatForm.addEventListener(
 
 
     if (!text) {
+
       return;
+
     }
 
 
@@ -6342,7 +6616,6 @@ chatForm.addEventListener(
 
         row:
           temporaryRow
-
       } =
         await requestCharacterReply(
 
@@ -6365,7 +6638,8 @@ chatForm.addEventListener(
       }
 
 
-      temporaryRow?.remove();
+      temporaryRow
+        ?.remove();
 
 
       saveMessageToChat(
@@ -6455,10 +6729,6 @@ chatForm.addEventListener(
 );
 
 
-// =========================
-// REGENERATE + SAVE VERSIONS
-// =========================
-
 async function regenerateMessage(
   messageId
 ) {
@@ -6491,7 +6761,9 @@ async function regenerateMessage(
 
 
   if (!chat) {
+
     return;
+
   }
 
 
@@ -6525,20 +6797,15 @@ async function regenerateMessage(
 
 
   if (
-    laterCount > 0
+    laterCount > 0 &&
+    !confirm(
+
+      `Generate a new version here? ${laterCount} later message${laterCount === 1 ? "" : "s"} will be removed after the new version succeeds.`
+
+    )
   ) {
 
-    const confirmed =
-      confirm(
-
-        `Generate a new version here? ${laterCount} later message${laterCount === 1 ? "" : "s"} will be removed after the new version succeeds.`
-
-      );
-
-
-    if (!confirmed) {
-      return;
-    }
+    return;
 
   }
 
@@ -6584,7 +6851,6 @@ async function regenerateMessage(
 
       row:
         temporaryRow
-
     } =
       await requestCharacterReply(
 
@@ -6609,7 +6875,8 @@ async function regenerateMessage(
     }
 
 
-    temporaryRow?.remove();
+    temporaryRow
+      ?.remove();
 
 
     mutateStoredChat(
@@ -6631,7 +6898,9 @@ async function regenerateMessage(
 
 
         if (!target) {
+
           return;
+
         }
 
 
@@ -6762,19 +7031,6 @@ async function regenerateMessage(
 }
 
 
-// =========================
-// FLOATING UI
-// =========================
-
-function closeAllFloatingUi() {
-
-  closeChatMenu();
-
-  closeMessageContextMenu();
-
-}
-
-
 document.addEventListener(
 
   "click",
@@ -6850,10 +7106,6 @@ document.addEventListener(
 
 );
 
-
-// =========================
-// START
-// =========================
 
 autoGrowMessageInput();
 

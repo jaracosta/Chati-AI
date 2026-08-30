@@ -2126,3 +2126,31 @@ nav {
     font-size: 14px;
   }
 }
+/* =========================
+   FIX CHAT MENU LAYER
+========================= */
+
+.chat-header.chat-layer {
+  z-index: 1000;
+}
+
+.chat-menu-wrapper {
+  z-index: 1001;
+}
+
+.chat-menu {
+  z-index: 1002;
+  pointer-events: auto;
+}
+
+.current-chat-bar.chat-layer {
+  z-index: 2;
+}
+
+.messages.chat-layer {
+  z-index: 1;
+}
+
+.chat-form.chat-layer {
+  z-index: 2;
+}

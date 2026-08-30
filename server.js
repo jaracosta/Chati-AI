@@ -1199,143 +1199,290 @@ RULES
       `.trim();
 
 
-      const response =
-        await openai
-          .responses
-          .create({
+      let updatedMemory =
+        null;
 
-            model:
-              MEMORY_MODEL,
 
-            store:
-              false,
+      let lastMemoryError =
+        null;
 
-            reasoning: {
-              effort:
-                "none"
-            },
 
-            instructions:
-              memoryInstructions,
+      for (
+        let attempt = 1;
+        attempt <= 2;
+        attempt += 1
+      ) {
 
-            input:
-              "Update the automatic memory using the supplied messages.",
+        try {
 
-            max_output_tokens:
-              1400,
+          console.log(
 
-            text: {
+            `🧠 Memory generation attempt ${attempt}/2 for ${character.name}`
 
-              format: {
+          );
 
-                type:
-                  "json_schema",
 
-                name:
-                  "chat_memory",
+          const response =
+            await openai
+              .responses
+              .create({
 
-                strict:
-                  true,
+                model:
+                  MEMORY_MODEL,
 
-                schema: {
+                store:
+                  false,
 
-                  type:
-                    "object",
+                reasoning: {
+                  effort:
+                    "none"
+                },
 
-                  additionalProperties:
-                    false,
+                instructions:
+                  memoryInstructions,
 
-                  properties: {
+                input:
+                  "Update the automatic memory using the supplied messages.",
 
-                    summary: {
+                /*
+                  More room prevents long memories
+                  from being cut off before the JSON
+                  object is finished.
+                */
+
+                max_output_tokens:
+                  6000,
+
+                text: {
+
+                  format: {
+
+                    type:
+                      "json_schema",
+
+                    name:
+                      "chat_memory",
+
+                    strict:
+                      true,
+
+                    schema: {
+
                       type:
-                        "string"
-                    },
+                        "object",
 
-                    importantFacts: {
+                      additionalProperties:
+                        false,
 
-                      type:
-                        "array",
+                      properties: {
 
-                      items: {
-                        type:
-                          "string"
+                        summary: {
+                          type:
+                            "string"
+                        },
+
+                        importantFacts: {
+
+                          type:
+                            "array",
+
+                          items: {
+                            type:
+                              "string"
+                          },
+
+                          maxItems:
+                            80
+
+                        },
+
+                        currentScene: {
+                          type:
+                            "string"
+                        },
+
+                        relationshipState: {
+                          type:
+                            "string"
+                        },
+
+                        unresolvedThreads: {
+
+                          type:
+                            "array",
+
+                          items: {
+                            type:
+                              "string"
+                          },
+
+                          maxItems:
+                            30
+
+                        }
+
                       },
 
-                      maxItems:
-                        80
+                      required: [
 
-                    },
+                        "summary",
 
-                    currentScene: {
-                      type:
-                        "string"
-                    },
+                        "importantFacts",
 
-                    relationshipState: {
-                      type:
-                        "string"
-                    },
+                        "currentScene",
 
-                    unresolvedThreads: {
+                        "relationshipState",
 
-                      type:
-                        "array",
+                        "unresolvedThreads"
 
-                      items: {
-                        type:
-                          "string"
-                      },
-
-                      maxItems:
-                        30
+                      ]
 
                     }
 
-                  },
-
-                  required: [
-
-                    "summary",
-
-                    "importantFacts",
-
-                    "currentScene",
-
-                    "relationshipState",
-
-                    "unresolvedThreads"
-
-                  ]
+                  }
 
                 }
 
-              }
-
-            }
-
-          });
+              });
 
 
-      const raw =
-        response
-          .output_text
-          ?.trim();
+          if (
+            response.status ===
+            "incomplete"
+          ) {
+
+            const reason =
+              response
+                .incomplete_details
+                ?.reason ||
+              "unknown reason";
 
 
-      if (!raw) {
+            throw new Error(
 
-        throw new Error(
-          "Memory model returned nothing."
-        );
+              `Memory response was incomplete: ${reason}`
+
+            );
+
+          }
+
+
+          if (
+            response.status &&
+            response.status !==
+            "completed"
+          ) {
+
+            throw new Error(
+
+              `Memory response status was: ${response.status}`
+
+            );
+
+          }
+
+
+          const raw =
+            response
+              .output_text
+              ?.trim();
+
+
+          if (!raw) {
+
+            throw new Error(
+              "Memory model returned nothing."
+            );
+
+          }
+
+
+          try {
+
+            updatedMemory =
+              JSON.parse(
+                raw
+              );
+
+          }
+
+          catch (
+            parseError
+          ) {
+
+            console.warn(
+
+              `⚠️ Invalid memory JSON on attempt ${attempt}:`,
+              parseError.message
+
+            );
+
+
+            throw new Error(
+              "Memory JSON was incomplete or invalid."
+            );
+
+          }
+
+
+          console.log(
+
+            `✅ Memory JSON valid on attempt ${attempt}`
+
+          );
+
+
+          break;
+
+        }
+
+        catch (error) {
+
+          lastMemoryError =
+            error;
+
+
+          console.warn(
+
+            `⚠️ Memory attempt ${attempt} failed:`,
+            error.message
+
+          );
+
+
+          if (
+            attempt < 2
+          ) {
+
+            await new Promise(
+
+              resolve =>
+                setTimeout(
+                  resolve,
+                  500
+                )
+
+            );
+
+          }
+
+        }
 
       }
 
 
-      const updatedMemory =
-        JSON.parse(
-          raw
+      if (
+        !updatedMemory
+      ) {
+
+        throw (
+          lastMemoryError ||
+          new Error(
+            "Memory update failed after two attempts."
+          )
         );
+
+      }
 
 
       console.log(
