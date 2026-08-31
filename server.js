@@ -74,7 +74,7 @@ app.use(
 
   express.json({
     limit:
-      "4mb"
+      "12mb"
   })
 
 );
@@ -226,6 +226,92 @@ function normalizeMemory(
       )
 
   };
+
+}
+
+
+// =========================
+// IMAGE ATTACHMENTS
+// =========================
+
+function normalizeAttachment(
+  attachment
+) {
+
+  if (
+    !attachment ||
+    typeof attachment !==
+      "object"
+  ) {
+
+    return null;
+
+  }
+
+
+  const dataUrl =
+    typeof attachment.dataUrl ===
+      "string" &&
+    attachment.dataUrl.startsWith(
+      "data:image/"
+    )
+
+      ? attachment.dataUrl
+
+      : "";
+
+
+  if (!dataUrl) {
+
+    return null;
+
+  }
+
+
+  return {
+
+    dataUrl,
+
+    note:
+      typeof attachment.note ===
+      "string"
+
+        ? attachment.note
+            .slice(
+              0,
+              1000
+            )
+
+        : ""
+
+  };
+
+}
+
+
+function getAttachmentNote(
+  attachment
+) {
+
+  if (
+    !attachment ||
+    typeof attachment !==
+      "object" ||
+    typeof attachment.note !==
+      "string"
+  ) {
+
+    return "";
+
+  }
+
+
+  return attachment.note
+    .slice(
+      0,
+      1000
+    )
+    .trim();
 
 }
 
@@ -471,6 +557,125 @@ ${character.powerLimits || "Not specified"}
 
 
 // =========================
+// MULTIMODAL CHAT INPUT
+// =========================
+
+function buildChatInputMessage(
+  message
+) {
+
+  const role =
+    message.sender ===
+    "character"
+
+      ? "assistant"
+
+      : "user";
+
+
+  const attachment =
+    role ===
+    "user"
+
+      ? normalizeAttachment(
+          message.attachment
+        )
+
+      : null;
+
+
+  if (!attachment) {
+
+    return {
+
+      role,
+
+      content:
+        message.text ||
+        ""
+
+    };
+
+  }
+
+
+  const note =
+    attachment.note
+      .trim();
+
+
+  const textParts =
+    [];
+
+
+  if (
+    message.text
+      ?.trim()
+  ) {
+
+    textParts.push(
+      message.text.trim()
+    );
+
+  }
+
+
+  if (note) {
+
+    textParts.push(
+      `Scene clarification: ${note}`
+    );
+
+  }
+
+
+  if (
+    !textParts.length
+  ) {
+
+    textParts.push(
+      "React naturally to what is happening right now."
+    );
+
+  }
+
+
+  return {
+
+    role:
+      "user",
+
+    content: [
+
+      {
+        type:
+          "input_text",
+
+        text:
+          textParts.join(
+            "\n\n"
+          )
+      },
+
+      {
+        type:
+          "input_image",
+
+        image_url:
+          attachment.dataUrl,
+
+        detail:
+          "high"
+      }
+
+    ]
+
+  };
+
+}
+
+
+// =========================
 // CHAT API
 // =========================
 
@@ -620,6 +825,27 @@ ROLEPLAY RULES
 - Use powers consistently with the character's powers and limitations profile when one is provided.
 
 
+VISUAL SCENE RULES
+
+- A user may provide a battle or scene image as direct visual context for the current moment.
+
+- Treat the visual as part of the character's immediate in-world reality, not as a photograph the character is analyzing.
+
+- Never say phrases such as "I see the image", "in the image", "in the picture", "in the photo", "from the attachment", or similar out-of-world wording.
+
+- Never mention that the user uploaded, attached, or showed a file.
+
+- If the user identifies a person, object, place, or event in the Scene clarification, trust that identification for the roleplay.
+
+- Use visible details naturally: battlefield damage, smoke, fire, terrain, posture, exhaustion, injuries, clothing damage, magical effects, weather, lighting, and other relevant scene conditions.
+
+- Do not invent an identity for an unidentified real person. Describe only what is relevant to the fictional scene.
+
+- React as though ${character.name} is physically present and directly witnessing or experiencing the moment.
+
+- Do not mechanically list visual details. Integrate only the details the character would naturally notice or react to.
+
+
 HUMAN-LIKE STYLE
 
 - Sound like a real person inside the scene rather than an AI answering a prompt.
@@ -745,23 +971,7 @@ Return only what the character says or does.
 
           )
           .map(
-
-            message => ({
-
-              role:
-                message.sender ===
-                "character"
-
-                  ? "assistant"
-
-                  : "user",
-
-              content:
-                message.text ||
-                ""
-
-            })
-
+            buildChatInputMessage
           );
 
 
@@ -1073,6 +1283,20 @@ app.post(
 
             message => {
 
+              const sceneNote =
+                getAttachmentNote(
+                  message.attachment
+                );
+
+
+              const sceneSuffix =
+                sceneNote
+
+                  ? `\n[Scene clarification: ${sceneNote}]`
+
+                  : "";
+
+
               return (
                 (
                   message.sender ===
@@ -1086,7 +1310,8 @@ app.post(
                 (
                   message.text ||
                   ""
-                )
+                ) +
+                sceneSuffix
               );
 
             }
@@ -1192,6 +1417,8 @@ RULES
 - Update contradictions instead of keeping both versions.
 
 - The client sends only the selected response variant.
+
+- Scene clarifications attached to user messages are factual context for that moment and may be remembered when they materially affect the story.
 
 - Treat these messages as the one true active timeline.
 
@@ -1579,6 +1806,10 @@ app.listen(
 
     console.log(
       "⚙ Character editing enabled"
+    );
+
+    console.log(
+      "🖼 Battle scene image input enabled"
     );
 
     console.log(

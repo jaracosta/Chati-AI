@@ -1,6 +1,8 @@
 const CHAT_RECENT_LIMIT = 50;
 const MEMORY_BATCH_THRESHOLD = 10;
 const MEMORY_MAX_BATCH_MESSAGES = 80;
+const MAX_ATTACHMENT_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_ATTACHMENT_DIMENSION = 1280;
 
 const $ = (id) => document.getElementById(id);
 
@@ -62,6 +64,13 @@ const messageInput = $("messageInput");
 const sendBtn = $("sendBtn");
 const newChatBtn = $("newChatBtn");
 
+const attachImageBtn = $("attachImageBtn");
+const imageInput = $("imageInput");
+const attachmentPreview = $("attachmentPreview");
+const attachmentPreviewImage = $("attachmentPreviewImage");
+const attachmentNote = $("attachmentNote");
+const removeAttachmentBtn = $("removeAttachmentBtn");
+
 const chatMenuBtn = $("chatMenuBtn");
 const chatMenu = $("chatMenu");
 
@@ -112,6 +121,8 @@ let isSending = false;
 let contextMessageId = null;
 
 let editingCharacterId = null;
+
+let pendingAttachment = null;
 
 
 const memoryUpdateLocks =
@@ -385,6 +396,73 @@ function normalizeMemory(
 }
 
 
+function normalizeAttachment(
+  attachment
+) {
+
+  if (
+    !attachment ||
+    typeof attachment !==
+      "object"
+  ) {
+
+    return null;
+
+  }
+
+
+  const dataUrl =
+    typeof attachment.dataUrl ===
+      "string" &&
+    attachment.dataUrl.startsWith(
+      "data:image/"
+    )
+
+      ? attachment.dataUrl
+
+      : "";
+
+
+  if (!dataUrl) {
+
+    return null;
+
+  }
+
+
+  return {
+
+    dataUrl,
+
+    note:
+      typeof attachment.note ===
+      "string"
+
+        ? attachment.note
+
+        : "",
+
+    mimeType:
+      typeof attachment.mimeType ===
+      "string"
+
+        ? attachment.mimeType
+
+        : "image/jpeg",
+
+    name:
+      typeof attachment.name ===
+      "string"
+
+        ? attachment.name
+
+        : "battle-reference.jpg"
+
+  };
+
+}
+
+
 function normalizeMessage(
   message
 ) {
@@ -505,6 +583,11 @@ function normalizeMessage(
     variants,
 
     activeVariant,
+
+    attachment:
+      normalizeAttachment(
+        message?.attachment
+      ),
 
     time:
       message?.time ||
@@ -1860,6 +1943,377 @@ function showHomeView() {
 }
 
 
+function readFileAsDataUrl(
+  file
+) {
+
+  return new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const reader =
+        new FileReader();
+
+
+      reader.onload =
+        () =>
+          resolve(
+            String(
+              reader.result
+            )
+          );
+
+
+      reader.onerror =
+        () =>
+          reject(
+            reader.error ||
+            new Error(
+              "Could not read image file."
+            )
+          );
+
+
+      reader.readAsDataURL(
+        file
+      );
+
+    }
+
+  );
+
+}
+
+
+function loadImageFromDataUrl(
+  dataUrl
+) {
+
+  return new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const image =
+        new Image();
+
+
+      image.onload =
+        () =>
+          resolve(
+            image
+          );
+
+
+      image.onerror =
+        () =>
+          reject(
+            new Error(
+              "Could not decode image."
+            )
+          );
+
+
+      image.src =
+        dataUrl;
+
+    }
+
+  );
+
+}
+
+
+async function compressImageFile(
+  file
+) {
+
+  const originalDataUrl =
+    await readFileAsDataUrl(
+      file
+    );
+
+
+  const image =
+    await loadImageFromDataUrl(
+      originalDataUrl
+    );
+
+
+  const ratio =
+    Math.min(
+
+      MAX_ATTACHMENT_DIMENSION /
+        image.width,
+
+      MAX_ATTACHMENT_DIMENSION /
+        image.height,
+
+      1
+
+    );
+
+
+  const canvas =
+    document.createElement(
+      "canvas"
+    );
+
+
+  canvas.width =
+    Math.max(
+      1,
+      Math.round(
+        image.width *
+        ratio
+      )
+    );
+
+
+  canvas.height =
+    Math.max(
+      1,
+      Math.round(
+        image.height *
+        ratio
+      )
+    );
+
+
+  const context =
+    canvas.getContext(
+      "2d"
+    );
+
+
+  if (!context) {
+
+    throw new Error(
+      "Canvas is not available."
+    );
+
+  }
+
+
+  context.drawImage(
+
+    image,
+
+    0,
+    0,
+
+    canvas.width,
+    canvas.height
+
+  );
+
+
+  return canvas.toDataURL(
+    "image/jpeg",
+    0.8
+  );
+
+}
+
+
+function clearPendingAttachment() {
+
+  pendingAttachment =
+    null;
+
+
+  if (imageInput) {
+
+    imageInput.value =
+      "";
+
+  }
+
+
+  if (attachmentNote) {
+
+    attachmentNote.value =
+      "";
+
+  }
+
+
+  if (attachmentPreviewImage) {
+
+    attachmentPreviewImage
+      .removeAttribute(
+        "src"
+      );
+
+  }
+
+
+  attachmentPreview
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+}
+
+
+function showPendingAttachment(
+  attachment
+) {
+
+  pendingAttachment =
+    attachment;
+
+
+  attachmentPreviewImage.src =
+    attachment.dataUrl;
+
+
+  attachmentNote.value =
+    attachment.note ||
+    "";
+
+
+  attachmentPreview
+    .classList
+    .remove(
+      "hidden"
+    );
+
+}
+
+
+attachImageBtn?.addEventListener(
+
+  "click",
+
+  () => {
+
+    if (isSending) {
+
+      return;
+
+    }
+
+
+    imageInput?.click();
+
+  }
+
+);
+
+
+removeAttachmentBtn?.addEventListener(
+  "click",
+  clearPendingAttachment
+);
+
+
+imageInput?.addEventListener(
+
+  "change",
+
+  async event => {
+
+    const file =
+      event.target.files?.[0];
+
+
+    if (!file) {
+
+      return;
+
+    }
+
+
+    if (
+      !file.type.startsWith(
+        "image/"
+      )
+    ) {
+
+      alert(
+        "Please choose an image file."
+      );
+
+
+      clearPendingAttachment();
+
+      return;
+
+    }
+
+
+    if (
+      file.size >
+      MAX_ATTACHMENT_FILE_SIZE
+    ) {
+
+      alert(
+        "Please keep the original image under 5MB."
+      );
+
+
+      clearPendingAttachment();
+
+      return;
+
+    }
+
+
+    try {
+
+      const dataUrl =
+        await compressImageFile(
+          file
+        );
+
+
+      showPendingAttachment({
+
+        dataUrl,
+
+        note:
+          "",
+
+        mimeType:
+          "image/jpeg",
+
+        name:
+          file.name ||
+          "battle-reference.jpg"
+
+      });
+
+    }
+
+    catch (error) {
+
+      console.error(
+        "Attachment error:",
+        error
+      );
+
+
+      alert(
+        "Could not process that image."
+      );
+
+
+      clearPendingAttachment();
+
+    }
+
+  }
+
+);
+
+
 pronounPicker.addEventListener(
 
   "click",
@@ -2650,6 +3104,8 @@ function openChat(
 
   closeAllFloatingUi();
 
+  clearPendingAttachment();
+
 
   currentCharacter =
     normalizeCharacter(
@@ -2975,6 +3431,141 @@ function renderRichText(
 }
 
 
+function renderMessageContent(
+  bubble,
+  message
+) {
+
+  bubble.replaceChildren();
+
+
+  if (
+    message.attachment
+  ) {
+
+    const attachment =
+      document.createElement(
+        "div"
+      );
+
+
+    attachment.className =
+      "message-attachment";
+
+
+    const image =
+      document.createElement(
+        "img"
+      );
+
+
+    image.src =
+      message.attachment.dataUrl;
+
+
+    image.alt =
+      "Battle scene reference";
+
+
+    attachment.appendChild(
+      image
+    );
+
+
+    if (
+      message.attachment
+        .note
+        ?.trim()
+    ) {
+
+      const note =
+        document.createElement(
+          "div"
+        );
+
+
+      note.className =
+        "message-attachment-note";
+
+
+      note.textContent =
+        message.attachment
+          .note
+          .trim();
+
+
+      attachment.appendChild(
+        note
+      );
+
+    }
+
+
+    bubble.appendChild(
+      attachment
+    );
+
+  }
+
+
+  const text =
+    message.sender ===
+    "character"
+
+      ? getMessageText(
+          message
+        )
+
+      : (
+          message.text ||
+          ""
+        );
+
+
+  if (!text) {
+
+    return;
+
+  }
+
+
+  const textBlock =
+    document.createElement(
+      "div"
+    );
+
+
+  textBlock.className =
+    "message-text";
+
+
+  if (
+    message.sender ===
+    "character"
+  ) {
+
+    renderRichText(
+      textBlock,
+      text
+    );
+
+  }
+
+  else {
+
+    textBlock.textContent =
+      text;
+
+  }
+
+
+  bubble.appendChild(
+    textBlock
+  );
+
+}
+
+
 function createMessageRow(
   message,
   options = {}
@@ -3014,29 +3605,10 @@ function createMessageRow(
     normalized.id;
 
 
-  if (
-    normalized.sender ===
-    "character"
-  ) {
-
-    renderRichText(
-
-      bubble,
-
-      getMessageText(
-        normalized
-      )
-
-    );
-
-  }
-
-  else {
-
-    bubble.textContent =
-      normalized.text;
-
-  }
+  renderMessageContent(
+    bubble,
+    normalized
+  );
 
 
   row.appendChild(
@@ -4278,6 +4850,29 @@ async function updateMemoryForChat(
       );
 
 
+    const memoryBatch =
+      batch.map(
+
+        message => ({
+
+          ...message,
+
+          attachment:
+            message.attachment
+
+              ? {
+                  note:
+                    message.attachment.note ||
+                    ""
+                }
+
+              : null
+
+        })
+
+      );
+
+
     console.log(
 
       `🧠 Updating memory: ${character.name} (${batch.length} messages)`
@@ -4310,7 +4905,7 @@ async function updateMemoryForChat(
                 ),
 
               messages:
-                batch
+                memoryBatch
 
             })
         }
@@ -6019,6 +6614,9 @@ clearChatBtn.addEventListener(
       "";
 
 
+    clearPendingAttachment();
+
+
     autoGrowMessageInput();
 
     messageInput.focus();
@@ -6116,6 +6714,8 @@ deleteChatBtn.addEventListener(
     closeChatMenu();
 
     closeMemoryViewer();
+
+    clearPendingAttachment();
 
 
     if (
@@ -6242,7 +6842,7 @@ async function requestCharacterReply(
   }
 
 
-  const activeMessages =
+  const recentMessages =
     (
       messagesOverride ||
       getActiveMessages(
@@ -6251,21 +6851,49 @@ async function requestCharacterReply(
     )
       .slice(
         -CHAT_RECENT_LIMIT
-      )
-      .map(
+      );
 
-        message => ({
 
-          ...message,
+  const activeMessages =
+    recentMessages.map(
+
+      (
+        message,
+        index
+      ) => {
+
+        const normalized =
+          normalizeMessage(
+            message
+          );
+
+
+        const isLatestMessage =
+          index ===
+          recentMessages.length - 1;
+
+
+        return {
+
+          ...normalized,
 
           text:
             getMessageText(
-              message
-            )
+              normalized
+            ),
 
-        })
+          attachment:
+            isLatestMessage
 
-      );
+              ? normalized.attachment
+
+              : null
+
+        };
+
+      }
+
+    );
 
 
   if (
@@ -6369,6 +6997,38 @@ function setSendingState(
     value;
 
 
+  if (attachImageBtn) {
+
+    attachImageBtn.disabled =
+      value;
+
+  }
+
+
+  if (imageInput) {
+
+    imageInput.disabled =
+      value;
+
+  }
+
+
+  if (attachmentNote) {
+
+    attachmentNote.disabled =
+      value;
+
+  }
+
+
+  if (removeAttachmentBtn) {
+
+    removeAttachmentBtn.disabled =
+      value;
+
+  }
+
+
   document
     .querySelectorAll(
       ".message-tool-btn"
@@ -6446,9 +7106,12 @@ messageInput.addEventListener(
 
       if (
         !isSending &&
-        messageInput
-          .value
-          .trim()
+        (
+          messageInput
+            .value
+            .trim() ||
+          pendingAttachment
+        )
       ) {
 
         chatForm.requestSubmit();
@@ -6531,11 +7194,32 @@ chatForm.addEventListener(
         .trim();
 
 
-    if (!text) {
+    const note =
+      attachmentNote
+        ?.value
+        ?.trim() ||
+      "";
+
+
+    if (
+      !text &&
+      !pendingAttachment
+    ) {
 
       return;
 
     }
+
+
+    const attachment =
+      pendingAttachment
+
+        ? {
+            ...pendingAttachment,
+            note
+          }
+
+        : null;
 
 
     const character = {
@@ -6564,6 +7248,8 @@ chatForm.addEventListener(
 
             text,
 
+            attachment,
+
             time:
               Date.now()
 
@@ -6581,7 +7267,9 @@ chatForm.addEventListener(
 
           chat.title =
             makeChatTitle(
-              text
+              text ||
+              note ||
+              "Battle reference"
             );
 
         }
