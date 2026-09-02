@@ -70,6 +70,11 @@ const chatForm = $("chatForm");
 const messageInput = $("messageInput");
 const sendBtn = $("sendBtn");
 const newChatBtn = $("newChatBtn");
+const newChatMenuWrapper = $("newChatMenuWrapper");
+const newChatMenu = $("newChatMenu");
+const newNormalChatBtn = $("newNormalChatBtn");
+const newPrivateChatBtn = $("newPrivateChatBtn");
+const privateChatBadge = $("privateChatBadge");
 
 const mediaMenuWrapper = $("mediaMenuWrapper");
 const mediaMenuBtn = $("mediaMenuBtn");
@@ -148,6 +153,12 @@ let pendingPreviewObjectUrl = null;
 
 /* Used only to animate the AI message that has just finished generating. */
 let recentlyCompletedMessageId = null;
+
+/* Private Chat lives only in this page's JavaScript memory. */
+let temporaryPrivateChat = null;
+
+/* Audio/video for Private Chat never enters IndexedDB. */
+const privateMediaStore = new Map();
 
 
 const memoryUpdateLocks =
@@ -1193,9 +1204,16 @@ function getCharacterChats(
 
 
     const normalized =
-      raw.map(
-        normalizeChat
-      );
+      raw
+        .filter(
+
+          chat =>
+            !chat?.isPrivate
+
+        )
+        .map(
+          normalizeChat
+        );
 
 
     if (
@@ -1250,9 +1268,16 @@ function saveCharacterChats(
 
     JSON.stringify(
 
-      chats.map(
-        normalizeChat
-      )
+      chats
+        .filter(
+
+          chat =>
+            !chat?.isPrivate
+
+        )
+        .map(
+          normalizeChat
+        )
 
     )
 
@@ -1261,10 +1286,204 @@ function saveCharacterChats(
 }
 
 
+function getTemporaryPrivateChat(
+  characterId,
+  chatId = null
+) {
+
+  if (
+    !temporaryPrivateChat ||
+    temporaryPrivateChat.characterId !==
+      characterId
+  ) {
+
+    return null;
+
+  }
+
+
+  if (
+    chatId &&
+    temporaryPrivateChat.id !==
+      chatId
+  ) {
+
+    return null;
+
+  }
+
+
+  return temporaryPrivateChat;
+
+}
+
+
+function isPrivateChat(
+  characterId,
+  chatId
+) {
+
+  return Boolean(
+    getTemporaryPrivateChat(
+      characterId,
+      chatId
+    )
+  );
+
+}
+
+
+function isCurrentChatPrivate() {
+
+  return Boolean(
+    currentCharacter &&
+    currentChatId &&
+    isPrivateChat(
+      currentCharacter.id,
+      currentChatId
+    )
+  );
+
+}
+
+
+function privateChatHasUnsavedContent() {
+
+  const chat =
+    currentCharacter &&
+    currentChatId
+
+      ? getTemporaryPrivateChat(
+          currentCharacter.id,
+          currentChatId
+        )
+
+      : null;
+
+
+  if (!chat) {
+
+    return false;
+
+  }
+
+
+  return Boolean(
+    chat.messages.length ||
+    messageInput?.value?.trim() ||
+    pendingAttachment
+  );
+
+}
+
+
+function discardPrivateChat() {
+
+  if (!temporaryPrivateChat) {
+
+    return;
+
+  }
+
+
+  temporaryPrivateChat.messages
+    .forEach(
+
+      message =>
+        deleteMediaForAttachment(
+          message.attachment
+        )
+
+    );
+
+
+  const discardedId =
+    temporaryPrivateChat.id;
+
+
+  temporaryPrivateChat =
+    null;
+
+
+  if (
+    currentChatId ===
+    discardedId
+  ) {
+
+    currentChatId =
+      null;
+
+  }
+
+
+  clearPendingAttachment();
+
+
+  if (messageInput) {
+
+    messageInput.value =
+      "";
+
+    autoGrowMessageInput();
+
+  }
+
+
+  closeMemoryViewer();
+
+  updatePrivateChatUi(
+    null
+  );
+
+}
+
+
+function confirmAndDiscardPrivateChat() {
+
+  if (!isCurrentChatPrivate()) {
+
+    return true;
+
+  }
+
+
+  if (
+    privateChatHasUnsavedContent() &&
+    !confirm(
+      "This Private Chat is not saved. Leaving it will permanently discard this conversation. Continue?"
+    )
+  ) {
+
+    return false;
+
+  }
+
+
+  discardPrivateChat();
+
+  return true;
+
+}
+
+
 function getStoredChat(
   characterId,
   chatId
 ) {
+
+  const privateChat =
+    getTemporaryPrivateChat(
+      characterId,
+      chatId
+    );
+
+
+  if (privateChat) {
+
+    return privateChat;
+
+  }
+
 
   return (
 
@@ -1314,6 +1533,39 @@ function mutateStoredChat(
   chatId,
   callback
 ) {
+
+  const privateChat =
+    getTemporaryPrivateChat(
+      characterId,
+      chatId
+    );
+
+
+  if (privateChat) {
+
+    callback(
+      privateChat
+    );
+
+
+    privateChat.updatedAt =
+      Date.now();
+
+
+    temporaryPrivateChat = {
+      ...normalizeChat(
+        privateChat
+      ),
+      characterId,
+      isPrivate:
+        true
+    };
+
+
+    return temporaryPrivateChat;
+
+  }
+
 
   const chats =
     getCharacterChats(
@@ -1394,7 +1646,12 @@ function updateCurrentChat(
 }
 
 
-function buildNewChat() {
+function buildNewChat(
+  {
+    isPrivate = false,
+    characterId = null
+  } = {}
+) {
 
   const now =
     Date.now();
@@ -1418,7 +1675,17 @@ function buildNewChat() {
       [],
 
     memory:
-      createEmptyMemory()
+      createEmptyMemory(),
+
+    isPrivate:
+      Boolean(
+        isPrivate
+      ),
+
+    characterId:
+      isPrivate
+        ? characterId
+        : null
 
   };
 
@@ -1485,6 +1752,40 @@ function createNewChat(
 
 
   return chat;
+
+}
+
+
+function createPrivateChat(
+  character
+) {
+
+  if (!character) {
+
+    return null;
+
+  }
+
+
+  temporaryPrivateChat =
+    buildNewChat({
+      isPrivate:
+        true,
+      characterId:
+        character.id
+    });
+
+
+  openChat(
+    character,
+    temporaryPrivateChat.id
+  );
+
+
+  renderChatHistory();
+
+
+  return temporaryPrivateChat;
 
 }
 
@@ -1929,9 +2230,115 @@ function fillCharacterForm(
 }
 
 
+function closeNewChatMenu() {
+
+  newChatMenu
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+
+  newChatBtn
+    ?.setAttribute(
+      "aria-expanded",
+      "false"
+    );
+
+}
+
+
+function toggleNewChatMenu() {
+
+  if (
+    isSending ||
+    !currentCharacter
+  ) {
+
+    return;
+
+  }
+
+
+  const willOpen =
+    newChatMenu
+      ?.classList
+      .contains(
+        "hidden"
+      );
+
+
+  if (willOpen) {
+
+    closeChatMenu();
+
+    closeMessageContextMenu();
+
+    closeMediaAttachMenu();
+
+
+    newChatMenu
+      ?.classList
+      .remove(
+        "hidden"
+      );
+
+  }
+
+  else {
+
+    closeNewChatMenu();
+
+  }
+
+
+  newChatBtn
+    ?.setAttribute(
+      "aria-expanded",
+      willOpen
+        ? "true"
+        : "false"
+    );
+
+}
+
+
+function updatePrivateChatUi(
+  chat = getCurrentChat()
+) {
+
+  const active =
+    Boolean(
+      chat?.isPrivate &&
+      currentCharacter &&
+      currentChatId ===
+        chat.id
+    );
+
+
+  privateChatBadge
+    ?.classList
+    .toggle(
+      "hidden",
+      !active
+    );
+
+
+  chatView
+    ?.classList
+    .toggle(
+      "private-chat-active",
+      active
+    );
+
+}
+
+
 function closeAllFloatingUi() {
 
   closeChatMenu();
+
+  closeNewChatMenu();
 
   closeMessageContextMenu();
 
@@ -2287,10 +2694,41 @@ function openMediaDatabase() {
 }
 
 
+function isPrivateMediaId(
+  mediaId
+) {
+
+  return (
+    typeof mediaId ===
+      "string" &&
+    mediaId.startsWith(
+      "private_media_"
+    )
+  );
+
+}
+
+
 async function putMediaBlob(
   mediaId,
   blob
 ) {
+
+  if (
+    isPrivateMediaId(
+      mediaId
+    )
+  ) {
+
+    privateMediaStore.set(
+      mediaId,
+      blob
+    );
+
+    return;
+
+  }
+
 
   const database =
     await openMediaDatabase();
@@ -2362,6 +2800,22 @@ async function getMediaBlob(
   }
 
 
+  if (
+    isPrivateMediaId(
+      mediaId
+    )
+  ) {
+
+    return (
+      privateMediaStore.get(
+        mediaId
+      ) ||
+      null
+    );
+
+  }
+
+
   const database =
     await openMediaDatabase();
 
@@ -2429,6 +2883,21 @@ async function deleteMediaBlob(
 ) {
 
   if (!mediaId) {
+
+    return;
+
+  }
+
+
+  if (
+    isPrivateMediaId(
+      mediaId
+    )
+  ) {
+
+    privateMediaStore.delete(
+      mediaId
+    );
 
     return;
 
@@ -3973,7 +4442,9 @@ async function selectAudioFile(
 
   const mediaId =
     uid(
-      "media_audio"
+      isCurrentChatPrivate()
+        ? "private_media_audio"
+        : "media_audio"
     );
 
 
@@ -4067,7 +4538,9 @@ async function selectVideoFile(
 
   const mediaId =
     uid(
-      "media_video"
+      isCurrentChatPrivate()
+        ? "private_media_video"
+        : "media_video"
     );
 
 
@@ -4523,8 +4996,20 @@ createBtn.addEventListener(
 
   "click",
 
-  () =>
-    showCreateView()
+  () => {
+
+    if (
+      !confirmAndDiscardPrivateChat()
+    ) {
+
+      return;
+
+    }
+
+
+    showCreateView();
+
+  }
 
 );
 
@@ -4540,14 +5025,46 @@ mainCreateBtn.addEventListener(
 
 
 chatsBtn.addEventListener(
+
   "click",
-  showHomeView
+
+  () => {
+
+    if (
+      !confirmAndDiscardPrivateChat()
+    ) {
+
+      return;
+
+    }
+
+
+    showHomeView();
+
+  }
+
 );
 
 
 chatBackBtn.addEventListener(
+
   "click",
-  showHomeView
+
+  () => {
+
+    if (
+      !confirmAndDiscardPrivateChat()
+    ) {
+
+      return;
+
+    }
+
+
+    showHomeView();
+
+  }
+
 );
 
 
@@ -5169,6 +5686,15 @@ function renderChatHistory() {
             !isSending
           ) {
 
+            if (
+              !confirmAndDiscardPrivateChat()
+            ) {
+
+              return;
+
+            }
+
+
             openChat(
               character,
               chat.id
@@ -5290,6 +5816,17 @@ function openChat(
   }
 
 
+  const requestedPrivateChat =
+    requestedChatId
+
+      ? getTemporaryPrivateChat(
+          currentCharacter.id,
+          requestedChatId
+        )
+
+      : null;
+
+
   let chats =
     getCharacterChats(
       currentCharacter.id
@@ -5297,6 +5834,7 @@ function openChat(
 
 
   if (
+    !requestedPrivateChat &&
     !chats.length
   ) {
 
@@ -5318,22 +5856,27 @@ function openChat(
 
 
   let selected =
-    requestedChatId
-
-      ? chats.find(
-
-          chat =>
-            chat.id ===
-            requestedChatId
-
-        )
-
-      : null;
+    requestedPrivateChat;
 
 
   if (
-    !selected
+    !selected &&
+    requestedChatId
   ) {
+
+    selected =
+      chats.find(
+
+        chat =>
+          chat.id ===
+          requestedChatId
+
+      );
+
+  }
+
+
+  if (!selected) {
 
     const active =
       localStorage.getItem(
@@ -5358,7 +5901,8 @@ function openChat(
 
 
   if (
-    !selected
+    !selected &&
+    chats.length
   ) {
 
     selected =
@@ -5374,19 +5918,32 @@ function openChat(
   }
 
 
+  if (!selected) {
+
+    return;
+
+  }
+
+
   currentChatId =
     selected.id;
 
 
-  localStorage.setItem(
+  if (
+    !selected.isPrivate
+  ) {
 
-    getActiveChatKey(
-      currentCharacter.id
-    ),
+    localStorage.setItem(
 
-    currentChatId
+      getActiveChatKey(
+        currentCharacter.id
+      ),
 
-  );
+      currentChatId
+
+    );
+
+  }
 
 
   homeView
@@ -5448,6 +6005,11 @@ function openChat(
 
   applyCharacterBackground(
     currentCharacter
+  );
+
+
+  updatePrivateChatUi(
+    selected
   );
 
 
@@ -6196,6 +6758,11 @@ function renderMessages() {
 
   const chat =
     getCurrentChat();
+
+
+  updatePrivateChatUi(
+    chat
+  );
 
 
   if (!chat) {
@@ -8725,7 +9292,29 @@ newChatBtn.addEventListener(
 
   "click",
 
-  () => {
+  event => {
+
+    event.preventDefault();
+
+    event.stopPropagation();
+
+    toggleNewChatMenu();
+
+  }
+
+);
+
+
+newNormalChatBtn?.addEventListener(
+
+  "click",
+
+  event => {
+
+    event.preventDefault();
+
+    event.stopPropagation();
+
 
     if (
       !currentCharacter ||
@@ -8737,7 +9326,20 @@ newChatBtn.addEventListener(
     }
 
 
+    if (
+      !confirmAndDiscardPrivateChat()
+    ) {
+
+      closeNewChatMenu();
+
+      return;
+
+    }
+
+
     closeMemoryViewer();
+
+    closeNewChatMenu();
 
 
     createNewChat(
@@ -8746,6 +9348,52 @@ newChatBtn.addEventListener(
 
       true
 
+    );
+
+  }
+
+);
+
+
+newPrivateChatBtn?.addEventListener(
+
+  "click",
+
+  event => {
+
+    event.preventDefault();
+
+    event.stopPropagation();
+
+
+    if (
+      !currentCharacter ||
+      isSending
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      !confirmAndDiscardPrivateChat()
+    ) {
+
+      closeNewChatMenu();
+
+      return;
+
+    }
+
+
+    closeMemoryViewer();
+
+    closeNewChatMenu();
+
+
+    createPrivateChat(
+      currentCharacter
     );
 
   }
@@ -8905,6 +9553,69 @@ clearChatBtn.addEventListener(
     }
 
 
+    if (
+      isPrivateChat(
+        characterId,
+        chatId
+      )
+    ) {
+
+      chat.messages.forEach(
+
+        message =>
+          deleteMediaForAttachment(
+            message.attachment
+          )
+
+      );
+
+
+      mutateStoredChat(
+
+        characterId,
+
+        chatId,
+
+        stored => {
+
+          stored.title =
+            "New Chat";
+
+          stored.messages =
+            [];
+
+          stored.memory =
+            createEmptyMemory();
+
+        }
+
+      );
+
+
+      closeChatMenu();
+
+      closeMemoryViewer();
+
+      renderMessages();
+
+      renderChatHistory();
+
+
+      messageInput.value =
+        "";
+
+
+      clearPendingAttachment();
+
+      autoGrowMessageInput();
+
+      messageInput.focus();
+
+      return;
+
+    }
+
+
     const chats =
       getCharacterChats(
         characterId
@@ -9050,7 +9761,14 @@ deleteChatBtn.addEventListener(
     const confirmed =
       confirm(
 
-        `Delete "${chat.title}" permanently?`
+        isPrivateChat(
+          character.id,
+          deletedChatId
+        )
+
+          ? "Close this Private Chat? It is not saved, and this conversation will be permanently discarded."
+
+          : `Delete "${chat.title}" permanently?`
 
       );
 
@@ -9074,6 +9792,68 @@ deleteChatBtn.addEventListener(
         )
 
     );
+
+
+    if (
+      isPrivateChat(
+        character.id,
+        deletedChatId
+      )
+    ) {
+
+      discardPrivateChat();
+
+      closeChatMenu();
+
+      closeMemoryViewer();
+
+      clearPendingAttachment();
+
+
+      const storedChats =
+        getCharacterChats(
+          character.id
+        );
+
+
+      if (
+        storedChats.length
+      ) {
+
+        storedChats.sort(
+
+          (a, b) =>
+            b.updatedAt -
+            a.updatedAt
+
+        );
+
+
+        openChat(
+          character,
+          storedChats[0].id
+        );
+
+      }
+
+      else {
+
+        currentChatId =
+          null;
+
+        currentCharacter =
+          null;
+
+        showHomeView();
+
+      }
+
+
+      renderChatHistory();
+
+      return;
+
+    }
 
 
     const remainingChats =
@@ -9391,6 +10171,37 @@ function setSendingState(
 
   sendBtn.disabled =
     value;
+
+
+  if (newChatBtn) {
+
+    newChatBtn.disabled =
+      value;
+
+  }
+
+
+  if (newNormalChatBtn) {
+
+    newNormalChatBtn.disabled =
+      value;
+
+  }
+
+
+  if (newPrivateChatBtn) {
+
+    newPrivateChatBtn.disabled =
+      value;
+
+  }
+
+
+  if (value) {
+
+    closeNewChatMenu();
+
+  }
 
 
   if (mediaMenuBtn) {
@@ -10177,6 +10988,17 @@ document.addEventListener(
 
     if (
       !event.target.closest(
+        "#newChatMenuWrapper"
+      )
+    ) {
+
+      closeNewChatMenu();
+
+    }
+
+
+    if (
+      !event.target.closest(
         "#mediaMenuWrapper"
       )
     ) {
@@ -10235,6 +11057,8 @@ document.addEventListener(
       closeMemoryViewer();
 
       closeChatMenu();
+
+      closeNewChatMenu();
 
       closeMessageContextMenu();
 
