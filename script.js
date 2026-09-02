@@ -8,6 +8,7 @@ const MAX_ATTACHMENT_DIMENSION = 1280;
 const MAX_AUDIO_DURATION = 60;
 const MAX_VIDEO_DURATION = 30;
 const VIDEO_FRAME_COUNT = 6;
+const MESSAGE_GROUP_WINDOW_MS = 5 * 60 * 1000;
 const MEDIA_DB_NAME = "chatiMediaDB";
 const MEDIA_DB_STORE = "media";
 
@@ -153,6 +154,9 @@ let pendingPreviewObjectUrl = null;
 
 /* Used only to animate the AI message that has just finished generating. */
 let recentlyCompletedMessageId = null;
+
+/* Used only to animate the newest user message without replaying old messages. */
+let recentlyAddedMessageId = null;
 
 /* Private Chat lives only in this page's JavaScript memory. */
 let temporaryPrivateChat = null;
@@ -6457,6 +6461,151 @@ function renderMessageContent(
 }
 
 
+function canGroupMessages(
+  first,
+  second
+) {
+
+  if (
+    !first ||
+    !second
+  ) {
+
+    return false;
+
+  }
+
+
+  const a =
+    normalizeMessage(
+      first
+    );
+
+
+  const b =
+    normalizeMessage(
+      second
+    );
+
+
+  if (
+    a.sender !==
+      b.sender ||
+    ![
+      "user",
+      "character"
+    ].includes(
+      a.sender
+    )
+  ) {
+
+    return false;
+
+  }
+
+
+  const firstTime =
+    Number(
+      a.time
+    ) || 0;
+
+
+  const secondTime =
+    Number(
+      b.time
+    ) || 0;
+
+
+  if (
+    !firstTime ||
+    !secondTime
+  ) {
+
+    return true;
+
+  }
+
+
+  return (
+    Math.abs(
+      secondTime -
+      firstTime
+    ) <=
+    MESSAGE_GROUP_WINDOW_MS
+  );
+
+}
+
+
+function getMessageGroupPosition(
+  chatMessages,
+  index
+) {
+
+  const message =
+    chatMessages[index];
+
+
+  if (
+    !message ||
+    ![
+      "user",
+      "character"
+    ].includes(
+      normalizeMessage(
+        message
+      ).sender
+    )
+  ) {
+
+    return "solo";
+
+  }
+
+
+  const joinsPrevious =
+    canGroupMessages(
+      chatMessages[index - 1],
+      message
+    );
+
+
+  const joinsNext =
+    canGroupMessages(
+      message,
+      chatMessages[index + 1]
+    );
+
+
+  if (
+    joinsPrevious &&
+    joinsNext
+  ) {
+
+    return "middle";
+
+  }
+
+
+  if (joinsPrevious) {
+
+    return "end";
+
+  }
+
+
+  if (joinsNext) {
+
+    return "start";
+
+  }
+
+
+  return "solo";
+
+}
+
+
 function createMessageRow(
   message,
   options = {}
@@ -6478,6 +6627,20 @@ function createMessageRow(
     `message-row ${normalized.sender}`;
 
 
+  if (
+    normalized.sender ===
+      "user" ||
+    normalized.sender ===
+      "character"
+  ) {
+
+    row.classList.add(
+      `group-${options.groupPosition || "solo"}`
+    );
+
+  }
+
+
   row.dataset.messageId =
     normalized.id;
 
@@ -6494,6 +6657,23 @@ function createMessageRow(
 
   bubble.dataset.messageId =
     normalized.id;
+
+
+  if (
+    normalized.id ===
+      recentlyAddedMessageId
+  ) {
+
+    row.classList.add(
+      "message-enter-row"
+    );
+
+
+    bubble.classList.add(
+      "message-enter"
+    );
+
+  }
 
 
   renderMessageContent(
@@ -6858,12 +7038,22 @@ function renderMessages() {
 
   chat.messages.forEach(
 
-    message => {
+    (
+      message,
+      index
+    ) => {
 
       messages.appendChild(
 
         createMessageRow(
-          message
+          message,
+          {
+            groupPosition:
+              getMessageGroupPosition(
+                chat.messages,
+                index
+              )
+          }
         ).row
 
       );
@@ -6902,7 +7092,13 @@ function showTypingIndicator() {
 
 
   row.className =
-    "message-row character";
+    "message-row character typing-row message-enter-row";
+
+
+  row.setAttribute(
+    "aria-label",
+    `${currentCharacter?.name || "Character"} is typing`
+  );
 
 
   const bubble =
@@ -7096,7 +7292,7 @@ async function readAIStream(
 
 
           streamingRow.className =
-            "message-row character";
+            "message-row character message-stream-enter-row";
 
 
           streamingBubble =
@@ -7189,7 +7385,7 @@ async function readAIStream(
 
 
           streamingRow.className =
-            "message-row character";
+            "message-row character message-stream-enter-row";
 
 
           streamingBubble =
@@ -10455,6 +10651,10 @@ chatForm.addEventListener(
       currentChatId;
 
 
+    let sentUserMessageId =
+      null;
+
+
     mutateStoredChat(
 
       character.id,
@@ -10463,8 +10663,7 @@ chatForm.addEventListener(
 
       chat => {
 
-        chat.messages.push(
-
+        const userMessage =
           normalizeMessage({
 
             sender:
@@ -10477,8 +10676,15 @@ chatForm.addEventListener(
             time:
               Date.now()
 
-          })
+          });
 
+
+        sentUserMessageId =
+          userMessage.id;
+
+
+        chat.messages.push(
+          userMessage
         );
 
 
@@ -10515,7 +10721,17 @@ chatForm.addEventListener(
 
     autoGrowMessageInput();
 
+
+    recentlyAddedMessageId =
+      sentUserMessageId;
+
+
     renderMessages();
+
+
+    recentlyAddedMessageId =
+      null;
+
 
     renderChatHistory();
 
@@ -10647,7 +10863,22 @@ chatForm.addEventListener(
       );
 
 
-      renderMessages();
+      setTimeout(
+
+        () => {
+
+          if (!isSending) {
+
+            renderMessages();
+
+          }
+
+        },
+
+        620
+
+      );
+
 
       messageInput.focus();
 
@@ -10960,7 +11191,22 @@ async function regenerateMessage(
     );
 
 
-    renderMessages();
+    setTimeout(
+
+      () => {
+
+        if (!isSending) {
+
+          renderMessages();
+
+        }
+
+      },
+
+      620
+
+    );
+
 
     messageInput.focus();
 
