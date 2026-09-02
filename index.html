@@ -884,7 +884,7 @@
         >
 
 
-          <!-- Hidden file picker -->
+          <!-- Hidden media pickers -->
 
           <input
             id="imageInput"
@@ -893,10 +893,24 @@
             class="hidden"
           >
 
+          <input
+            id="audioInput"
+            type="file"
+            accept="audio/*"
+            class="hidden"
+          >
+
+          <input
+            id="videoInput"
+            type="file"
+            accept="video/*"
+            class="hidden"
+          >
 
 
-          <!-- Image preview.
-               Only visible after selecting one. -->
+
+          <!-- Media preview.
+               Only visible after selecting a photo, audio, or video. -->
 
           <div
             id="attachmentPreview"
@@ -906,13 +920,60 @@
             <div class="attachment-preview-card">
 
 
-              <div class="attachment-thumb-wrap">
+              <div class="attachment-preview-visual">
 
                 <img
                   id="attachmentPreviewImage"
-                  class="attachment-preview-image"
+                  class="attachment-preview-image hidden"
                   alt="Scene reference preview"
                 >
+
+
+                <audio
+                  id="attachmentPreviewAudio"
+                  class="attachment-preview-audio hidden"
+                  controls
+                  preload="metadata"
+                ></audio>
+
+
+                <video
+                  id="attachmentPreviewVideo"
+                  class="attachment-preview-video hidden"
+                  controls
+                  preload="metadata"
+                  playsinline
+                ></video>
+
+
+                <div
+                  id="attachmentPreviewIcon"
+                  class="attachment-preview-icon hidden"
+                  aria-hidden="true"
+                >
+
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M9 18V5l10-2v13"
+                    ></path>
+
+                    <circle
+                      cx="6"
+                      cy="18"
+                      r="3"
+                    ></circle>
+
+                    <circle
+                      cx="16"
+                      cy="16"
+                      r="3"
+                    ></circle>
+                  </svg>
+
+                </div>
 
               </div>
 
@@ -926,12 +987,12 @@
 
                   <div>
 
-                    <strong>
+                    <strong id="attachmentPreviewTitle">
                       Scene reference
                     </strong>
 
 
-                    <span>
+                    <span id="attachmentPreviewSubtitle">
                       Optional context for the current moment
                     </span>
 
@@ -943,8 +1004,8 @@
                     type="button"
                     id="removeAttachmentBtn"
                     class="attachment-remove-btn"
-                    aria-label="Remove image"
-                    title="Remove image"
+                    aria-label="Remove attachment"
+                    title="Remove attachment"
                   >
 
                     <svg
@@ -966,7 +1027,7 @@
                   id="attachmentNote"
                   class="attachment-note"
                   rows="2"
-                  placeholder="Optional: Who is shown or what is happening?"
+                  placeholder="Optional: Who is shown, heard, or what is happening?"
                 ></textarea>
 
               </div>
@@ -982,44 +1043,198 @@
           <div class="chat-input-row">
 
 
-            <!-- New image icon button -->
+            <!-- Media menu -->
 
-            <button
-              type="button"
-              id="attachImageBtn"
-              class="attach-btn"
-              aria-label="Attach scene reference"
-              title="Attach scene reference"
+            <div
+              id="mediaMenuWrapper"
+              class="media-menu-wrapper"
             >
 
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
+              <button
+                type="button"
+                id="mediaMenuBtn"
+                class="media-menu-btn"
+                aria-label="Add media"
+                title="Add media"
+                aria-expanded="false"
               >
 
-                <rect
-                  x="3"
-                  y="4"
-                  width="18"
-                  height="16"
-                  rx="3"
-                ></rect>
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    cx="5"
+                    cy="12"
+                    r="1.5"
+                  ></circle>
+
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="1.5"
+                  ></circle>
+
+                  <circle
+                    cx="19"
+                    cy="12"
+                    r="1.5"
+                  ></circle>
+                </svg>
+
+              </button>
 
 
-                <circle
-                  cx="8.5"
-                  cy="9"
-                  r="1.5"
-                ></circle>
+
+              <div
+                id="mediaAttachMenu"
+                class="media-attach-menu hidden"
+              >
 
 
-                <path
-                  d="M5.5 17l4.25-4.25 3.1 3.1 2.15-2.15 3.5 3.3"
-                ></path>
+                <button
+                  type="button"
+                  id="attachPhotoOption"
+                  class="media-option"
+                >
 
-              </svg>
+                  <span class="media-option-icon">
 
-            </button>
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <rect
+                        x="3"
+                        y="4"
+                        width="18"
+                        height="16"
+                        rx="3"
+                      ></rect>
+
+                      <circle
+                        cx="8.5"
+                        cy="9"
+                        r="1.5"
+                      ></circle>
+
+                      <path
+                        d="M5.5 17l4.25-4.25 3.1 3.1 2.15-2.15 3.5 3.3"
+                      ></path>
+                    </svg>
+
+                  </span>
+
+
+                  <span>
+
+                    <strong>
+                      Send photo
+                    </strong>
+
+                    <small>
+                      Scene or battle reference
+                    </small>
+
+                  </span>
+
+                </button>
+
+
+
+                <button
+                  type="button"
+                  id="attachAudioOption"
+                  class="media-option"
+                >
+
+                  <span class="media-option-icon">
+
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M9 18V5l10-2v13"
+                      ></path>
+
+                      <circle
+                        cx="6"
+                        cy="18"
+                        r="3"
+                      ></circle>
+
+                      <circle
+                        cx="16"
+                        cy="16"
+                        r="3"
+                      ></circle>
+                    </svg>
+
+                  </span>
+
+
+                  <span>
+
+                    <strong>
+                      Send audio
+                    </strong>
+
+                    <small>
+                      Up to 60 seconds
+                    </small>
+
+                  </span>
+
+                </button>
+
+
+
+                <button
+                  type="button"
+                  id="attachVideoOption"
+                  class="media-option"
+                >
+
+                  <span class="media-option-icon">
+
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <rect
+                        x="3"
+                        y="5"
+                        width="13"
+                        height="14"
+                        rx="3"
+                      ></rect>
+
+                      <path
+                        d="M16 10l5-3v10l-5-3z"
+                      ></path>
+                    </svg>
+
+                  </span>
+
+
+                  <span>
+
+                    <strong>
+                      Send video
+                    </strong>
+
+                    <small>
+                      Up to 30 seconds
+                    </small>
+
+                  </span>
+
+                </button>
+
+              </div>
+
+            </div>
 
 
 

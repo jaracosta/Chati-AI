@@ -2,7 +2,14 @@ const CHAT_RECENT_LIMIT = 50;
 const MEMORY_BATCH_THRESHOLD = 10;
 const MEMORY_MAX_BATCH_MESSAGES = 80;
 const MAX_ATTACHMENT_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_AUDIO_FILE_SIZE = 15 * 1024 * 1024;
+const MAX_VIDEO_FILE_SIZE = 25 * 1024 * 1024;
 const MAX_ATTACHMENT_DIMENSION = 1280;
+const MAX_AUDIO_DURATION = 60;
+const MAX_VIDEO_DURATION = 30;
+const VIDEO_FRAME_COUNT = 6;
+const MEDIA_DB_NAME = "chatiMediaDB";
+const MEDIA_DB_STORE = "media";
 
 const $ = (id) => document.getElementById(id);
 
@@ -64,10 +71,24 @@ const messageInput = $("messageInput");
 const sendBtn = $("sendBtn");
 const newChatBtn = $("newChatBtn");
 
-const attachImageBtn = $("attachImageBtn");
+const mediaMenuWrapper = $("mediaMenuWrapper");
+const mediaMenuBtn = $("mediaMenuBtn");
+const mediaAttachMenu = $("mediaAttachMenu");
+const attachPhotoOption = $("attachPhotoOption");
+const attachAudioOption = $("attachAudioOption");
+const attachVideoOption = $("attachVideoOption");
+
 const imageInput = $("imageInput");
+const audioInput = $("audioInput");
+const videoInput = $("videoInput");
+
 const attachmentPreview = $("attachmentPreview");
 const attachmentPreviewImage = $("attachmentPreviewImage");
+const attachmentPreviewAudio = $("attachmentPreviewAudio");
+const attachmentPreviewVideo = $("attachmentPreviewVideo");
+const attachmentPreviewIcon = $("attachmentPreviewIcon");
+const attachmentPreviewTitle = $("attachmentPreviewTitle");
+const attachmentPreviewSubtitle = $("attachmentPreviewSubtitle");
 const attachmentNote = $("attachmentNote");
 const removeAttachmentBtn = $("removeAttachmentBtn");
 
@@ -123,6 +144,7 @@ let contextMessageId = null;
 let editingCharacterId = null;
 
 let pendingAttachment = null;
+let pendingPreviewObjectUrl = null;
 
 
 const memoryUpdateLocks =
@@ -411,54 +433,130 @@ function normalizeAttachment(
   }
 
 
-  const dataUrl =
+  let type =
+    typeof attachment.type ===
+    "string"
+      ? attachment.type
+      : "";
+
+
+  if (
+    !type &&
     typeof attachment.dataUrl ===
       "string" &&
     attachment.dataUrl.startsWith(
       "data:image/"
     )
+  ) {
 
-      ? attachment.dataUrl
+    type =
+      "image";
 
-      : "";
+  }
 
 
-  if (!dataUrl) {
+  if (
+    ![
+      "image",
+      "audio",
+      "video"
+    ].includes(type)
+  ) {
 
     return null;
 
   }
 
 
-  return {
+  const normalized = {
 
-    dataUrl,
+    type,
 
     note:
       typeof attachment.note ===
       "string"
-
         ? attachment.note
-
         : "",
 
     mimeType:
       typeof attachment.mimeType ===
       "string"
-
         ? attachment.mimeType
-
-        : "image/jpeg",
+        : "",
 
     name:
       typeof attachment.name ===
       "string"
-
         ? attachment.name
+        : `${type}-reference`,
 
-        : "battle-reference.jpg"
+    duration:
+      Number.isFinite(
+        attachment.duration
+      )
+        ? attachment.duration
+        : null,
+
+    mediaId:
+      typeof attachment.mediaId ===
+      "string"
+        ? attachment.mediaId
+        : null,
+
+    thumbnailDataUrl:
+      typeof attachment.thumbnailDataUrl ===
+        "string" &&
+      attachment.thumbnailDataUrl.startsWith(
+        "data:image/"
+      )
+        ? attachment.thumbnailDataUrl
+        : ""
 
   };
+
+
+  if (
+    type ===
+    "image"
+  ) {
+
+    normalized.dataUrl =
+      typeof attachment.dataUrl ===
+        "string" &&
+      attachment.dataUrl.startsWith(
+        "data:image/"
+      )
+        ? attachment.dataUrl
+        : "";
+
+
+    if (
+      !normalized.dataUrl
+    ) {
+
+      return null;
+
+    }
+
+  }
+
+
+  if (
+    (
+      type ===
+        "audio" ||
+      type ===
+        "video"
+    ) &&
+    !normalized.mediaId
+  ) {
+
+    return null;
+
+  }
+
+
+  return normalized;
 
 }
 
@@ -1834,6 +1932,8 @@ function closeAllFloatingUi() {
 
   closeMessageContextMenu();
 
+  closeMediaAttachMenu();
+
 }
 
 
@@ -1972,7 +2072,7 @@ function readFileAsDataUrl(
           reject(
             reader.error ||
             new Error(
-              "Could not read image file."
+              "Could not read media file."
             )
           );
 
@@ -2121,16 +2221,1300 @@ async function compressImageFile(
 }
 
 
-function clearPendingAttachment() {
+function openMediaDatabase() {
+
+  return new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const request =
+        indexedDB.open(
+          MEDIA_DB_NAME,
+          1
+        );
+
+
+      request.onupgradeneeded =
+        () => {
+
+          const database =
+            request.result;
+
+
+          if (
+            !database
+              .objectStoreNames
+              .contains(
+                MEDIA_DB_STORE
+              )
+          ) {
+
+            database.createObjectStore(
+              MEDIA_DB_STORE
+            );
+
+          }
+
+        };
+
+
+      request.onsuccess =
+        () =>
+          resolve(
+            request.result
+          );
+
+
+      request.onerror =
+        () =>
+          reject(
+            request.error ||
+            new Error(
+              "Could not open media storage."
+            )
+          );
+
+    }
+
+  );
+
+}
+
+
+async function putMediaBlob(
+  mediaId,
+  blob
+) {
+
+  const database =
+    await openMediaDatabase();
+
+
+  return new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const transaction =
+        database.transaction(
+          MEDIA_DB_STORE,
+          "readwrite"
+        );
+
+
+      transaction
+        .objectStore(
+          MEDIA_DB_STORE
+        )
+        .put(
+          blob,
+          mediaId
+        );
+
+
+      transaction.oncomplete =
+        () => {
+
+          database.close();
+
+          resolve();
+
+        };
+
+
+      transaction.onerror =
+        () => {
+
+          database.close();
+
+          reject(
+            transaction.error ||
+            new Error(
+              "Could not save media."
+            )
+          );
+
+        };
+
+    }
+
+  );
+
+}
+
+
+async function getMediaBlob(
+  mediaId
+) {
+
+  if (!mediaId) {
+
+    return null;
+
+  }
+
+
+  const database =
+    await openMediaDatabase();
+
+
+  return new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const transaction =
+        database.transaction(
+          MEDIA_DB_STORE,
+          "readonly"
+        );
+
+
+      const request =
+        transaction
+          .objectStore(
+            MEDIA_DB_STORE
+          )
+          .get(
+            mediaId
+          );
+
+
+      request.onsuccess =
+        () => {
+
+          database.close();
+
+          resolve(
+            request.result ||
+            null
+          );
+
+        };
+
+
+      request.onerror =
+        () => {
+
+          database.close();
+
+          reject(
+            request.error ||
+            new Error(
+              "Could not load media."
+            )
+          );
+
+        };
+
+    }
+
+  );
+
+}
+
+
+async function deleteMediaBlob(
+  mediaId
+) {
+
+  if (!mediaId) {
+
+    return;
+
+  }
+
+
+  try {
+
+    const database =
+      await openMediaDatabase();
+
+
+    await new Promise(
+
+      (
+        resolve,
+        reject
+      ) => {
+
+        const transaction =
+          database.transaction(
+            MEDIA_DB_STORE,
+            "readwrite"
+          );
+
+
+        transaction
+          .objectStore(
+            MEDIA_DB_STORE
+          )
+          .delete(
+            mediaId
+          );
+
+
+        transaction.oncomplete =
+          resolve;
+
+
+        transaction.onerror =
+          () =>
+            reject(
+              transaction.error ||
+              new Error(
+                "Could not delete media."
+              )
+            );
+
+      }
+
+    );
+
+
+    database.close();
+
+  }
+
+  catch (error) {
+
+    console.warn(
+      "Could not remove stored media:",
+      error
+    );
+
+  }
+
+}
+
+
+function deleteMediaForAttachment(
+  attachment
+) {
+
+  const normalized =
+    normalizeAttachment(
+      attachment
+    );
+
+
+  if (
+    normalized?.mediaId
+  ) {
+
+    deleteMediaBlob(
+      normalized.mediaId
+    );
+
+  }
+
+}
+
+
+function getMediaDuration(
+  file,
+  kind
+) {
+
+  return new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const element =
+        document.createElement(
+          kind ===
+          "video"
+
+            ? "video"
+
+            : "audio"
+        );
+
+
+      const url =
+        URL.createObjectURL(
+          file
+        );
+
+
+      let finished =
+        false;
+
+
+      const cleanup =
+        () => {
+
+          if (finished) {
+
+            return;
+
+          }
+
+
+          finished =
+            true;
+
+
+          clearTimeout(
+            timeoutId
+          );
+
+
+          element.onloadedmetadata =
+            null;
+
+          element.onerror =
+            null;
+
+
+          try {
+
+            element.pause();
+
+          }
+
+          catch {
+            // ignore
+          }
+
+
+          element.removeAttribute(
+            "src"
+          );
+
+
+          URL.revokeObjectURL(
+            url
+          );
+
+        };
+
+
+      const fail =
+        message => {
+
+          if (finished) {
+
+            return;
+
+          }
+
+
+          cleanup();
+
+
+          reject(
+            new Error(
+              message
+            )
+          );
+
+        };
+
+
+      const timeoutId =
+        setTimeout(
+
+          () =>
+            fail(
+              `Could not read ${kind} metadata.`
+            ),
+
+          12000
+
+        );
+
+
+      element.preload =
+        "metadata";
+
+
+      if (
+        kind ===
+        "video"
+      ) {
+
+        element.muted =
+          true;
+
+        element.playsInline =
+          true;
+
+      }
+
+
+      element.onloadedmetadata =
+        () => {
+
+          if (finished) {
+
+            return;
+
+          }
+
+
+          const duration =
+            Number(
+              element.duration
+            );
+
+
+          if (
+            Number.isFinite(
+              duration
+            ) &&
+            duration >= 0
+          ) {
+
+            cleanup();
+
+            resolve(
+              duration
+            );
+
+            return;
+
+          }
+
+
+          fail(
+            `Could not read ${kind} duration.`
+          );
+
+        };
+
+
+      element.onerror =
+        () =>
+          fail(
+            `This ${kind} format could not be decoded by the browser.`
+          );
+
+
+      element.src =
+        url;
+
+
+      try {
+
+        element.load();
+
+      }
+
+      catch {
+        // assigning src is enough in browsers where load() is restricted
+      }
+
+    }
+
+  );
+
+}
+
+
+function seekVideo(
+  video,
+  time
+) {
+
+  return new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const targetTime =
+        Math.max(
+          0,
+          Number(
+            time
+          ) || 0
+        );
+
+
+      if (
+        Math.abs(
+          video.currentTime -
+          targetTime
+        ) < 0.02 &&
+        video.readyState >= 2
+      ) {
+
+        resolve();
+
+        return;
+
+      }
+
+
+      let settled =
+        false;
+
+
+      const cleanup =
+        () => {
+
+          video.removeEventListener(
+            "seeked",
+            onSeeked
+          );
+
+
+          clearTimeout(
+            timeoutId
+          );
+
+        };
+
+
+      const finish =
+        () => {
+
+          if (settled) {
+
+            return;
+
+          }
+
+
+          settled =
+            true;
+
+          cleanup();
+
+          resolve();
+
+        };
+
+
+      const fail =
+        () => {
+
+          if (settled) {
+
+            return;
+
+          }
+
+
+          settled =
+            true;
+
+          cleanup();
+
+          reject(
+            new Error(
+              "Video seek timed out."
+            )
+          );
+
+        };
+
+
+      const onSeeked =
+        () =>
+          finish();
+
+
+      video.addEventListener(
+        "seeked",
+        onSeeked,
+        {
+          once:
+            true
+        }
+      );
+
+
+      const timeoutId =
+        setTimeout(
+          fail,
+          5000
+        );
+
+
+      try {
+
+        video.currentTime =
+          targetTime;
+
+      }
+
+      catch {
+
+        fail();
+
+      }
+
+    }
+
+  );
+
+}
+
+
+async function makeVideoThumbnail(
+  file
+) {
+
+  try {
+
+    const frames =
+      await extractVideoFrames(
+        file,
+        null,
+        1
+      );
+
+
+    return (
+      frames[0] ||
+      ""
+    );
+
+  }
+
+  catch (error) {
+
+    console.warn(
+      "Video thumbnail skipped:",
+      error
+    );
+
+
+    return "";
+
+  }
+
+}
+
+
+async function extractVideoFrames(
+  blob,
+  knownDuration = null,
+  count = VIDEO_FRAME_COUNT
+) {
+
+  const url =
+    URL.createObjectURL(
+      blob
+    );
+
+
+  const video =
+    document.createElement(
+      "video"
+    );
+
+
+  video.preload =
+    "auto";
+
+  video.muted =
+    true;
+
+  video.playsInline =
+    true;
+
+  video.src =
+    url;
+
+
+  try {
+
+    await new Promise(
+
+      (
+        resolve,
+        reject
+      ) => {
+
+        let settled =
+          false;
+
+
+        const cleanup =
+          () => {
+
+            clearTimeout(
+              timeoutId
+            );
+
+
+            video.removeEventListener(
+              "loadeddata",
+              onReady
+            );
+
+
+            video.removeEventListener(
+              "canplay",
+              onReady
+            );
+
+
+            video.removeEventListener(
+              "error",
+              onError
+            );
+
+          };
+
+
+        const finish =
+          () => {
+
+            if (settled) {
+
+              return;
+
+            }
+
+
+            settled =
+              true;
+
+            cleanup();
+
+            resolve();
+
+          };
+
+
+        const fail =
+          () => {
+
+            if (settled) {
+
+              return;
+
+            }
+
+
+            settled =
+              true;
+
+            cleanup();
+
+            reject(
+              new Error(
+                "Could not decode enough video data to read frames."
+              )
+            );
+
+          };
+
+
+        const onReady =
+          () => {
+
+            if (
+              video.videoWidth > 0 &&
+              video.videoHeight > 0 &&
+              video.readyState >= 2
+            ) {
+
+              finish();
+
+            }
+
+          };
+
+
+        const onError =
+          () =>
+            fail();
+
+
+        const timeoutId =
+          setTimeout(
+            fail,
+            12000
+          );
+
+
+        video.addEventListener(
+          "loadeddata",
+          onReady
+        );
+
+
+        video.addEventListener(
+          "canplay",
+          onReady
+        );
+
+
+        video.addEventListener(
+          "error",
+          onError
+        );
+
+
+        if (
+          video.readyState >= 2 &&
+          video.videoWidth > 0 &&
+          video.videoHeight > 0
+        ) {
+
+          finish();
+
+          return;
+
+        }
+
+
+        try {
+
+          video.load();
+
+        }
+
+        catch {
+          // assigning src is enough in browsers where load() is restricted
+        }
+
+      }
+
+    );
+
+
+    const duration =
+      Number.isFinite(
+        knownDuration
+      )
+        ? knownDuration
+        : video.duration;
+
+
+    if (
+      !Number.isFinite(
+        duration
+      ) ||
+      duration < 0
+    ) {
+
+      throw new Error(
+        "Video duration is unavailable."
+      );
+
+    }
+
+
+    const safeCount =
+      Math.max(
+        1,
+        Math.min(
+          count,
+          8
+        )
+      );
+
+
+    const frames =
+      [];
+
+
+    for (
+      let index = 0;
+      index < safeCount;
+      index += 1
+    ) {
+
+      const fraction =
+        safeCount === 1
+          ? 0.18
+          : 0.06 +
+            0.88 *
+            index /
+            (
+              safeCount -
+              1
+            );
+
+
+      const time =
+        Math.min(
+          Math.max(
+            duration *
+            fraction,
+            0
+          ),
+          Math.max(
+            duration -
+            0.05,
+            0
+          )
+        );
+
+
+      try {
+
+        await seekVideo(
+          video,
+          time
+        );
+
+      }
+
+      catch (error) {
+
+        console.warn(
+          `Skipping video frame ${index + 1}:`,
+          error
+        );
+
+
+        continue;
+
+      }
+
+
+      if (
+        video.videoWidth <= 0 ||
+        video.videoHeight <= 0 ||
+        video.readyState < 2
+      ) {
+
+        continue;
+
+      }
+
+
+      const scale =
+        Math.min(
+          768 /
+          video.videoWidth,
+          768 /
+          video.videoHeight,
+          1
+        );
+
+
+      const canvas =
+        document.createElement(
+          "canvas"
+        );
+
+
+      canvas.width =
+        Math.max(
+          1,
+          Math.round(
+            video.videoWidth *
+            scale
+          )
+        );
+
+
+      canvas.height =
+        Math.max(
+          1,
+          Math.round(
+            video.videoHeight *
+            scale
+          )
+        );
+
+
+      const context =
+        canvas.getContext(
+          "2d"
+        );
+
+
+      if (!context) {
+
+        continue;
+
+      }
+
+
+      try {
+
+        context.drawImage(
+          video,
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
+
+
+        frames.push(
+          canvas.toDataURL(
+            "image/jpeg",
+            0.7
+          )
+        );
+
+      }
+
+      catch (error) {
+
+        console.warn(
+          `Could not capture video frame ${index + 1}:`,
+          error
+        );
+
+      }
+
+    }
+
+
+    return frames;
+
+  }
+
+  finally {
+
+    try {
+
+      video.pause();
+
+    }
+
+    catch {
+      // ignore
+    }
+
+
+    video.removeAttribute(
+      "src"
+    );
+
+
+    URL.revokeObjectURL(
+      url
+    );
+
+  }
+
+}
+
+
+function blobToDataUrl(
+  blob
+) {
+
+  return new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const reader =
+        new FileReader();
+
+
+      reader.onload =
+        () =>
+          resolve(
+            String(
+              reader.result
+            )
+          );
+
+
+      reader.onerror =
+        () =>
+          reject(
+            reader.error ||
+            new Error(
+              "Could not read stored media."
+            )
+          );
+
+
+      reader.readAsDataURL(
+        blob
+      );
+
+    }
+
+  );
+
+}
+
+
+function formatDuration(
+  seconds
+) {
+
+  if (
+    !Number.isFinite(
+      seconds
+    )
+  ) {
+
+    return "";
+
+  }
+
+
+  const rounded =
+    Math.max(
+      0,
+      Math.round(
+        seconds
+      )
+    );
+
+
+  return (
+    `${Math.floor(
+      rounded /
+      60
+    )}:${String(
+      rounded %
+      60
+    ).padStart(
+      2,
+      "0"
+    )}`
+  );
+
+}
+
+
+function closeMediaAttachMenu() {
+
+  mediaAttachMenu
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+
+  mediaMenuBtn
+    ?.setAttribute(
+      "aria-expanded",
+      "false"
+    );
+
+}
+
+
+function toggleMediaAttachMenu() {
+
+  if (isSending) {
+
+    return;
+
+  }
+
+
+  const willOpen =
+    mediaAttachMenu
+      ?.classList
+      .contains(
+        "hidden"
+      );
+
+
+  if (willOpen) {
+
+    mediaAttachMenu
+      ?.classList
+      .remove(
+        "hidden"
+      );
+
+  }
+
+  else {
+
+    closeMediaAttachMenu();
+
+  }
+
+
+  mediaMenuBtn
+    ?.setAttribute(
+      "aria-expanded",
+      willOpen
+        ? "true"
+        : "false"
+    );
+
+}
+
+
+function revokePendingPreviewUrl() {
+
+  if (
+    pendingPreviewObjectUrl
+  ) {
+
+    URL.revokeObjectURL(
+      pendingPreviewObjectUrl
+    );
+
+    pendingPreviewObjectUrl =
+      null;
+
+  }
+
+}
+
+
+function clearPendingAttachment(
+  {
+    deleteStored = true
+  } = {}
+) {
+
+  const old =
+    pendingAttachment;
+
 
   pendingAttachment =
     null;
 
 
-  if (imageInput) {
+  closeMediaAttachMenu();
 
-    imageInput.value =
-      "";
+  revokePendingPreviewUrl();
+
+
+  if (
+    deleteStored &&
+    old?.mediaId
+  ) {
+
+    deleteMediaBlob(
+      old.mediaId
+    );
+
+  }
+
+
+  for (
+    const input of [
+      imageInput,
+      audioInput,
+      videoInput
+    ]
+  ) {
+
+    if (input) {
+
+      input.value =
+        "";
+
+    }
 
   }
 
@@ -2143,15 +3527,68 @@ function clearPendingAttachment() {
   }
 
 
-  if (attachmentPreviewImage) {
+  attachmentPreviewImage
+    ?.removeAttribute(
+      "src"
+    );
 
-    attachmentPreviewImage
+
+  if (
+    attachmentPreviewAudio
+  ) {
+
+    attachmentPreviewAudio.pause();
+
+    attachmentPreviewAudio
       .removeAttribute(
         "src"
       );
 
   }
 
+
+  if (
+    attachmentPreviewVideo
+  ) {
+
+    attachmentPreviewVideo.pause();
+
+    attachmentPreviewVideo
+      .removeAttribute(
+        "src"
+      );
+
+    attachmentPreviewVideo
+      .removeAttribute(
+        "poster"
+      );
+
+  }
+
+
+  attachmentPreviewImage
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+  attachmentPreviewAudio
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+  attachmentPreviewVideo
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+  attachmentPreviewIcon
+    ?.classList
+    .add(
+      "hidden"
+    );
 
   attachmentPreview
     ?.classList
@@ -2163,20 +3600,166 @@ function clearPendingAttachment() {
 
 
 function showPendingAttachment(
-  attachment
+  attachment,
+  blob = null
 ) {
 
   pendingAttachment =
     attachment;
 
 
-  attachmentPreviewImage.src =
-    attachment.dataUrl;
-
-
   attachmentNote.value =
     attachment.note ||
     "";
+
+
+  attachmentPreviewImage
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+  attachmentPreviewAudio
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+  attachmentPreviewVideo
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+  attachmentPreviewIcon
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+
+  revokePendingPreviewUrl();
+
+
+  if (
+    attachment.type ===
+    "image"
+  ) {
+
+    attachmentPreviewImage.src =
+      attachment.dataUrl;
+
+    attachmentPreviewImage
+      .classList
+      .remove(
+        "hidden"
+      );
+
+  }
+
+  else if (
+    attachment.type ===
+    "audio"
+  ) {
+
+    if (
+      blob &&
+      attachmentPreviewAudio
+    ) {
+
+      pendingPreviewObjectUrl =
+        URL.createObjectURL(
+          blob
+        );
+
+      attachmentPreviewAudio.src =
+        pendingPreviewObjectUrl;
+
+      attachmentPreviewAudio
+        .classList
+        .remove(
+          "hidden"
+        );
+
+    }
+
+    else {
+
+      attachmentPreviewIcon
+        ?.classList
+        .remove(
+          "hidden"
+        );
+
+    }
+
+  }
+
+  else if (
+    attachment.type ===
+    "video"
+  ) {
+
+    if (
+      blob &&
+      attachmentPreviewVideo
+    ) {
+
+      pendingPreviewObjectUrl =
+        URL.createObjectURL(
+          blob
+        );
+
+      attachmentPreviewVideo.src =
+        pendingPreviewObjectUrl;
+
+
+      if (
+        attachment.thumbnailDataUrl
+      ) {
+
+        attachmentPreviewVideo.poster =
+          attachment.thumbnailDataUrl;
+
+      }
+
+
+      attachmentPreviewVideo
+        .classList
+        .remove(
+          "hidden"
+        );
+
+    }
+
+  }
+
+
+  attachmentPreviewTitle.textContent =
+    attachment.type ===
+    "image"
+
+      ? "Photo reference"
+
+      : attachment.type ===
+        "audio"
+
+        ? "Audio reference"
+
+        : "Video reference";
+
+
+  attachmentPreviewSubtitle.textContent =
+    [
+      attachment.name,
+      formatDuration(
+        attachment.duration
+      )
+    ]
+      .filter(Boolean)
+      .join(
+        " • "
+      );
 
 
   attachmentPreview
@@ -2188,18 +3771,409 @@ function showPendingAttachment(
 }
 
 
-attachImageBtn?.addEventListener(
+function fileLooksLikeType(
+  file,
+  kind
+) {
+
+  const mime =
+    String(
+      file?.type ||
+      ""
+    )
+      .toLowerCase();
+
+
+  if (
+    mime.startsWith(
+      `${kind}/`
+    )
+  ) {
+
+    return true;
+
+  }
+
+
+  const name =
+    String(
+      file?.name ||
+      ""
+    )
+      .toLowerCase();
+
+
+  const extensions =
+    kind ===
+    "video"
+
+      ? [
+          ".mp4",
+          ".mov",
+          ".m4v",
+          ".webm",
+          ".mpeg",
+          ".mpg"
+        ]
+
+      : kind ===
+        "audio"
+
+        ? [
+            ".mp3",
+            ".m4a",
+            ".wav",
+            ".aac",
+            ".ogg",
+            ".webm",
+            ".flac",
+            ".mp4"
+          ]
+
+        : [
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".gif",
+            ".heic",
+            ".heif"
+          ];
+
+
+  return extensions.some(
+    extension =>
+      name.endsWith(
+        extension
+      )
+  );
+
+}
+
+
+async function selectImageFile(
+  file
+) {
+
+  if (
+    !fileLooksLikeType(
+      file,
+      "image"
+    )
+  ) {
+
+    throw new Error(
+      "Please choose an image file."
+    );
+
+  }
+
+
+  if (
+    file.size >
+    MAX_ATTACHMENT_FILE_SIZE
+  ) {
+
+    throw new Error(
+      "Please keep the original image under 5MB."
+    );
+
+  }
+
+
+  const dataUrl =
+    await compressImageFile(
+      file
+    );
+
+
+  clearPendingAttachment();
+
+
+  showPendingAttachment({
+
+    type:
+      "image",
+
+    dataUrl,
+
+    note:
+      "",
+
+    mimeType:
+      "image/jpeg",
+
+    name:
+      file.name ||
+      "battle-reference.jpg",
+
+    duration:
+      null
+
+  });
+
+}
+
+
+async function selectAudioFile(
+  file
+) {
+
+  if (
+    !fileLooksLikeType(
+      file,
+      "audio"
+    )
+  ) {
+
+    throw new Error(
+      "Please choose an audio file."
+    );
+
+  }
+
+
+  if (
+    file.size >
+    MAX_AUDIO_FILE_SIZE
+  ) {
+
+    throw new Error(
+      "Please keep audio files under 15MB."
+    );
+
+  }
+
+
+  const duration =
+    await getMediaDuration(
+      file,
+      "audio"
+    );
+
+
+  if (
+    duration >
+    MAX_AUDIO_DURATION +
+    0.25
+  ) {
+
+    throw new Error(
+      "Audio can be up to 60 seconds long."
+    );
+
+  }
+
+
+  clearPendingAttachment();
+
+
+  const mediaId =
+    uid(
+      "media_audio"
+    );
+
+
+  await putMediaBlob(
+    mediaId,
+    file
+  );
+
+
+  showPendingAttachment(
+
+    {
+      type:
+        "audio",
+
+      mediaId,
+
+      note:
+        "",
+
+      mimeType:
+        file.type ||
+        "audio/mpeg",
+
+      name:
+        file.name ||
+        "scene-audio",
+
+      duration
+    },
+
+    file
+
+  );
+
+}
+
+
+async function selectVideoFile(
+  file
+) {
+
+  if (
+    !fileLooksLikeType(
+      file,
+      "video"
+    )
+  ) {
+
+    throw new Error(
+      "Please choose a video file."
+    );
+
+  }
+
+
+  if (
+    file.size >
+    MAX_VIDEO_FILE_SIZE
+  ) {
+
+    throw new Error(
+      "Please keep video files under 25MB."
+    );
+
+  }
+
+
+  const duration =
+    await getMediaDuration(
+      file,
+      "video"
+    );
+
+
+  if (
+    duration >
+    MAX_VIDEO_DURATION +
+    0.25
+  ) {
+
+    throw new Error(
+      "Videos can be up to 30 seconds long in Battle Media V1."
+    );
+
+  }
+
+
+  clearPendingAttachment();
+
+
+  const mediaId =
+    uid(
+      "media_video"
+    );
+
+
+  await putMediaBlob(
+    mediaId,
+    file
+  );
+
+
+  const attachment = {
+
+    type:
+      "video",
+
+    mediaId,
+
+    note:
+      "",
+
+    mimeType:
+      file.type ||
+      "video/mp4",
+
+    name:
+      file.name ||
+      "scene-video",
+
+    duration,
+
+    thumbnailDataUrl:
+      ""
+
+  };
+
+
+  showPendingAttachment(
+    attachment,
+    file
+  );
+
+
+  makeVideoThumbnail(
+    file
+  )
+    .then(
+      thumbnailDataUrl => {
+
+        if (
+          !thumbnailDataUrl ||
+          pendingAttachment?.mediaId !==
+          mediaId
+        ) {
+
+          return;
+
+        }
+
+
+        pendingAttachment.thumbnailDataUrl =
+          thumbnailDataUrl;
+
+
+        if (
+          attachmentPreviewVideo
+        ) {
+
+          attachmentPreviewVideo.poster =
+            thumbnailDataUrl;
+
+        }
+
+      }
+    )
+    .catch(
+      error => {
+
+        console.warn(
+          "Video thumbnail generation failed:",
+          error
+        );
+
+      }
+    );
+
+}
+
+
+mediaMenuBtn?.addEventListener(
+
+  "click",
+
+  event => {
+
+    event.stopPropagation();
+
+    toggleMediaAttachMenu();
+
+  }
+
+);
+
+
+attachPhotoOption?.addEventListener(
 
   "click",
 
   () => {
 
-    if (isSending) {
-
-      return;
-
-    }
-
+    closeMediaAttachMenu();
 
     imageInput?.click();
 
@@ -2208,9 +4182,43 @@ attachImageBtn?.addEventListener(
 );
 
 
-removeAttachmentBtn?.addEventListener(
+attachAudioOption?.addEventListener(
+
   "click",
-  clearPendingAttachment
+
+  () => {
+
+    closeMediaAttachMenu();
+
+    audioInput?.click();
+
+  }
+
+);
+
+
+attachVideoOption?.addEventListener(
+
+  "click",
+
+  () => {
+
+    closeMediaAttachMenu();
+
+    videoInput?.click();
+
+  }
+
+);
+
+
+removeAttachmentBtn?.addEventListener(
+
+  "click",
+
+  () =>
+    clearPendingAttachment()
+
 );
 
 
@@ -2231,76 +4239,24 @@ imageInput?.addEventListener(
     }
 
 
-    if (
-      !file.type.startsWith(
-        "image/"
-      )
-    ) {
-
-      alert(
-        "Please choose an image file."
-      );
-
-
-      clearPendingAttachment();
-
-      return;
-
-    }
-
-
-    if (
-      file.size >
-      MAX_ATTACHMENT_FILE_SIZE
-    ) {
-
-      alert(
-        "Please keep the original image under 5MB."
-      );
-
-
-      clearPendingAttachment();
-
-      return;
-
-    }
-
-
     try {
 
-      const dataUrl =
-        await compressImageFile(
-          file
-        );
-
-
-      showPendingAttachment({
-
-        dataUrl,
-
-        note:
-          "",
-
-        mimeType:
-          "image/jpeg",
-
-        name:
-          file.name ||
-          "battle-reference.jpg"
-
-      });
+      await selectImageFile(
+        file
+      );
 
     }
 
     catch (error) {
 
       console.error(
-        "Attachment error:",
+        "Image attachment error:",
         error
       );
 
 
       alert(
+        error.message ||
         "Could not process that image."
       );
 
@@ -2312,6 +4268,199 @@ imageInput?.addEventListener(
   }
 
 );
+
+
+audioInput?.addEventListener(
+
+  "change",
+
+  async event => {
+
+    const file =
+      event.target.files?.[0];
+
+
+    if (!file) {
+
+      return;
+
+    }
+
+
+    try {
+
+      await selectAudioFile(
+        file
+      );
+
+    }
+
+    catch (error) {
+
+      console.error(
+        "Audio attachment error:",
+        error
+      );
+
+
+      alert(
+        error.message ||
+        "Could not process that audio file."
+      );
+
+
+      clearPendingAttachment();
+
+    }
+
+  }
+
+);
+
+
+videoInput?.addEventListener(
+
+  "change",
+
+  async event => {
+
+    const file =
+      event.target.files?.[0];
+
+
+    if (!file) {
+
+      return;
+
+    }
+
+
+    try {
+
+      await selectVideoFile(
+        file
+      );
+
+    }
+
+    catch (error) {
+
+      console.error(
+        "Video attachment error:",
+        error
+      );
+
+
+      alert(
+        error.message ||
+        "Could not process that video file."
+      );
+
+
+      clearPendingAttachment();
+
+    }
+
+  }
+
+);
+
+
+async function hydrateAttachmentForApi(
+  attachment
+) {
+
+  const normalized =
+    normalizeAttachment(
+      attachment
+    );
+
+
+  if (!normalized) {
+
+    return null;
+
+  }
+
+
+  if (
+    normalized.type ===
+    "image"
+  ) {
+
+    return normalized;
+
+  }
+
+
+  const blob =
+    await getMediaBlob(
+      normalized.mediaId
+    );
+
+
+  if (!blob) {
+
+    return {
+      ...normalized,
+      mediaUnavailable:
+        true
+    };
+
+  }
+
+
+  const mediaDataUrl =
+    await blobToDataUrl(
+      blob
+    );
+
+
+  if (
+    normalized.type ===
+    "audio"
+  ) {
+
+    return {
+      ...normalized,
+      mediaDataUrl
+    };
+
+  }
+
+
+  let frames =
+    [];
+
+
+  try {
+
+    frames =
+      await extractVideoFrames(
+        blob,
+        normalized.duration,
+        VIDEO_FRAME_COUNT
+      );
+
+  }
+
+  catch (error) {
+
+    console.warn(
+      "Video frame extraction failed; sending audio/context only:",
+      error
+    );
+
+  }
+
+
+  return {
+    ...normalized,
+    mediaDataUrl,
+    frames
+  };
+
+}
 
 
 pronounPicker.addEventListener(
@@ -3439,8 +5588,14 @@ function renderMessageContent(
   bubble.replaceChildren();
 
 
+  const attachmentData =
+    normalizeAttachment(
+      message.attachment
+    );
+
+
   if (
-    message.attachment
+    attachmentData
   ) {
 
     const attachment =
@@ -3450,31 +5605,201 @@ function renderMessageContent(
 
 
     attachment.className =
-      "message-attachment";
-
-
-    const image =
-      document.createElement(
-        "img"
-      );
-
-
-    image.src =
-      message.attachment.dataUrl;
-
-
-    image.alt =
-      "Battle scene reference";
-
-
-    attachment.appendChild(
-      image
-    );
+      `message-attachment ${attachmentData.type}`;
 
 
     if (
-      message.attachment
-        .note
+      attachmentData.type ===
+      "image"
+    ) {
+
+      const image =
+        document.createElement(
+          "img"
+        );
+
+
+      image.src =
+        attachmentData.dataUrl;
+
+      image.alt =
+        "Scene reference";
+
+
+      attachment.appendChild(
+        image
+      );
+
+    }
+
+
+    if (
+      attachmentData.type ===
+      "audio"
+    ) {
+
+      const shell =
+        document.createElement(
+          "div"
+        );
+
+
+      shell.className =
+        "message-media-shell audio";
+
+
+      const label =
+        document.createElement(
+          "div"
+        );
+
+
+      label.className =
+        "message-media-label";
+
+
+      label.textContent =
+        [
+          attachmentData.name ||
+          "Audio reference",
+          formatDuration(
+            attachmentData.duration
+          )
+        ]
+          .filter(Boolean)
+          .join(
+            " • "
+          );
+
+
+      const audio =
+        document.createElement(
+          "audio"
+        );
+
+
+      audio.controls =
+        true;
+
+      audio.preload =
+        "metadata";
+
+
+      shell.append(
+        label,
+        audio
+      );
+
+
+      attachment.appendChild(
+        shell
+      );
+
+
+      getMediaBlob(
+        attachmentData.mediaId
+      )
+        .then(
+
+          blob => {
+
+            if (blob) {
+
+              audio.src =
+                URL.createObjectURL(
+                  blob
+                );
+
+            }
+
+            else {
+
+              label.textContent +=
+                " • unavailable on this device";
+
+            }
+
+          }
+
+        )
+        .catch(
+
+          () => {
+
+            label.textContent +=
+              " • unavailable";
+
+          }
+
+        );
+
+    }
+
+
+    if (
+      attachmentData.type ===
+      "video"
+    ) {
+
+      const video =
+        document.createElement(
+          "video"
+        );
+
+
+      video.controls =
+        true;
+
+      video.preload =
+        "metadata";
+
+      video.playsInline =
+        true;
+
+
+      if (
+        attachmentData.thumbnailDataUrl
+      ) {
+
+        video.poster =
+          attachmentData.thumbnailDataUrl;
+
+      }
+
+
+      attachment.appendChild(
+        video
+      );
+
+
+      getMediaBlob(
+        attachmentData.mediaId
+      )
+        .then(
+
+          blob => {
+
+            if (blob) {
+
+              video.src =
+                URL.createObjectURL(
+                  blob
+                );
+
+            }
+
+          }
+
+        )
+        .catch(
+          () => {}
+        );
+
+    }
+
+
+    if (
+      attachmentData.note
         ?.trim()
     ) {
 
@@ -3489,8 +5814,7 @@ function renderMessageContent(
 
 
       note.textContent =
-        message.attachment
-          .note
+        attachmentData.note
           .trim();
 
 
@@ -4861,9 +7185,21 @@ async function updateMemoryForChat(
             message.attachment
 
               ? {
+                  type:
+                    message.attachment.type ||
+                    "image",
+
                   note:
                     message.attachment.note ||
-                    ""
+                    "",
+
+                  name:
+                    message.attachment.name ||
+                    "",
+
+                  duration:
+                    message.attachment.duration ||
+                    null
                 }
 
               : null
@@ -6313,6 +8649,11 @@ ctxDelete.addEventListener(
     }
 
 
+    deleteMediaForAttachment(
+      message.attachment
+    );
+
+
     updateCurrentChat(
 
       stored => {
@@ -6565,6 +8906,18 @@ clearChatBtn.addEventListener(
     }
 
 
+    chats[index]
+      .messages
+      .forEach(
+
+        message =>
+          deleteMediaForAttachment(
+            message.attachment
+          )
+
+      );
+
+
     chats[index] = {
 
       ...chats[index],
@@ -6687,6 +9040,16 @@ deleteChatBtn.addEventListener(
       return;
 
     }
+
+
+    chat.messages.forEach(
+
+      message =>
+        deleteMediaForAttachment(
+          message.attachment
+        )
+
+    );
 
 
     const remainingChats =
@@ -6855,45 +9218,45 @@ async function requestCharacterReply(
 
 
   const activeMessages =
-    recentMessages.map(
-
-      (
-        message,
-        index
-      ) => {
-
-        const normalized =
-          normalizeMessage(
-            message
-          );
+    [];
 
 
-        const isLatestMessage =
-          index ===
-          recentMessages.length - 1;
+  for (
+    let index = 0;
+    index < recentMessages.length;
+    index += 1
+  ) {
+
+    const normalized =
+      normalizeMessage(
+        recentMessages[index]
+      );
 
 
-        return {
+    const isLatestMessage =
+      index ===
+      recentMessages.length - 1;
 
-          ...normalized,
 
-          text:
-            getMessageText(
-              normalized
-            ),
+    activeMessages.push({
 
-          attachment:
-            isLatestMessage
+      ...normalized,
 
-              ? normalized.attachment
+      text:
+        getMessageText(
+          normalized
+        ),
 
-              : null
+      attachment:
+        isLatestMessage
+          ? await hydrateAttachmentForApi(
+              normalized.attachment
+            )
+          : null
 
-        };
+    });
 
-      }
-
-    );
+  }
 
 
   if (
@@ -6997,18 +9360,28 @@ function setSendingState(
     value;
 
 
-  if (attachImageBtn) {
+  if (mediaMenuBtn) {
 
-    attachImageBtn.disabled =
+    mediaMenuBtn.disabled =
       value;
 
   }
 
 
-  if (imageInput) {
+  for (
+    const input of [
+      imageInput,
+      audioInput,
+      videoInput
+    ]
+  ) {
 
-    imageInput.disabled =
-      value;
+    if (input) {
+
+      input.disabled =
+        value;
+
+    }
 
   }
 
@@ -7025,6 +9398,13 @@ function setSendingState(
 
     removeAttachmentBtn.disabled =
       value;
+
+  }
+
+
+  if (value) {
+
+    closeMediaAttachMenu();
 
   }
 
@@ -7269,7 +9649,7 @@ chatForm.addEventListener(
             makeChatTitle(
               text ||
               note ||
-              "Battle reference"
+              "Media reference"
             );
 
         }
@@ -7281,6 +9661,12 @@ chatForm.addEventListener(
 
     messageInput.value =
       "";
+
+
+    clearPendingAttachment({
+      deleteStored:
+        false
+    });
 
 
     autoGrowMessageInput();
@@ -7738,6 +10124,17 @@ document.addEventListener(
 
     if (
       !event.target.closest(
+        "#mediaMenuWrapper"
+      )
+    ) {
+
+      closeMediaAttachMenu();
+
+    }
+
+
+    if (
+      !event.target.closest(
         "#messageContextMenu"
       )
     ) {
@@ -7787,6 +10184,8 @@ document.addEventListener(
       closeChatMenu();
 
       closeMessageContextMenu();
+
+      closeMediaAttachMenu();
 
     }
 

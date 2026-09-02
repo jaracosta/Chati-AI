@@ -2,7 +2,7 @@ import express from "express";
 
 import dotenv from "dotenv";
 
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 
 import path from "path";
 
@@ -31,6 +31,16 @@ const MODEL =
 const MEMORY_MODEL =
   process.env.OPENAI_MEMORY_MODEL ||
   "gpt-5.6-luna";
+
+
+const AUDIO_MODEL =
+  process.env.OPENAI_AUDIO_MODEL ||
+  "gpt-audio-mini";
+
+
+const TRANSCRIBE_MODEL =
+  process.env.OPENAI_TRANSCRIBE_MODEL ||
+  "gpt-4o-transcribe";
 
 
 if (
@@ -74,7 +84,7 @@ app.use(
 
   express.json({
     limit:
-      "12mb"
+      "50mb"
   })
 
 );
@@ -231,7 +241,7 @@ function normalizeMemory(
 
 
 // =========================
-// IMAGE ATTACHMENTS
+// BATTLE MEDIA ATTACHMENTS
 // =========================
 
 function normalizeAttachment(
@@ -249,42 +259,164 @@ function normalizeAttachment(
   }
 
 
-  const dataUrl =
+  let type =
+    typeof attachment.type ===
+    "string"
+      ? attachment.type
+      : "";
+
+
+  if (
+    !type &&
     typeof attachment.dataUrl ===
       "string" &&
     attachment.dataUrl.startsWith(
       "data:image/"
     )
+  ) {
 
-      ? attachment.dataUrl
+    type =
+      "image";
 
-      : "";
+  }
 
 
-  if (!dataUrl) {
+  if (
+    ![
+      "image",
+      "audio",
+      "video"
+    ].includes(type)
+  ) {
 
     return null;
 
   }
 
 
-  return {
+  const normalized = {
 
-    dataUrl,
+    type,
 
     note:
       typeof attachment.note ===
       "string"
-
         ? attachment.note
             .slice(
               0,
-              1000
+              1200
             )
+        : "",
 
-        : ""
+    mimeType:
+      typeof attachment.mimeType ===
+      "string"
+        ? attachment.mimeType
+            .slice(
+              0,
+              120
+            )
+        : "",
+
+    name:
+      typeof attachment.name ===
+      "string"
+        ? attachment.name
+            .slice(
+              0,
+              180
+            )
+        : `${type}-reference`,
+
+    duration:
+      Number.isFinite(
+        attachment.duration
+      )
+        ? attachment.duration
+        : null,
+
+    mediaUnavailable:
+      Boolean(
+        attachment.mediaUnavailable
+      ),
+
+    frames:
+      Array.isArray(
+        attachment.frames
+      )
+        ? attachment.frames
+            .filter(
+
+              frame =>
+                typeof frame ===
+                  "string" &&
+                frame.startsWith(
+                  "data:image/"
+                )
+
+            )
+            .slice(
+              0,
+              8
+            )
+        : []
 
   };
+
+
+  if (
+    type ===
+    "image"
+  ) {
+
+    normalized.dataUrl =
+      typeof attachment.dataUrl ===
+        "string" &&
+      attachment.dataUrl.startsWith(
+        "data:image/"
+      )
+        ? attachment.dataUrl
+        : "";
+
+
+    if (
+      !normalized.dataUrl
+    ) {
+
+      return null;
+
+    }
+
+  }
+
+
+  if (
+    type ===
+      "audio" ||
+    type ===
+      "video"
+  ) {
+
+    const prefix =
+      type ===
+      "audio"
+        ? "data:audio/"
+        : "data:video/";
+
+
+    normalized.mediaDataUrl =
+      typeof attachment.mediaDataUrl ===
+        "string" &&
+      attachment.mediaDataUrl.startsWith(
+        prefix
+      )
+        ? attachment.mediaDataUrl
+        : "";
+
+  }
+
+
+  return normalized;
 
 }
 
@@ -309,9 +441,393 @@ function getAttachmentNote(
   return attachment.note
     .slice(
       0,
-      1000
+      1200
     )
     .trim();
+
+}
+
+
+function decodeDataUrl(
+  dataUrl
+) {
+
+  if (
+    typeof dataUrl !==
+    "string"
+  ) {
+
+    return null;
+
+  }
+
+
+  const match =
+    dataUrl.match(
+      /^data:([^;,]+);base64,(.+)$/s
+    );
+
+
+  if (!match) {
+
+    return null;
+
+  }
+
+
+  try {
+
+    return {
+      mimeType:
+        match[1],
+
+      base64:
+        match[2],
+
+      buffer:
+        Buffer.from(
+          match[2],
+          "base64"
+        )
+    };
+
+  }
+
+  catch {
+
+    return null;
+
+  }
+
+}
+
+
+function extensionForMime(
+  mimeType,
+  fallbackType = "audio"
+) {
+
+  const map = {
+    "audio/mpeg":
+      "mp3",
+    "audio/mp3":
+      "mp3",
+    "audio/wav":
+      "wav",
+    "audio/x-wav":
+      "wav",
+    "audio/m4a":
+      "m4a",
+    "audio/mp4":
+      "m4a",
+    "audio/ogg":
+      "ogg",
+    "audio/webm":
+      "webm",
+    "audio/flac":
+      "flac",
+    "video/mp4":
+      "mp4",
+    "video/webm":
+      "webm",
+    "video/mpeg":
+      "mpeg"
+  };
+
+
+  return (
+    map[mimeType] ||
+    (
+      fallbackType ===
+      "video"
+        ? "mp4"
+        : "mp3"
+    )
+  );
+
+}
+
+
+function safeMediaFilename(
+  name,
+  mimeType,
+  type
+) {
+
+  const clean =
+    String(
+      name ||
+      ""
+    )
+      .replace(
+        /[^a-zA-Z0-9._-]/g,
+        "_"
+      )
+      .slice(
+        0,
+        120
+      );
+
+
+  if (
+    /\.[a-zA-Z0-9]{2,5}$/
+      .test(
+        clean
+      )
+  ) {
+
+    return clean;
+
+  }
+
+
+  return (
+    `${clean || `scene-${type}`}.${extensionForMime(
+      mimeType,
+      type
+    )}`
+  );
+
+}
+
+
+async function transcribeMediaAttachment(
+  attachment
+) {
+
+  if (
+    !attachment?.mediaDataUrl
+  ) {
+
+    return "";
+
+  }
+
+
+  const decoded =
+    decodeDataUrl(
+      attachment.mediaDataUrl
+    );
+
+
+  if (
+    !decoded?.buffer?.length
+  ) {
+
+    return "";
+
+  }
+
+
+  try {
+
+    const file =
+      await toFile(
+        decoded.buffer,
+        safeMediaFilename(
+          attachment.name,
+          decoded.mimeType ||
+          attachment.mimeType,
+          attachment.type
+        ),
+        {
+          type:
+            decoded.mimeType ||
+            attachment.mimeType ||
+            undefined
+        }
+      );
+
+
+    const transcription =
+      await openai
+        .audio
+        .transcriptions
+        .create({
+          model:
+            TRANSCRIBE_MODEL,
+          file,
+          prompt:
+            "Transcribe the audible scene faithfully. Keep screams, gasps, crying, laughter, shouted words, impacts, and strong environmental sounds when they are clearly audible. Do not invent events."
+        });
+
+
+    return (
+      typeof transcription?.text ===
+      "string"
+        ? transcription.text.trim()
+        : ""
+    );
+
+  }
+
+  catch (error) {
+
+    console.warn(
+      "⚠️ Media transcription failed:",
+      error?.message ||
+      error
+    );
+
+
+    return "";
+
+  }
+
+}
+
+
+function audioInputFormatFromMime(
+  mimeType
+) {
+
+  if (
+    mimeType ===
+      "audio/wav" ||
+    mimeType ===
+      "audio/x-wav"
+  ) {
+
+    return "wav";
+
+  }
+
+
+  if (
+    mimeType ===
+      "audio/mpeg" ||
+    mimeType ===
+      "audio/mp3"
+  ) {
+
+    return "mp3";
+
+  }
+
+
+  return null;
+
+}
+
+
+async function analyzeAudioAttachment(
+  attachment
+) {
+
+  if (
+    !attachment?.mediaDataUrl
+  ) {
+
+    return "";
+
+  }
+
+
+  const decoded =
+    decodeDataUrl(
+      attachment.mediaDataUrl
+    );
+
+
+  if (!decoded) {
+
+    return "";
+
+  }
+
+
+  const format =
+    audioInputFormatFromMime(
+      decoded.mimeType ||
+      attachment.mimeType
+    );
+
+
+  if (format) {
+
+    try {
+
+      const completion =
+        await openai
+          .chat
+          .completions
+          .create({
+            model:
+              AUDIO_MODEL,
+            messages: [
+              {
+                role:
+                  "system",
+                content:
+                  "Analyze this short in-world audio event for another roleplay model. Return a compact factual description of what is audibly happening: clear speech, shouting, scream/gasp/laughter/crying, emotional intensity when strongly audible, impacts, and major environmental sounds. Do not guess speaker identity. Do not mention files, recordings, clips, uploads, or analysis. Do not invent uncertain details."
+              },
+              {
+                role:
+                  "user",
+                content: [
+                  {
+                    type:
+                      "text",
+                    text:
+                      attachment.note
+                        ? `User scene clarification: ${attachment.note}`
+                        : "Describe only what is audibly supported."
+                  },
+                  {
+                    type:
+                      "input_audio",
+                    input_audio: {
+                      data:
+                        decoded.base64,
+                      format
+                    }
+                  }
+                ]
+              }
+            ],
+            modalities: [
+              "text"
+            ],
+            max_completion_tokens:
+              450
+          });
+
+
+      const content =
+        completion
+          .choices?.[0]
+          ?.message
+          ?.content;
+
+
+      if (
+        typeof content ===
+          "string" &&
+        content.trim()
+      ) {
+
+        return content.trim();
+
+      }
+
+    }
+
+    catch (error) {
+
+      console.warn(
+        "⚠️ Direct audio understanding failed; falling back to transcription:",
+        error?.message ||
+        error
+      );
+
+    }
+
+  }
+
+
+  return transcribeMediaAttachment(
+    attachment
+  );
 
 }
 
@@ -560,7 +1076,7 @@ ${character.powerLimits || "Not specified"}
 // MULTIMODAL CHAT INPUT
 // =========================
 
-function buildChatInputMessage(
+async function buildChatInputMessage(
   message
 ) {
 
@@ -587,13 +1103,11 @@ function buildChatInputMessage(
   if (!attachment) {
 
     return {
-
       role,
 
       content:
         message.text ||
         ""
-
     };
 
   }
@@ -605,6 +1119,10 @@ function buildChatInputMessage(
 
 
   const textParts =
+    [];
+
+
+  const content =
     [];
 
 
@@ -630,6 +1148,89 @@ function buildChatInputMessage(
 
 
   if (
+    attachment.type ===
+    "audio"
+  ) {
+
+    const audioContext =
+      await analyzeAudioAttachment(
+        attachment
+      );
+
+
+    if (audioContext) {
+
+      textParts.push(
+        `Audible scene context:\n${audioContext}`
+      );
+
+    }
+
+    else if (
+      attachment.mediaUnavailable
+    ) {
+
+      textParts.push(
+        "An audio event belongs to the current scene, but its stored media is unavailable on this device. Rely on the user's Scene clarification and established context."
+      );
+
+    }
+
+    else {
+
+      textParts.push(
+        "An audio event is occurring in the current scene. React conservatively using the user's clarification and established context; do not invent exact words or sounds."
+      );
+
+    }
+
+  }
+
+
+  if (
+    attachment.type ===
+    "video"
+  ) {
+
+    const audibleContext =
+      await transcribeMediaAttachment(
+        attachment
+      );
+
+
+    if (audibleContext) {
+
+      textParts.push(
+        `Audible context during the current event:\n${audibleContext}`
+      );
+
+    }
+
+
+    if (
+      attachment.frames.length
+    ) {
+
+      textParts.push(
+        "The following visual moments are sampled in chronological order from one continuous event. Infer motion conservatively from changes between them."
+      );
+
+    }
+
+    else if (
+      attachment.mediaUnavailable
+    ) {
+
+      textParts.push(
+        "A video event belongs to the current scene, but its stored media is unavailable on this device. Rely on the user's Scene clarification and established context."
+      );
+
+    }
+
+  }
+
+
+  if (
     !textParts.length
   ) {
 
@@ -640,36 +1241,61 @@ function buildChatInputMessage(
   }
 
 
-  return {
+  content.push({
+    type:
+      "input_text",
+    text:
+      textParts.join(
+        "\n\n"
+      )
+  });
 
-    role:
-      "user",
 
-    content: [
+  if (
+    attachment.type ===
+    "image"
+  ) {
 
-      {
-        type:
-          "input_text",
+    content.push({
+      type:
+        "input_image",
+      image_url:
+        attachment.dataUrl,
+      detail:
+        "high"
+    });
 
-        text:
-          textParts.join(
-            "\n\n"
-          )
-      },
+  }
 
-      {
+
+  if (
+    attachment.type ===
+    "video"
+  ) {
+
+    for (
+      const frame of
+      attachment.frames
+    ) {
+
+      content.push({
         type:
           "input_image",
-
         image_url:
-          attachment.dataUrl,
-
+          frame,
         detail:
           "high"
-      }
+      });
 
-    ]
+    }
 
+  }
+
+
+  return {
+    role:
+      "user",
+    content
   };
 
 }
@@ -825,25 +1451,29 @@ ROLEPLAY RULES
 - Use powers consistently with the character's powers and limitations profile when one is provided.
 
 
-VISUAL SCENE RULES
+MULTIMEDIA SCENE RULES
 
-- A user may provide a battle or scene image as direct visual context for the current moment.
+- A user may provide a photo, audio clip, or short video as direct context for the current moment.
 
-- Treat the visual as part of the character's immediate in-world reality, not as a photograph the character is analyzing.
+- Treat supplied media as part of the character's immediate in-world reality, not as a file the character is analyzing.
 
-- Never say phrases such as "I see the image", "in the image", "in the picture", "in the photo", "from the attachment", or similar out-of-world wording.
+- Never say phrases such as "I see the image", "in the picture", "in the photo", "I heard the audio", "in the recording", "in the clip", "in the video", "from the attachment", "the frame shows", or similar out-of-world wording.
 
-- Never mention that the user uploaded, attached, or showed a file.
+- Never mention that the user uploaded, attached, recorded, saved, or showed a file.
 
-- If the user identifies a person, object, place, or event in the Scene clarification, trust that identification for the roleplay.
+- If the user identifies a person, object, place, voice, or event in the Scene clarification, trust that identification for the roleplay.
 
-- Use visible details naturally: battlefield damage, smoke, fire, terrain, posture, exhaustion, injuries, clothing damage, magical effects, weather, lighting, and other relevant scene conditions.
+- For photos and video, use supported visual details naturally: environment, posture, movement across sampled moments, exhaustion, clothing damage, magical effects, weather, lighting, and relevant scene conditions.
 
-- Do not invent an identity for an unidentified real person. Describe only what is relevant to the fictional scene.
+- For audio, use supported audible context naturally: clear words, shouting, screams, gasps, crying, laughter, impacts, and major environmental sounds when they are actually supported.
 
-- React as though ${character.name} is physically present and directly witnessing or experiencing the moment.
+- A short video is represented by sampled visual moments plus available audible context. Treat those moments as one continuous event; never describe them as separate images or frames.
 
-- Do not mechanically list visual details. Integrate only the details the character would naturally notice or react to.
+- Do not invent an identity for an unidentified real person. Respect the user's identification when one is provided.
+
+- React as though ${character.name} is physically present and directly witnessing, hearing, or experiencing the moment.
+
+- Do not mechanically list media details. Integrate only what the character would naturally notice or react to.
 
 
 HUMAN-LIKE STYLE
@@ -959,20 +1589,24 @@ Return only what the character says or does.
 
 
       const input =
-        messages
-          .slice(
-            -50
-          )
-          .filter(
+        await Promise.all(
 
-            message =>
-              message.sender !==
-              "system"
+          messages
+            .slice(
+              -50
+            )
+            .filter(
 
-          )
-          .map(
-            buildChatInputMessage
-          );
+              message =>
+                message.sender !==
+                "system"
+
+            )
+            .map(
+              buildChatInputMessage
+            )
+
+        );
 
 
       const stream =
@@ -1782,6 +2416,11 @@ app.listen(
 
     console.log(
       `🧠 Memory model: ${MEMORY_MODEL}`
+    );
+
+
+    console.log(
+      `🎧 Audio model: ${AUDIO_MODEL}`
     );
 
     console.log(
