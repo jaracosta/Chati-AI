@@ -41,6 +41,8 @@ const sidebarSearch = $("sidebarSearch");
 const sidebarSearchInput = $("sidebarSearchInput");
 const sidebarSearchClear = $("sidebarSearchClear");
 const sidebarPrivateIndicator = $("sidebarPrivateIndicator");
+const sidebarPrivateTitle = $("sidebarPrivateTitle");
+const sidebarPrivateSubtitle = $("sidebarPrivateSubtitle");
 const chatHistoryCount = $("chatHistoryCount");
 
 const characterForm = $("characterForm");
@@ -110,7 +112,11 @@ const newChatMenuWrapper = $("newChatMenuWrapper");
 const newChatMenu = $("newChatMenu");
 const newNormalChatBtn = $("newNormalChatBtn");
 const newPrivateChatBtn = $("newPrivateChatBtn");
+const privateChatOptionTitle = $("privateChatOptionTitle");
+const privateChatOptionSubtitle = $("privateChatOptionSubtitle");
 const privateChatBadge = $("privateChatBadge");
+const privateChatBadgeLabel = $("privateChatBadgeLabel");
+const privateChatBadgeSubtitle = $("privateChatBadgeSubtitle");
 const groupResponderBar = $("groupResponderBar");
 const groupResponderOptions = $("groupResponderOptions");
 
@@ -204,10 +210,10 @@ let recentlyCompletedMessageId = null;
 /* Used only to animate the newest user message without replaying old messages. */
 let recentlyAddedMessageId = null;
 
-/* Private Chat lives only in this page's JavaScript memory. */
+/* Private Chat and Private Group Chat live only in this page's JavaScript memory. */
 let temporaryPrivateChat = null;
 
-/* Audio/video for Private Chat never enters IndexedDB. */
+/* Audio/video for private sessions never enters IndexedDB. */
 const privateMediaStore = new Map();
 
 
@@ -369,7 +375,8 @@ function clearSidebarSearch() {
 
 
 function updateSidebarPrivateStatus(
-  active
+  active,
+  isGroup = false
 ) {
 
   sidebarPrivateIndicator
@@ -378,6 +385,34 @@ function updateSidebarPrivateStatus(
       "hidden",
       !active
     );
+
+
+  if (sidebarPrivateTitle) {
+
+    sidebarPrivateTitle.textContent =
+      isGroup
+        ? "Private group session"
+        : "Private session";
+
+  }
+
+
+  if (sidebarPrivateSubtitle) {
+
+    sidebarPrivateSubtitle.textContent =
+      "Not saved";
+
+  }
+
+
+  if (sidebarPrivateIndicator) {
+
+    sidebarPrivateIndicator.dataset.tooltip =
+      isGroup
+        ? "Private group session"
+        : "Private session";
+
+  }
 
 
   sidebar
@@ -1975,8 +2010,41 @@ function discardPrivateChat() {
     temporaryPrivateChat.id;
 
 
+  const discardedOwnerId =
+    temporaryPrivateChat.characterId;
+
+
+  const discardedOwner =
+    characters.find(
+      item =>
+        String(item.id) ===
+          String(discardedOwnerId)
+    );
+
+
   temporaryPrivateChat =
     null;
+
+
+  if (
+    isGroupCharacter(
+      discardedOwner
+    )
+  ) {
+
+    const savedResponderId =
+      localStorage.getItem(
+        getGroupResponderKey(
+          discardedOwner.id
+        )
+      );
+
+
+    currentGroupResponderId =
+      savedResponderId ||
+      null;
+
+  }
 
 
   if (
@@ -2021,10 +2089,18 @@ function confirmAndDiscardPrivateChat() {
   }
 
 
+  const privateLabel =
+    isGroupCharacter(
+      currentCharacter
+    )
+      ? "Private Group Chat"
+      : "Private Chat";
+
+
   if (
     privateChatHasUnsavedContent() &&
     !confirm(
-      "This Private Chat is not saved. Leaving it will permanently discard this conversation. Continue?"
+      `This ${privateLabel} is not saved. Leaving it will permanently discard this conversation. Continue?`
     )
   ) {
 
@@ -2334,22 +2410,6 @@ function createPrivateChat(
   character
 ) {
 
-  if (
-    isGroupCharacter(
-      character
-    )
-  ) {
-
-    alert(
-      "Private Group Chat will come in a later update."
-    );
-
-
-    return null;
-
-  }
-
-
   if (!character) {
 
     return null;
@@ -2364,6 +2424,42 @@ function createPrivateChat(
       characterId:
         character.id
     });
+
+
+  if (
+    isGroupCharacter(
+      character
+    )
+  ) {
+
+    const members =
+      getGroupMembers(
+        character
+      );
+
+
+    const savedResponderId =
+      localStorage.getItem(
+        getGroupResponderKey(
+          character.id
+        )
+      );
+
+
+    const savedResponder =
+      members.find(
+        member =>
+          String(member.id) ===
+            String(savedResponderId)
+      );
+
+
+    currentGroupResponderId =
+      savedResponder?.id ||
+      members[0]?.id ||
+      null;
+
+  }
 
 
   openChat(
@@ -2906,12 +3002,49 @@ function updatePrivateChatUi(
     );
 
 
+  const groupPrivate =
+    Boolean(
+      active &&
+      isGroupCharacter(
+        currentCharacter
+      )
+    );
+
+
   privateChatBadge
     ?.classList
     .toggle(
       "hidden",
       !active
     );
+
+
+  if (privateChatBadgeLabel) {
+
+    privateChatBadgeLabel.textContent =
+      groupPrivate
+        ? "Private Group"
+        : "Private";
+
+  }
+
+
+  if (privateChatBadgeSubtitle) {
+
+    privateChatBadgeSubtitle.textContent =
+      "Not saved";
+
+  }
+
+
+  if (privateChatBadge) {
+
+    privateChatBadge.title =
+      groupPrivate
+        ? "This group chat is temporary and is not saved in browser storage."
+        : "This chat is temporary and is not saved in browser storage.";
+
+  }
 
 
   chatView
@@ -2922,8 +3055,17 @@ function updatePrivateChatUi(
     );
 
 
+  chatView
+    ?.classList
+    .toggle(
+      "private-group-chat-active",
+      groupPrivate
+    );
+
+
   updateSidebarPrivateStatus(
-    active
+    active,
+    groupPrivate
   );
 
 }
@@ -3462,12 +3604,36 @@ function renderGroupResponderBar() {
     );
 
 
-  if (
+  const currentResponderIsValid =
+    members.some(
+      member =>
+        String(member.id) ===
+          String(currentGroupResponderId)
+    );
+
+
+  const savedResponderIsValid =
     members.some(
       member =>
         String(member.id) ===
           String(saved)
-    )
+    );
+
+
+  if (
+    !isCurrentChatPrivate() &&
+    savedResponderIsValid
+  ) {
+
+    currentGroupResponderId =
+      saved;
+
+  }
+
+  else if (
+    isCurrentChatPrivate() &&
+    !currentResponderIsValid &&
+    savedResponderIsValid
   ) {
 
     currentGroupResponderId =
@@ -3593,12 +3759,18 @@ function renderGroupResponderBar() {
             member.id;
 
 
-          localStorage.setItem(
-            getGroupResponderKey(
-              currentCharacter.id
-            ),
-            String(member.id)
-          );
+          if (
+            !isCurrentChatPrivate()
+          ) {
+
+            localStorage.setItem(
+              getGroupResponderKey(
+                currentCharacter.id
+              ),
+              String(member.id)
+            );
+
+          }
 
 
           renderGroupResponderBar();
@@ -3631,10 +3803,29 @@ function updateGroupChatUi() {
 
     newPrivateChatBtn
       .classList
-      .toggle(
-        "hidden",
-        active
+      .remove(
+        "hidden"
       );
+
+  }
+
+
+  if (privateChatOptionTitle) {
+
+    privateChatOptionTitle.textContent =
+      active
+        ? "Private Group Chat"
+        : "Private Chat";
+
+  }
+
+
+  if (privateChatOptionSubtitle) {
+
+    privateChatOptionSubtitle.textContent =
+      active
+        ? "Shared session · not saved"
+        : "Not saved on this device";
 
   }
 
@@ -12216,7 +12407,7 @@ clearChatBtn.addEventListener(
     const confirmed =
       confirm(
 
-        `Clear all messages and memory from "${chat.title}"? The character will stay.`
+        `Clear all messages and memory from "${chat.title}"? ${isGroupCharacter(currentCharacter) ? "The group" : "The character"} will stay.`
 
       );
 
@@ -12445,7 +12636,13 @@ deleteChatBtn.addEventListener(
           deletedChatId
         )
 
-          ? "Close this Private Chat? It is not saved, and this conversation will be permanently discarded."
+          ? (
+              isGroupCharacter(
+                character
+              )
+                ? "Close this Private Group Chat? It is not saved, and this shared conversation will be permanently discarded."
+                : "Close this Private Chat? It is not saved, and this conversation will be permanently discarded."
+            )
 
           : `Delete "${chat.title}" permanently?`
 
