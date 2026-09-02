@@ -25,6 +25,15 @@ const chatsBtn = $("chatsBtn");
 const backBtn = $("backBtn");
 const settingsBtn = $("settingsBtn");
 
+const sidebar = $("sidebar");
+const sidebarBrandBtn = $("sidebarBrandBtn");
+const sidebarCollapseBtn = $("sidebarCollapseBtn");
+const sidebarSearch = $("sidebarSearch");
+const sidebarSearchInput = $("sidebarSearchInput");
+const sidebarSearchClear = $("sidebarSearchClear");
+const sidebarPrivateIndicator = $("sidebarPrivateIndicator");
+const chatHistoryCount = $("chatHistoryCount");
+
 const characterForm = $("characterForm");
 const characterFormTitle = $("characterFormTitle");
 const characterFormSubtitle = $("characterFormSubtitle");
@@ -57,6 +66,8 @@ const characterPowerLimits = $("characterPowerLimits");
 
 const charactersGrid = $("charactersGrid");
 const emptyState = $("emptyState");
+const emptyStateTitle = $("emptyStateTitle");
+const emptyStateText = $("emptyStateText");
 const chatHistoryList = $("chatHistoryList");
 
 const chatBackBtn = $("chatBackBtn");
@@ -131,6 +142,12 @@ const ctxPinLabel = $("ctxPinLabel");
 const ctxDelete = $("ctxDelete");
 
 
+const SIDEBAR_COLLAPSED_KEY =
+  "chatiSidebarCollapsed";
+
+let sidebarSearchQuery = "";
+
+
 let characters =
   JSON.parse(
     localStorage.getItem(
@@ -167,6 +184,181 @@ const privateMediaStore = new Map();
 
 const memoryUpdateLocks =
   new Set();
+
+
+function getSidebarCollapsedPreference() {
+
+  const saved =
+    localStorage.getItem(
+      SIDEBAR_COLLAPSED_KEY
+    );
+
+
+  if (saved === "true") {
+
+    return true;
+
+  }
+
+
+  if (saved === "false") {
+
+    return false;
+
+  }
+
+
+  return window.matchMedia(
+    "(max-width: 700px)"
+  ).matches;
+
+}
+
+
+function setSidebarCollapsed(
+  collapsed,
+  { persist = true } = {}
+) {
+
+  if (!sidebar) {
+
+    return;
+
+  }
+
+
+  sidebar
+    .classList
+    .toggle(
+      "is-collapsed",
+      collapsed
+    );
+
+
+  sidebarCollapseBtn
+    ?.setAttribute(
+      "aria-expanded",
+      collapsed
+        ? "false"
+        : "true"
+    );
+
+
+  sidebarCollapseBtn
+    ?.setAttribute(
+      "aria-label",
+      collapsed
+        ? "Expand sidebar"
+        : "Collapse sidebar"
+    );
+
+
+  sidebarCollapseBtn
+    ?.setAttribute(
+      "data-tooltip",
+      collapsed
+        ? "Expand sidebar"
+        : "Collapse sidebar"
+    );
+
+
+  if (persist) {
+
+    localStorage.setItem(
+      SIDEBAR_COLLAPSED_KEY,
+      collapsed
+        ? "true"
+        : "false"
+    );
+
+  }
+
+}
+
+
+function setSidebarViewState(
+  view
+) {
+
+  chatsBtn
+    ?.classList
+    .toggle(
+      "active",
+      view === "chats"
+    );
+
+
+  createBtn
+    ?.classList
+    .toggle(
+      "active",
+      view === "create"
+    );
+
+}
+
+
+function updateSidebarSearchClear() {
+
+  sidebarSearchClear
+    ?.classList
+    .toggle(
+      "hidden",
+      !sidebarSearchQuery
+    );
+
+
+  sidebarSearch
+    ?.classList
+    .toggle(
+      "has-query",
+      Boolean(
+        sidebarSearchQuery
+      )
+    );
+
+}
+
+
+function clearSidebarSearch() {
+
+  sidebarSearchQuery = "";
+
+
+  if (sidebarSearchInput) {
+
+    sidebarSearchInput.value = "";
+
+  }
+
+
+  updateSidebarSearchClear();
+  renderCharacters();
+  renderChatHistory();
+
+}
+
+
+function updateSidebarPrivateStatus(
+  active
+) {
+
+  sidebarPrivateIndicator
+    ?.classList
+    .toggle(
+      "hidden",
+      !active
+    );
+
+
+  sidebar
+    ?.classList
+    .toggle(
+      "has-private-session",
+      Boolean(active)
+    );
+
+}
 
 
 function uid(prefix) {
@@ -2335,6 +2527,11 @@ function updatePrivateChatUi(
       active
     );
 
+
+  updateSidebarPrivateStatus(
+    active
+  );
+
 }
 
 
@@ -2365,6 +2562,10 @@ function showCreateView(
   closeMemoryViewer();
 
   closeAllFloatingUi();
+
+  setSidebarViewState(
+    "create"
+  );
 
 
   if (
@@ -2427,6 +2628,10 @@ function showHomeView() {
   closeMemoryViewer();
 
   closeAllFloatingUi();
+
+  setSidebarViewState(
+    "chats"
+  );
 
 
   homeView
@@ -4996,6 +5201,125 @@ addExampleBtn.addEventListener(
 );
 
 
+sidebarCollapseBtn?.addEventListener(
+
+  "click",
+
+  () => {
+
+    const collapsed =
+      sidebar
+        ?.classList
+        .contains(
+          "is-collapsed"
+        );
+
+
+    setSidebarCollapsed(
+      !collapsed
+    );
+
+  }
+
+);
+
+
+sidebarBrandBtn?.addEventListener(
+
+  "click",
+
+  () => {
+
+    if (
+      !confirmAndDiscardPrivateChat()
+    ) {
+
+      return;
+
+    }
+
+
+    showHomeView();
+
+  }
+
+);
+
+
+sidebarSearch?.addEventListener(
+
+  "click",
+
+  event => {
+
+    if (
+      sidebar
+        ?.classList
+        .contains(
+          "is-collapsed"
+        ) &&
+      event.target !==
+        sidebarSearchClear
+    ) {
+
+      setSidebarCollapsed(
+        false
+      );
+
+
+      setTimeout(
+        () =>
+          sidebarSearchInput
+            ?.focus(),
+        180
+      );
+
+    }
+
+  }
+
+);
+
+
+sidebarSearchInput?.addEventListener(
+
+  "input",
+
+  () => {
+
+    sidebarSearchQuery =
+      sidebarSearchInput.value
+        .trim();
+
+
+    updateSidebarSearchClear();
+    renderCharacters();
+    renderChatHistory();
+
+  }
+
+);
+
+
+sidebarSearchClear?.addEventListener(
+
+  "click",
+
+  event => {
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    clearSidebarSearch();
+
+    sidebarSearchInput
+      ?.focus();
+
+  }
+
+);
+
+
 createBtn.addEventListener(
 
   "click",
@@ -5373,15 +5697,79 @@ function renderCharacters() {
     "";
 
 
+  const query =
+    sidebarSearchQuery
+      .trim()
+      .toLowerCase();
+
+
+  const visibleCharacters =
+    characters.filter(
+
+      character => {
+
+        if (!query) {
+
+          return true;
+
+        }
+
+
+        return [
+          character.name,
+          character.bio,
+          character.personality
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+
+      }
+
+    );
+
+
+  const shouldShowEmpty =
+    !visibleCharacters.length;
+
+
   emptyState.style.display =
-    characters.length
-
-      ? "none"
-
-      : "flex";
+    shouldShowEmpty
+      ? "flex"
+      : "none";
 
 
-  characters.forEach(
+  if (shouldShowEmpty) {
+
+    const searching =
+      Boolean(query) &&
+      characters.length > 0;
+
+
+    if (emptyStateTitle) {
+
+      emptyStateTitle.textContent =
+        searching
+          ? "No matches"
+          : "No characters yet";
+
+    }
+
+
+    if (emptyStateText) {
+
+      emptyStateText.textContent =
+        searching
+          ? "Try a different character or chat name."
+          : "Create your first AI character and start chatting.";
+
+    }
+
+  }
+
+
+  visibleCharacters.forEach(
 
     character => {
 
@@ -5436,7 +5824,13 @@ function renderCharacters() {
 
 
         placeholder.textContent =
-          "🤖";
+          (
+            character.name ||
+            "C"
+          )
+            .trim()
+            .slice(0, 1)
+            .toUpperCase();
 
 
         card.appendChild(
@@ -5585,8 +5979,40 @@ function renderChatHistory() {
   );
 
 
+  const query =
+    sidebarSearchQuery
+      .trim()
+      .toLowerCase();
+
+
+  const visibleChats =
+    query
+      ? allChats.filter(
+
+          ({
+            character,
+            chat
+          }) =>
+            `${character.name} ${chat.title}`
+              .toLowerCase()
+              .includes(query)
+
+        )
+      : allChats;
+
+
+  if (chatHistoryCount) {
+
+    chatHistoryCount.textContent =
+      String(
+        visibleChats.length
+      );
+
+  }
+
+
   if (
-    !allChats.length
+    !visibleChats.length
   ) {
 
     const empty =
@@ -5600,7 +6026,9 @@ function renderChatHistory() {
 
 
     empty.textContent =
-      "No chats yet";
+      query
+        ? "No matching chats"
+        : "No chats yet";
 
 
     chatHistoryList.appendChild(
@@ -5613,7 +6041,7 @@ function renderChatHistory() {
   }
 
 
-  allChats.forEach(
+  visibleChats.forEach(
 
     ({
       character,
@@ -5630,12 +6058,18 @@ function renderChatHistory() {
         "history-item";
 
 
-      if (
+      button.title =
+        `${character.name} — ${chat.title}`;
+
+
+      const active =
         currentCharacter?.id ===
           character.id &&
         currentChatId ===
-          chat.id
-      ) {
+          chat.id;
+
+
+      if (active) {
 
         button
           .classList
@@ -5644,6 +6078,62 @@ function renderChatHistory() {
           );
 
       }
+
+
+      const avatar =
+        document.createElement(
+          "span"
+        );
+
+
+      avatar.className =
+        "history-avatar";
+
+
+      if (character.image) {
+
+        const image =
+          document.createElement(
+            "img"
+          );
+
+
+        image.src =
+          character.image;
+
+
+        image.alt =
+          "";
+
+
+        avatar.appendChild(
+          image
+        );
+
+      }
+
+      else {
+
+        avatar.textContent =
+          (
+            character.name ||
+            "C"
+          )
+            .trim()
+            .slice(0, 1)
+            .toUpperCase();
+
+      }
+
+
+      const copy =
+        document.createElement(
+          "span"
+        );
+
+
+      copy.className =
+        "history-copy";
 
 
       const name =
@@ -5674,9 +6164,32 @@ function renderChatHistory() {
         chat.title;
 
 
-      button.append(
+      copy.append(
         name,
         title
+      );
+
+
+      const activeDot =
+        document.createElement(
+          "span"
+        );
+
+
+      activeDot.className =
+        "history-active-dot";
+
+
+      activeDot.setAttribute(
+        "aria-hidden",
+        "true"
+      );
+
+
+      button.append(
+        avatar,
+        copy,
+        activeDot
       );
 
 
@@ -5785,6 +6298,10 @@ function openChat(
   closeMemoryViewer();
 
   closeAllFloatingUi();
+
+  setSidebarViewState(
+    "chats"
+  );
 
   clearPendingAttachment();
 
@@ -11320,6 +11837,21 @@ document.addEventListener(
 autoGrowMessageInput();
 
 saveCharacters();
+
+setSidebarCollapsed(
+  getSidebarCollapsedPreference(),
+  {
+    persist: false
+  }
+);
+
+updateSidebarSearchClear();
+setSidebarViewState(
+  "chats"
+);
+updateSidebarPrivateStatus(
+  false
+);
 
 renderCharacters();
 
