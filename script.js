@@ -16,11 +16,20 @@ const $ = (id) => document.getElementById(id);
 
 const homeView = $("homeView");
 const createView = $("createView");
+const groupCreateView = $("groupCreateView");
 const chatView = $("chatView");
 const chatBackground = $("chatBackground");
 
 const createBtn = $("createBtn");
 const mainCreateBtn = $("mainCreateBtn");
+const homeCreateGroupBtn = $("homeCreateGroupBtn");
+
+const createChoiceModal = $("createChoiceModal");
+const createChoiceOverlay = $("createChoiceOverlay");
+const closeCreateChoiceBtn = $("closeCreateChoiceBtn");
+const chooseCharacterBtn = $("chooseCharacterBtn");
+const chooseGroupBtn = $("chooseGroupBtn");
+const chooseGroupHint = $("chooseGroupHint");
 const chatsBtn = $("chatsBtn");
 const backBtn = $("backBtn");
 const settingsBtn = $("settingsBtn");
@@ -59,12 +68,26 @@ const addExampleBtn = $("addExampleBtn");
 
 const characterHasPowers = $("characterHasPowers");
 const powersFields = $("powersFields");
+
+const groupForm = $("groupForm");
+const groupFormTitle = $("groupFormTitle");
+const groupFormSubtitle = $("groupFormSubtitle");
+const groupBackBtn = $("groupBackBtn");
+const cancelGroupBtn = $("cancelGroupBtn");
+const saveGroupBtn = $("saveGroupBtn");
+const groupName = $("groupName");
+const groupBackground = $("groupBackground");
+const groupBackgroundPreview = $("groupBackgroundPreview");
+const groupMembersGrid = $("groupMembersGrid");
+const groupMemberCount = $("groupMemberCount");
 const characterPowerSystem = $("characterPowerSystem");
 const characterCombatStyle = $("characterCombatStyle");
 const characterAbilities = $("characterAbilities");
 const characterPowerLimits = $("characterPowerLimits");
 
 const charactersGrid = $("charactersGrid");
+const groupsSection = $("groupsSection");
+const groupsGrid = $("groupsGrid");
 const emptyState = $("emptyState");
 const emptyStateTitle = $("emptyStateTitle");
 const emptyStateText = $("emptyStateText");
@@ -72,6 +95,7 @@ const chatHistoryList = $("chatHistoryList");
 
 const chatBackBtn = $("chatBackBtn");
 const chatCharacterImage = $("chatCharacterImage");
+const chatGroupAvatar = $("chatGroupAvatar");
 const chatCharacterName = $("chatCharacterName");
 const chatCharacterDescription = $("chatCharacterDescription");
 
@@ -87,6 +111,8 @@ const newChatMenu = $("newChatMenu");
 const newNormalChatBtn = $("newNormalChatBtn");
 const newPrivateChatBtn = $("newPrivateChatBtn");
 const privateChatBadge = $("privateChatBadge");
+const groupResponderBar = $("groupResponderBar");
+const groupResponderOptions = $("groupResponderOptions");
 
 const mediaMenuWrapper = $("mediaMenuWrapper");
 const mediaMenuBtn = $("mediaMenuBtn");
@@ -165,6 +191,9 @@ let isSending = false;
 let contextMessageId = null;
 
 let editingCharacterId = null;
+let editingGroupId = null;
+let selectedGroupMemberIds = new Set();
+let currentGroupResponderId = null;
 
 let pendingAttachment = null;
 let pendingPreviewObjectUrl = null;
@@ -357,6 +386,342 @@ function updateSidebarPrivateStatus(
       "has-private-session",
       Boolean(active)
     );
+
+}
+
+
+
+function isGroupCharacter(
+  value
+) {
+
+  return Boolean(
+    value?.isGroup
+  );
+
+}
+
+
+function getStandaloneCharacters() {
+
+  return characters.filter(
+    item =>
+      !isGroupCharacter(item)
+  );
+
+}
+
+
+function getGroups() {
+
+  return characters.filter(
+    isGroupCharacter
+  );
+
+}
+
+
+function getCharacterById(
+  characterId
+) {
+
+  return characters.find(
+    item =>
+      !isGroupCharacter(item) &&
+      String(item.id) ===
+        String(characterId)
+  ) || null;
+
+}
+
+
+function getGroupMembers(
+  group
+) {
+
+  if (
+    !isGroupCharacter(group) ||
+    !Array.isArray(group.memberIds)
+  ) {
+
+    return [];
+
+  }
+
+
+  return group.memberIds
+    .map(
+      getCharacterById
+    )
+    .filter(Boolean);
+
+}
+
+
+function getGroupResponderKey(
+  groupId
+) {
+
+  return `chatiGroupResponder_${groupId}`;
+
+}
+
+
+function getInitials(
+  name,
+  fallback = "C"
+) {
+
+  const clean =
+    String(name || "")
+      .trim();
+
+
+  if (!clean) {
+
+    return fallback;
+
+  }
+
+
+  return clean
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(part => part[0])
+    .join("")
+    .toUpperCase();
+
+}
+
+
+function createAvatarChip(
+  character,
+  extraClass = ""
+) {
+
+  const chip =
+    document.createElement(
+      "span"
+    );
+
+
+  chip.className =
+    `group-avatar-chip ${extraClass}`
+      .trim();
+
+
+  if (character?.image) {
+
+    const image =
+      document.createElement(
+        "img"
+      );
+
+
+    image.src =
+      character.image;
+
+
+    image.alt = "";
+
+
+    chip.appendChild(
+      image
+    );
+
+  }
+
+  else {
+
+    chip.textContent =
+      getInitials(
+        character?.name
+      );
+
+  }
+
+
+  return chip;
+
+}
+
+
+function fillAvatarStack(
+  container,
+  members,
+  limit = 3
+) {
+
+  if (!container) {
+
+    return;
+
+  }
+
+
+  container.innerHTML = "";
+
+
+  members
+    .slice(0, limit)
+    .forEach(
+      member =>
+        container.appendChild(
+          createAvatarChip(
+            member
+          )
+        )
+    );
+
+
+  if (
+    members.length > limit
+  ) {
+
+    const more =
+      document.createElement(
+        "span"
+      );
+
+
+    more.className =
+      "group-avatar-chip group-avatar-more";
+
+
+    more.textContent =
+      `+${members.length - limit}`;
+
+
+    container.appendChild(
+      more
+    );
+
+  }
+
+}
+
+
+function getSelectedGroupResponder() {
+
+  if (
+    !isGroupCharacter(
+      currentCharacter
+    )
+  ) {
+
+    return null;
+
+  }
+
+
+  const members =
+    getGroupMembers(
+      currentCharacter
+    );
+
+
+  let selected =
+    members.find(
+      member =>
+        String(member.id) ===
+          String(currentGroupResponderId)
+    );
+
+
+  if (!selected) {
+
+    selected =
+      members[0] ||
+      null;
+
+
+    currentGroupResponderId =
+      selected?.id ||
+      null;
+
+  }
+
+
+  return selected;
+
+}
+
+
+function getMessageSpeaker(
+  message
+) {
+
+  if (
+    message?.sender !== "character"
+  ) {
+
+    return null;
+
+  }
+
+
+  if (
+    isGroupCharacter(
+      currentCharacter
+    )
+  ) {
+
+    return (
+      getCharacterById(
+        message.characterId
+      ) ||
+      {
+        id:
+          message.characterId ||
+          "unknown",
+        name:
+          message.characterName ||
+          "Character",
+        image: ""
+      }
+    );
+
+  }
+
+
+  return currentCharacter;
+
+}
+
+
+function buildGroupContextInstructions(
+  responder,
+  group
+) {
+
+  const members =
+    getGroupMembers(
+      group
+    );
+
+
+  const roster =
+    members
+      .map(
+        member =>
+          `- ${member.name}`
+      )
+      .join("\n");
+
+
+  return `
+GROUP CHAT CONTEXT
+
+You are currently inside the shared group conversation "${group.name}".
+
+Participants:
+${roster || "No participants listed."}
+
+You are responding ONLY as ${responder.name}.
+Do not write dialogue, actions, thoughts, or decisions for the other group characters unless the user's latest message explicitly asks for a brief description of something they can directly observe.
+Treat prior assistant messages prefixed with another participant's name as things that participant already said or did in the shared scene.
+Maintain the same shared timeline, location, relationships, injuries, objects, and events across all participants.
+`.trim();
 
 }
 
@@ -1152,6 +1517,19 @@ function normalizeCharacter(
       "string"
         ? character.background
         : "",
+
+    isGroup:
+      Boolean(
+        character?.isGroup
+      ),
+
+    memberIds:
+      Array.isArray(
+        character?.memberIds
+      )
+        ? character.memberIds
+            .map(String)
+        : [],
 
     createdAt:
       character?.createdAt ||
@@ -1956,6 +2334,22 @@ function createPrivateChat(
   character
 ) {
 
+  if (
+    isGroupCharacter(
+      character
+    )
+  ) {
+
+    alert(
+      "Private Group Chat will come in a later update."
+    );
+
+
+    return null;
+
+  }
+
+
   if (!character) {
 
     return null;
@@ -2548,6 +2942,718 @@ function closeAllFloatingUi() {
 }
 
 
+
+function closeCreateChoice() {
+
+  createChoiceModal
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+
+  createChoiceModal
+    ?.setAttribute(
+      "aria-hidden",
+      "true"
+    );
+
+}
+
+
+function openCreateChoice() {
+
+  if (isSending) {
+
+    return;
+
+  }
+
+
+  const available =
+    getStandaloneCharacters();
+
+
+  const canCreateGroup =
+    available.length >= 2;
+
+
+  if (chooseGroupBtn) {
+
+    chooseGroupBtn.disabled =
+      !canCreateGroup;
+
+  }
+
+
+  if (chooseGroupHint) {
+
+    chooseGroupHint.textContent =
+      canCreateGroup
+        ? "Chat with multiple existing characters."
+        : "Create at least two characters first.";
+
+  }
+
+
+  createChoiceModal
+    ?.classList
+    .remove(
+      "hidden"
+    );
+
+
+  createChoiceModal
+    ?.setAttribute(
+      "aria-hidden",
+      "false"
+    );
+
+}
+
+
+function updateGroupBackgroundPreview() {
+
+  const url =
+    groupBackground
+      ?.value
+      ?.trim() ||
+    "";
+
+
+  if (!groupBackgroundPreview) {
+
+    return;
+
+  }
+
+
+  if (url) {
+
+    groupBackgroundPreview.style.backgroundImage =
+      `url("${url.replace(/"/g, '\\"')}")`;
+
+
+    groupBackgroundPreview
+      .classList
+      .add(
+        "has-image"
+      );
+
+  }
+
+  else {
+
+    groupBackgroundPreview.style.backgroundImage =
+      "none";
+
+
+    groupBackgroundPreview
+      .classList
+      .remove(
+        "has-image"
+      );
+
+  }
+
+}
+
+
+function updateGroupMemberCount() {
+
+  if (!groupMemberCount) {
+
+    return;
+
+  }
+
+
+  const count =
+    selectedGroupMemberIds.size;
+
+
+  groupMemberCount.textContent =
+    `${count} selected`;
+
+}
+
+
+function renderGroupMemberChoices() {
+
+  if (!groupMembersGrid) {
+
+    return;
+
+  }
+
+
+  groupMembersGrid.innerHTML =
+    "";
+
+
+  const available =
+    getStandaloneCharacters();
+
+
+  available.forEach(
+
+    character => {
+
+      const button =
+        document.createElement(
+          "button"
+        );
+
+
+      button.type =
+        "button";
+
+
+      button.className =
+        "group-member-option";
+
+
+      const selected =
+        selectedGroupMemberIds.has(
+          String(character.id)
+        );
+
+
+      button.classList.toggle(
+        "selected",
+        selected
+      );
+
+
+      button.setAttribute(
+        "aria-pressed",
+        selected
+          ? "true"
+          : "false"
+      );
+
+
+      const avatar =
+        document.createElement(
+          "span"
+        );
+
+
+      avatar.className =
+        "group-member-avatar";
+
+
+      if (character.image) {
+
+        const image =
+          document.createElement(
+            "img"
+          );
+
+
+        image.src =
+          character.image;
+
+
+        image.alt =
+          "";
+
+
+        avatar.appendChild(
+          image
+        );
+
+      }
+
+      else {
+
+        avatar.textContent =
+          getInitials(
+            character.name
+          );
+
+      }
+
+
+      const copy =
+        document.createElement(
+          "span"
+        );
+
+
+      copy.className =
+        "group-member-copy";
+
+
+      const name =
+        document.createElement(
+          "strong"
+        );
+
+
+      name.textContent =
+        character.name;
+
+
+      const bio =
+        document.createElement(
+          "small"
+        );
+
+
+      bio.textContent =
+        character.bio ||
+        "AI Character";
+
+
+      copy.append(
+        name,
+        bio
+      );
+
+
+      const check =
+        document.createElement(
+          "span"
+        );
+
+
+      check.className =
+        "group-member-check";
+
+
+      check.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 4 4 8-9"></path></svg>';
+
+
+      button.append(
+        avatar,
+        copy,
+        check
+      );
+
+
+      button.addEventListener(
+
+        "click",
+
+        () => {
+
+          const key =
+            String(
+              character.id
+            );
+
+
+          if (
+            selectedGroupMemberIds.has(
+              key
+            )
+          ) {
+
+            selectedGroupMemberIds.delete(
+              key
+            );
+
+          }
+
+          else {
+
+            selectedGroupMemberIds.add(
+              key
+            );
+
+          }
+
+
+          renderGroupMemberChoices();
+          updateGroupMemberCount();
+
+        }
+
+      );
+
+
+      groupMembersGrid.appendChild(
+        button
+      );
+
+    }
+
+  );
+
+
+  updateGroupMemberCount();
+
+}
+
+
+function showGroupCreateView(
+  groupToEdit = null
+) {
+
+  if (isSending) {
+
+    return;
+
+  }
+
+
+  const available =
+    getStandaloneCharacters();
+
+
+  if (
+    available.length < 2 &&
+    !groupToEdit
+  ) {
+
+    alert(
+      "Create at least two characters before making a group."
+    );
+
+
+    return;
+
+  }
+
+
+  closeCreateChoice();
+  closeMemoryViewer();
+  closeAllFloatingUi();
+  setSidebarViewState(
+    "create"
+  );
+
+
+  editingGroupId =
+    groupToEdit?.id ||
+    null;
+
+
+  editingCharacterId =
+    null;
+
+
+  selectedGroupMemberIds =
+    new Set(
+      Array.isArray(
+        groupToEdit?.memberIds
+      )
+        ? groupToEdit.memberIds
+            .map(String)
+        : []
+    );
+
+
+  groupName.value =
+    groupToEdit?.name ||
+    "";
+
+
+  groupBackground.value =
+    groupToEdit?.background ||
+    "";
+
+
+  groupFormTitle.textContent =
+    groupToEdit
+      ? `Edit ${groupToEdit.name}`
+      : "Create Group";
+
+
+  groupFormSubtitle.textContent =
+    groupToEdit
+      ? "Change this group without deleting its chats or shared memory."
+      : "Bring your existing characters into one shared conversation.";
+
+
+  saveGroupBtn.textContent =
+    groupToEdit
+      ? "Save Changes"
+      : "Create Group";
+
+
+  updateGroupBackgroundPreview();
+  renderGroupMemberChoices();
+
+
+  homeView.classList.add(
+    "hidden"
+  );
+
+
+  createView.classList.add(
+    "hidden"
+  );
+
+
+  chatView.classList.add(
+    "hidden"
+  );
+
+
+  groupCreateView.classList.remove(
+    "hidden"
+  );
+
+
+  document
+    .querySelector(
+      ".main-content"
+    )
+    .scrollTop = 0;
+
+}
+
+
+function renderGroupResponderBar() {
+
+  if (
+    !groupResponderBar ||
+    !groupResponderOptions
+  ) {
+
+    return;
+
+  }
+
+
+  const isGroup =
+    isGroupCharacter(
+      currentCharacter
+    );
+
+
+  groupResponderBar
+    .classList
+    .toggle(
+      "hidden",
+      !isGroup
+    );
+
+
+  groupResponderOptions.innerHTML =
+    "";
+
+
+  if (!isGroup) {
+
+    currentGroupResponderId =
+      null;
+
+
+    return;
+
+  }
+
+
+  const members =
+    getGroupMembers(
+      currentCharacter
+    );
+
+
+  const saved =
+    localStorage.getItem(
+      getGroupResponderKey(
+        currentCharacter.id
+      )
+    );
+
+
+  if (
+    members.some(
+      member =>
+        String(member.id) ===
+          String(saved)
+    )
+  ) {
+
+    currentGroupResponderId =
+      saved;
+
+  }
+
+
+  const selected =
+    getSelectedGroupResponder();
+
+
+  if (selected) {
+
+    currentGroupResponderId =
+      selected.id;
+
+  }
+
+
+  members.forEach(
+
+    member => {
+
+      const button =
+        document.createElement(
+          "button"
+        );
+
+
+      button.type =
+        "button";
+
+
+      button.className =
+        "group-responder-option";
+
+
+      button.classList.toggle(
+        "active",
+        String(member.id) ===
+          String(currentGroupResponderId)
+      );
+
+
+      button.disabled =
+        isSending;
+
+
+      button.title =
+        `Have ${member.name} respond`;
+
+
+      const avatar =
+        document.createElement(
+          "span"
+        );
+
+
+      avatar.className =
+        "group-responder-avatar";
+
+
+      if (member.image) {
+
+        const image =
+          document.createElement(
+            "img"
+          );
+
+
+        image.src =
+          member.image;
+
+
+        image.alt =
+          "";
+
+
+        avatar.appendChild(
+          image
+        );
+
+      }
+
+      else {
+
+        avatar.textContent =
+          getInitials(
+            member.name
+          );
+
+      }
+
+
+      const name =
+        document.createElement(
+          "span"
+        );
+
+
+      name.className =
+        "group-responder-name";
+
+
+      name.textContent =
+        member.name;
+
+
+      button.append(
+        avatar,
+        name
+      );
+
+
+      button.addEventListener(
+
+        "click",
+
+        () => {
+
+          currentGroupResponderId =
+            member.id;
+
+
+          localStorage.setItem(
+            getGroupResponderKey(
+              currentCharacter.id
+            ),
+            String(member.id)
+          );
+
+
+          renderGroupResponderBar();
+
+        }
+
+      );
+
+
+      groupResponderOptions.appendChild(
+        button
+      );
+
+    }
+
+  );
+
+}
+
+
+function updateGroupChatUi() {
+
+  const active =
+    isGroupCharacter(
+      currentCharacter
+    );
+
+
+  if (newPrivateChatBtn) {
+
+    newPrivateChatBtn
+      .classList
+      .toggle(
+        "hidden",
+        active
+      );
+
+  }
+
+
+  if (editCharacterMenuBtn) {
+
+    editCharacterMenuBtn.textContent =
+      active
+        ? "Edit Group"
+        : "Edit Character";
+
+  }
+
+
+  renderGroupResponderBar();
+
+}
+
+
 function showCreateView(
   characterToEdit = null
 ) {
@@ -2559,6 +3665,7 @@ function showCreateView(
   }
 
 
+  closeCreateChoice();
   closeMemoryViewer();
 
   closeAllFloatingUi();
@@ -2566,6 +3673,10 @@ function showCreateView(
   setSidebarViewState(
     "create"
   );
+
+
+  editingGroupId =
+    null;
 
 
   if (
@@ -2594,6 +3705,13 @@ function showCreateView(
 
   chatView
     .classList
+    .add(
+      "hidden"
+    );
+
+
+  groupCreateView
+    ?.classList
     .add(
       "hidden"
     );
@@ -2648,6 +3766,13 @@ function showHomeView() {
     );
 
 
+  groupCreateView
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+
   chatView
     .classList
     .add(
@@ -2656,6 +3781,7 @@ function showHomeView() {
 
 
   renderCharacters();
+  renderGroups();
 
   renderChatHistory();
 
@@ -5294,6 +6420,7 @@ sidebarSearchInput?.addEventListener(
 
     updateSidebarSearchClear();
     renderCharacters();
+    renderGroups();
     renderChatHistory();
 
   }
@@ -5335,7 +6462,7 @@ createBtn.addEventListener(
     }
 
 
-    showCreateView();
+    openCreateChoice();
 
   }
 
@@ -5347,7 +6474,53 @@ mainCreateBtn.addEventListener(
   "click",
 
   () =>
-    showCreateView()
+    openCreateChoice()
+
+);
+
+
+homeCreateGroupBtn?.addEventListener(
+
+  "click",
+
+  () =>
+    showGroupCreateView()
+
+);
+
+
+createChoiceOverlay?.addEventListener(
+  "click",
+  closeCreateChoice
+);
+
+
+closeCreateChoiceBtn?.addEventListener(
+  "click",
+  closeCreateChoice
+);
+
+
+chooseCharacterBtn?.addEventListener(
+
+  "click",
+
+  () => {
+    closeCreateChoice();
+    showCreateView();
+  }
+
+);
+
+
+chooseGroupBtn?.addEventListener(
+
+  "click",
+
+  () => {
+    closeCreateChoice();
+    showGroupCreateView();
+  }
 
 );
 
@@ -5454,6 +6627,197 @@ cancelCharacterBtn.addEventListener(
 );
 
 
+
+groupBackBtn?.addEventListener(
+
+  "click",
+
+  () => {
+
+    if (
+      editingGroupId &&
+      currentCharacter?.isGroup
+    ) {
+
+      openChat(
+        currentCharacter,
+        currentChatId
+      );
+
+    }
+
+    else {
+
+      showHomeView();
+
+    }
+
+  }
+
+);
+
+
+cancelGroupBtn?.addEventListener(
+  "click",
+  () => groupBackBtn?.click()
+);
+
+
+groupBackground?.addEventListener(
+  "input",
+  updateGroupBackgroundPreview
+);
+
+
+groupForm?.addEventListener(
+
+  "submit",
+
+  event => {
+
+    event.preventDefault();
+
+
+    const name =
+      groupName.value
+        .trim();
+
+
+    const memberIds =
+      [...selectedGroupMemberIds];
+
+
+    if (
+      memberIds.length < 2
+    ) {
+
+      alert(
+        "Choose at least two characters for the group."
+      );
+
+
+      return;
+
+    }
+
+
+    const existing =
+      editingGroupId
+        ? characters.find(
+            item =>
+              item.id ===
+                editingGroupId &&
+              isGroupCharacter(item)
+          )
+        : null;
+
+
+    const members =
+      memberIds
+        .map(
+          getCharacterById
+        )
+        .filter(Boolean);
+
+
+    const group =
+      normalizeCharacter({
+        ...(existing || {}),
+        id:
+          existing?.id ||
+          `group_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        createdAt:
+          existing?.createdAt ||
+          Date.now(),
+        name,
+        image: "",
+        pronouns: "THEY",
+        bio:
+          `Group chat with ${members.map(member => member.name).join(", ")}`,
+        description:
+          `Group chat with ${members.map(member => member.name).join(", ")}`,
+        personality: "",
+        scenario: "",
+        instructions: "",
+        exampleMessages: [],
+        hasPowers: false,
+        powerSystem: "",
+        combatStyle: "",
+        abilities: "",
+        powerLimits: "",
+        background:
+          groupBackground.value
+            .trim(),
+        isGroup: true,
+        memberIds
+      });
+
+
+    const index =
+      characters.findIndex(
+        item =>
+          item.id ===
+            group.id
+      );
+
+
+    if (index >= 0) {
+
+      characters[index] =
+        group;
+
+    }
+
+    else {
+
+      characters.push(
+        group
+      );
+
+    }
+
+
+    saveCharacters();
+
+
+    editingGroupId =
+      null;
+
+
+    selectedGroupMemberIds =
+      new Set();
+
+
+    if (existing) {
+
+      openChat(
+        group,
+        currentChatId
+      );
+
+    }
+
+    else {
+
+      const chat =
+        createNewChat(
+          group,
+          false
+        );
+
+
+      openChat(
+        group,
+        chat?.id || null
+      );
+
+    }
+
+  }
+
+);
+
+
 settingsBtn.addEventListener(
 
   "click",
@@ -5465,7 +6829,7 @@ settingsBtn.addEventListener(
     ) {
 
       alert(
-        "Open a character first, then use Settings to edit it."
+        "Open a character or group first, then use Settings to edit it."
       );
 
 
@@ -5474,9 +6838,25 @@ settingsBtn.addEventListener(
     }
 
 
-    showCreateView(
-      currentCharacter
-    );
+    if (
+      isGroupCharacter(
+        currentCharacter
+      )
+    ) {
+
+      showGroupCreateView(
+        currentCharacter
+      );
+
+    }
+
+    else {
+
+      showCreateView(
+        currentCharacter
+      );
+
+    }
 
   }
 
@@ -5493,8 +6873,27 @@ editCharacterMenuBtn.addEventListener(
 
 
     if (
-      currentCharacter
+      !currentCharacter
     ) {
+
+      return;
+
+    }
+
+
+    if (
+      isGroupCharacter(
+        currentCharacter
+      )
+    ) {
+
+      showGroupCreateView(
+        currentCharacter
+      );
+
+    }
+
+    else {
 
       showCreateView(
         currentCharacter
@@ -5703,8 +7102,12 @@ function renderCharacters() {
       .toLowerCase();
 
 
+  const standaloneCharacters =
+    getStandaloneCharacters();
+
+
   const visibleCharacters =
-    characters.filter(
+    standaloneCharacters.filter(
 
       character => {
 
@@ -5730,8 +7133,39 @@ function renderCharacters() {
     );
 
 
+  const visibleGroupMatches =
+    getGroups().filter(
+
+      group => {
+
+        if (!query) {
+
+          return true;
+
+        }
+
+
+        return [
+          group.name,
+          ...getGroupMembers(
+            group
+          ).map(
+            member =>
+              member.name
+          )
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+
+      }
+
+    );
+
+
   const shouldShowEmpty =
-    !visibleCharacters.length;
+    !visibleCharacters.length &&
+    !visibleGroupMatches.length;
 
 
   emptyState.style.display =
@@ -5744,7 +7178,7 @@ function renderCharacters() {
 
     const searching =
       Boolean(query) &&
-      characters.length > 0;
+      standaloneCharacters.length > 0;
 
 
     if (emptyStateTitle) {
@@ -5895,6 +7329,209 @@ function renderCharacters() {
 
 
       charactersGrid.appendChild(
+        card
+      );
+
+    }
+
+  );
+
+}
+
+
+
+function renderGroups() {
+
+  if (
+    !groupsGrid ||
+    !groupsSection
+  ) {
+
+    return;
+
+  }
+
+
+  groupsGrid.innerHTML =
+    "";
+
+
+  const query =
+    sidebarSearchQuery
+      .trim()
+      .toLowerCase();
+
+
+  const groups =
+    getGroups()
+      .filter(
+
+        group => {
+
+          if (!query) {
+
+            return true;
+
+          }
+
+
+          const members =
+            getGroupMembers(
+              group
+            );
+
+
+          return [
+            group.name,
+            ...members.map(
+              member =>
+                member.name
+            )
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(query);
+
+        }
+
+      );
+
+
+  groupsSection
+    .classList
+    .toggle(
+      "hidden",
+      groups.length === 0
+    );
+
+
+  groups.forEach(
+
+    group => {
+
+      const members =
+        getGroupMembers(
+          group
+        );
+
+
+      const card =
+        document.createElement(
+          "button"
+        );
+
+
+      card.type =
+        "button";
+
+
+      card.className =
+        "group-card";
+
+
+      const top =
+        document.createElement(
+          "div"
+        );
+
+
+      top.className =
+        "group-card-top";
+
+
+      const stack =
+        document.createElement(
+          "span"
+        );
+
+
+      stack.className =
+        "group-avatar-stack";
+
+
+      fillAvatarStack(
+        stack,
+        members,
+        4
+      );
+
+
+      const count =
+        document.createElement(
+          "span"
+        );
+
+
+      count.className =
+        "group-card-count";
+
+
+      count.textContent =
+        `${members.length} characters`;
+
+
+      top.append(
+        stack,
+        count
+      );
+
+
+      const title =
+        document.createElement(
+          "h4"
+        );
+
+
+      title.textContent =
+        group.name;
+
+
+      const description =
+        document.createElement(
+          "p"
+        );
+
+
+      description.textContent =
+        members.length
+          ? members
+              .map(member => member.name)
+              .join(" · ")
+          : "No active characters";
+
+
+      card.append(
+        top,
+        title,
+        description
+      );
+
+
+      card.addEventListener(
+
+        "click",
+
+        () => {
+
+          if (
+            !confirmAndDiscardPrivateChat()
+          ) {
+
+            return;
+
+          }
+
+
+          openChat(
+            group
+          );
+
+        }
+
+      );
+
+
+      groupsGrid.appendChild(
         card
       );
 
@@ -6090,7 +7727,28 @@ function renderChatHistory() {
         "history-avatar";
 
 
-      if (character.image) {
+      if (
+        isGroupCharacter(
+          character
+        )
+      ) {
+
+        avatar.classList.add(
+          "history-group-stack"
+        );
+
+
+        fillAvatarStack(
+          avatar,
+          getGroupMembers(
+            character
+          ),
+          2
+        );
+
+      }
+
+      else if (character.image) {
 
         const image =
           document.createElement(
@@ -6115,13 +7773,9 @@ function renderChatHistory() {
       else {
 
         avatar.textContent =
-          (
-            character.name ||
-            "C"
-          )
-            .trim()
-            .slice(0, 1)
-            .toUpperCase();
+          getInitials(
+            character.name
+          );
 
       }
 
@@ -6481,6 +8135,13 @@ function openChat(
     );
 
 
+  groupCreateView
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+
   chatView
     .classList
     .remove(
@@ -6492,14 +8153,68 @@ function openChat(
     currentCharacter.name;
 
 
+  const activeGroupMembers =
+    isGroupCharacter(
+      currentCharacter
+    )
+      ? getGroupMembers(
+          currentCharacter
+        )
+      : [];
+
+
   chatCharacterDescription.textContent =
-    currentCharacter.bio ||
-    "AI Character";
+    isGroupCharacter(
+      currentCharacter
+    )
+      ? `${activeGroupMembers.length} characters · Shared conversation`
+      : (
+          currentCharacter.bio ||
+          "AI Character"
+        );
 
 
   if (
+    isGroupCharacter(
+      currentCharacter
+    )
+  ) {
+
+    chatCharacterImage
+      .removeAttribute(
+        "src"
+      );
+
+
+    chatCharacterImage.style.display =
+      "none";
+
+
+    chatGroupAvatar
+      ?.classList
+      .remove(
+        "hidden"
+      );
+
+
+    fillAvatarStack(
+      chatGroupAvatar,
+      activeGroupMembers,
+      3
+    );
+
+  }
+
+  else if (
     currentCharacter.image
   ) {
+
+    chatGroupAvatar
+      ?.classList
+      .add(
+        "hidden"
+      );
+
 
     chatCharacterImage.src =
       currentCharacter.image;
@@ -6511,6 +8226,13 @@ function openChat(
   }
 
   else {
+
+    chatGroupAvatar
+      ?.classList
+      .add(
+        "hidden"
+      );
+
 
     chatCharacterImage
       .removeAttribute(
@@ -6532,6 +8254,9 @@ function openChat(
   updatePrivateChatUi(
     selected
   );
+
+
+  updateGroupChatUi();
 
 
   renderMessages();
@@ -7021,6 +8746,18 @@ function canGroupMessages(
   }
 
 
+  if (
+    a.sender === "character" &&
+    (a.characterId || b.characterId) &&
+    String(a.characterId || "") !==
+      String(b.characterId || "")
+  ) {
+
+    return false;
+
+  }
+
+
   const firstTime =
     Number(
       a.time
@@ -7213,6 +8950,96 @@ function createMessageRow(
 
     bubble.classList.add(
       "response-finished"
+    );
+
+  }
+
+
+  if (
+    normalized.sender === "character" &&
+    isGroupCharacter(
+      currentCharacter
+    )
+  ) {
+
+    const speaker =
+      getMessageSpeaker(
+        normalized
+      );
+
+
+    const meta =
+      document.createElement(
+        "div"
+      );
+
+
+    meta.className =
+      "group-speaker-meta";
+
+
+    const avatar =
+      document.createElement(
+        "span"
+      );
+
+
+    avatar.className =
+      "group-speaker-avatar";
+
+
+    if (speaker?.image) {
+
+      const image =
+        document.createElement(
+          "img"
+        );
+
+
+      image.src =
+        speaker.image;
+
+
+      image.alt =
+        "";
+
+
+      avatar.appendChild(
+        image
+      );
+
+    }
+
+    else {
+
+      avatar.textContent =
+        getInitials(
+          speaker?.name
+        );
+
+    }
+
+
+    const name =
+      document.createElement(
+        "span"
+      );
+
+
+    name.textContent =
+      speaker?.name ||
+      normalized.characterName ||
+      "Character";
+
+
+    meta.append(
+      avatar,
+      name
+    );
+
+
+    row.appendChild(
+      meta
     );
 
   }
@@ -7489,6 +9316,37 @@ function renderMessages() {
 
 
     if (
+      isGroupCharacter(
+        currentCharacter
+      )
+    ) {
+
+      const stack =
+        document.createElement(
+          "div"
+        );
+
+
+      stack.className =
+        "group-avatar-stack chat-empty-group-stack";
+
+
+      fillAvatarStack(
+        stack,
+        getGroupMembers(
+          currentCharacter
+        ),
+        4
+      );
+
+
+      empty.appendChild(
+        stack
+      );
+
+    }
+
+    else if (
       currentCharacter.image
     ) {
 
@@ -7534,7 +9392,11 @@ function renderMessages() {
 
 
     text.textContent =
-      `Start a new conversation with ${currentCharacter.name}.`;
+      isGroupCharacter(
+        currentCharacter
+      )
+        ? "Choose who should respond, then start the shared conversation."
+        : `Start a new conversation with ${currentCharacter.name}.`;
 
 
     empty.append(
@@ -7612,10 +9474,104 @@ function showTypingIndicator() {
     "message-row character typing-row message-enter-row";
 
 
+  const typingCharacter =
+    isGroupCharacter(
+      currentCharacter
+    )
+      ? getSelectedGroupResponder()
+      : currentCharacter;
+
+
   row.setAttribute(
     "aria-label",
-    `${currentCharacter?.name || "Character"} is typing`
+    `${typingCharacter?.name || "Character"} is typing`
   );
+
+
+  if (
+    isGroupCharacter(
+      currentCharacter
+    )
+  ) {
+
+    row.classList.add(
+      "group-typing-row"
+    );
+
+
+    const meta =
+      document.createElement(
+        "div"
+      );
+
+
+    meta.className =
+      "group-speaker-meta";
+
+
+    const avatar =
+      document.createElement(
+        "span"
+      );
+
+
+    avatar.className =
+      "group-speaker-avatar";
+
+
+    if (typingCharacter?.image) {
+
+      const image =
+        document.createElement(
+          "img"
+        );
+
+
+      image.src =
+        typingCharacter.image;
+
+
+      image.alt = "";
+
+
+      avatar.appendChild(
+        image
+      );
+
+    }
+
+    else {
+
+      avatar.textContent =
+        getInitials(
+          typingCharacter?.name
+        );
+
+    }
+
+
+    const name =
+      document.createElement(
+        "span"
+      );
+
+
+    name.textContent =
+      typingCharacter?.name ||
+      "Character";
+
+
+    meta.append(
+      avatar,
+      name
+    );
+
+
+    row.appendChild(
+      meta
+    );
+
+  }
 
 
   const bubble =
@@ -7684,7 +9640,8 @@ function removeTypingIndicator() {
 
 
 async function readAIStream(
-  response
+  response,
+  streamCharacter = null
 ) {
 
   if (
@@ -8484,6 +10441,15 @@ async function updateMemoryForChat(
         message => ({
 
           ...message,
+
+          text:
+            isGroupCharacter(
+              character
+            ) &&
+            message.sender ===
+              "character"
+              ? `${message.characterName || getCharacterById(message.characterId)?.name || "Character"}: ${message.text || ""}`
+              : message.text,
 
           attachment:
             message.attachment
@@ -10712,12 +12678,33 @@ function saveMessageToChat(
 async function requestCharacterReply(
   character,
   chatId,
-  messagesOverride = null
+  messagesOverride = null,
+  storageCharacterId = null
 ) {
+
+  const ownerId =
+    storageCharacterId ||
+    character.id;
+
+
+  const conversationOwner =
+    characters.find(
+      item =>
+        String(item.id) ===
+          String(ownerId)
+    ) ||
+    currentCharacter;
+
+
+  const groupMode =
+    isGroupCharacter(
+      conversationOwner
+    );
+
 
   const chat =
     getStoredChat(
-      character.id,
+      ownerId,
       chatId
     );
 
@@ -10769,9 +12756,13 @@ async function requestCharacterReply(
       ...normalized,
 
       text:
-        getMessageText(
-          normalized
-        ),
+        groupMode &&
+        normalized.sender ===
+          "character"
+          ? `${normalized.characterName || getCharacterById(normalized.characterId)?.name || "Character"}: ${getMessageText(normalized)}`
+          : getMessageText(
+              normalized
+            ),
 
       attachment:
         isLatestMessage
@@ -10796,6 +12787,24 @@ async function requestCharacterReply(
   }
 
 
+  const requestCharacter =
+    groupMode
+      ? {
+          ...character,
+          instructions:
+            [
+              character.instructions || "",
+              buildGroupContextInstructions(
+                character,
+                conversationOwner
+              )
+            ]
+              .filter(Boolean)
+              .join("\n\n")
+        }
+      : character;
+
+
   const response =
     await fetch(
 
@@ -10813,7 +12822,8 @@ async function requestCharacterReply(
         body:
           JSON.stringify({
 
-            character,
+            character:
+              requestCharacter,
 
             messages:
               activeMessages,
@@ -10864,7 +12874,8 @@ async function requestCharacterReply(
 
 
   return readAIStream(
-    response
+    response,
+    character
   );
 
 }
@@ -10913,6 +12924,17 @@ function setSendingState(
   if (value) {
 
     closeNewChatMenu();
+
+  }
+
+
+  if (
+    isGroupCharacter(
+      currentCharacter
+    )
+  ) {
+
+    renderGroupResponderBar();
 
   }
 
@@ -11164,6 +13186,31 @@ chatForm.addEventListener(
     };
 
 
+    const responseCharacter =
+      isGroupCharacter(
+        character
+      )
+        ? getSelectedGroupResponder()
+        : character;
+
+
+    if (
+      isGroupCharacter(
+        character
+      ) &&
+      !responseCharacter
+    ) {
+
+      alert(
+        "This group has no available character to respond."
+      );
+
+
+      return;
+
+    }
+
+
     const chatId =
       currentChatId;
 
@@ -11270,9 +13317,13 @@ chatForm.addEventListener(
       } =
         await requestCharacterReply(
 
-          character,
+          responseCharacter,
 
-          chatId
+          chatId,
+
+          null,
+
+          character.id
 
         );
 
@@ -11303,6 +13354,20 @@ chatForm.addEventListener(
           {
             sender:
               "character",
+
+            characterId:
+              isGroupCharacter(
+                character
+              )
+                ? responseCharacter.id
+                : null,
+
+            characterName:
+              isGroupCharacter(
+                character
+              )
+                ? responseCharacter.name
+                : character.name,
 
             text:
               reply,
@@ -11467,6 +13532,37 @@ async function regenerateMessage(
   }
 
 
+  const targetMessage =
+    normalizeMessage(
+      chat.messages[index]
+    );
+
+
+  const responseCharacter =
+    isGroupCharacter(
+      character
+    )
+      ? (
+          getCharacterById(
+            targetMessage.characterId
+          ) ||
+          getSelectedGroupResponder()
+        )
+      : character;
+
+
+  if (!responseCharacter) {
+
+    alert(
+      "That group character is no longer available."
+    );
+
+
+    return;
+
+  }
+
+
   const laterCount =
     chat.messages.length -
     index -
@@ -11531,11 +13627,13 @@ async function regenerateMessage(
     } =
       await requestCharacterReply(
 
-        character,
+        responseCharacter,
 
         chatId,
 
-        requestHistory
+        requestHistory,
+
+        character.id
 
       );
 
@@ -11817,6 +13915,8 @@ document.addEventListener(
       "Escape"
     ) {
 
+      closeCreateChoice();
+
       closeMemoryViewer();
 
       closeChatMenu();
@@ -11854,5 +13954,6 @@ updateSidebarPrivateStatus(
 );
 
 renderCharacters();
+renderGroups();
 
 renderChatHistory();
