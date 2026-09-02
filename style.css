@@ -3617,3 +3617,260 @@ nav {
   }
 }
 
+/* =========================================================
+   CHATI-AI VISUAL POLISH V1
+   Fancy creator symbols + iOS-style buttons + action styling
+   + finished-response animation.
+   Keep this block at the VERY END of style.css.
+========================================================= */
+
+.creator-card-title .section-symbol {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -5px;
+  color: #b9b4d8;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(62, 60, 80, 0.78),
+      rgba(28, 28, 39, 0.76)
+    );
+  border: 1px solid rgba(151, 143, 190, 0.22);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 7px 18px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition:
+    transform 0.38s cubic-bezier(0.2, 0.9, 0.2, 1.15),
+    color 0.25s ease,
+    border-color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.creator-card-title .section-symbol svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.creator-card:hover .section-symbol {
+  color: #ddd8ff;
+  border-color: rgba(163, 151, 224, 0.34);
+  background:
+    linear-gradient(
+      145deg,
+      rgba(76, 71, 103, 0.88),
+      rgba(33, 32, 46, 0.82)
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.075),
+    0 9px 22px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px) scale(1.045);
+}
+
+.creator-card-title.powers-heading > span:not(.section-symbol) {
+  filter: drop-shadow(0 3px 9px rgba(255, 196, 76, 0.16));
+}
+
+
+/* User actions typed as **action** */
+
+.message.user .action-text {
+  color: #73737e;
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+
+.message.character .action-text {
+  color: #858592;
+}
+
+
+/* iOS-like button spring */
+
+button {
+  -webkit-tap-highlight-color: transparent;
+  transform-origin: center;
+  will-change: transform, filter;
+}
+
+button:not(:disabled) {
+  transition:
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.24s ease,
+    opacity 0.24s ease,
+    box-shadow 0.28s ease,
+    background-color 0.28s ease,
+    border-color 0.28s ease,
+    color 0.28s ease;
+}
+
+@media (hover: hover) {
+  button:not(:disabled):hover {
+    filter: brightness(1.06);
+  }
+}
+
+button:not(:disabled):active {
+  transform: scale(0.94) !important;
+  filter: brightness(0.96);
+  transition:
+    transform 0.075s ease-out,
+    filter 0.075s ease-out !important;
+}
+
+.back-btn:not(:disabled):active,
+.memory-btn:not(:disabled):active,
+.menu-btn:not(:disabled):active,
+.message-tool-btn:not(:disabled):active,
+.memory-close-btn:not(:disabled):active,
+.media-menu-btn:not(:disabled):active,
+.attachment-remove-btn:not(:disabled):active,
+.remove-example-btn:not(:disabled):active {
+  transform: scale(0.88) !important;
+}
+
+@media (hover: hover) {
+  .main-create-btn:not(:disabled):hover,
+  .save-character-btn:not(:disabled):hover,
+  .send-btn:not(:disabled):hover {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.012);
+    box-shadow:
+      0 8px 22px rgba(0, 0, 0, 0.18),
+      0 1px 0 rgba(255, 255, 255, 0.4) inset;
+  }
+
+  .secondary-btn:not(:disabled):hover,
+  .outline-add-btn:not(:disabled):hover,
+  .nav-btn:not(:disabled):hover,
+  .settings-btn:not(:disabled):hover,
+  .new-chat-btn:not(:disabled):hover,
+  .memory-btn:not(:disabled):hover,
+  .menu-btn:not(:disabled):hover,
+  .back-btn:not(:disabled):hover {
+    transform: translateY(-1px) scale(1.012);
+  }
+}
+
+
+/* Finished AI response animation */
+
+.message-row.response-finished-row {
+  animation:
+    responseRowSettle
+    0.52s
+    cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+}
+
+.message.character.response-finished {
+  position: relative;
+  isolation: isolate;
+  animation:
+    responseBubbleSettle
+    0.52s
+    cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+}
+
+.message.character.response-finished .message-text {
+  animation:
+    responseTextReveal
+    0.62s
+    cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+}
+
+.message-row.response-finished-row .message-tools {
+  animation:
+    responseToolsReveal
+    0.38s
+    0.18s
+    cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+}
+
+@keyframes responseRowSettle {
+  0% {
+    transform: translateY(7px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes responseBubbleSettle {
+  0% {
+    opacity: 0.82;
+    transform: scale(0.988);
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.004);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+  }
+}
+
+@keyframes responseTextReveal {
+  0% {
+    opacity: 0.74;
+    transform: translateY(3px);
+    filter: blur(1.15px);
+  }
+  45% {
+    opacity: 1;
+    filter: blur(0.15px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes responseToolsReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  button:not(:disabled),
+  .creator-card-title .section-symbol,
+  .message-row.response-finished-row,
+  .message.character.response-finished,
+  .message.character.response-finished .message-text,
+  .message-row.response-finished-row .message-tools {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+

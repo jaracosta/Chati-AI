@@ -146,6 +146,9 @@ let editingCharacterId = null;
 let pendingAttachment = null;
 let pendingPreviewObjectUrl = null;
 
+/* Used only to animate the AI message that has just finished generating. */
+let recentlyCompletedMessageId = null;
+
 
 const memoryUpdateLocks =
   new Set();
@@ -5865,7 +5868,9 @@ function renderMessageContent(
 
   if (
     message.sender ===
-    "character"
+      "character" ||
+    message.sender ===
+      "user"
   ) {
 
     renderRichText(
@@ -5933,6 +5938,25 @@ function createMessageRow(
     bubble,
     normalized
   );
+
+
+  if (
+    normalized.sender ===
+      "character" &&
+    normalized.id ===
+      recentlyCompletedMessageId
+  ) {
+
+    row.classList.add(
+      "response-finished-row"
+    );
+
+
+    bubble.classList.add(
+      "response-finished"
+    );
+
+  }
 
 
   row.appendChild(
@@ -9160,7 +9184,11 @@ function saveMessageToChat(
   message
 ) {
 
-  return mutateStoredChat(
+  let savedMessage =
+    null;
+
+
+  mutateStoredChat(
 
     characterId,
 
@@ -9168,17 +9196,22 @@ function saveMessageToChat(
 
     chat => {
 
-      chat.messages.push(
-
+      savedMessage =
         normalizeMessage(
           message
-        )
+        );
 
+
+      chat.messages.push(
+        savedMessage
       );
 
     }
 
   );
+
+
+  return savedMessage;
 
 }
 
@@ -9716,34 +9749,45 @@ chatForm.addEventListener(
         ?.remove();
 
 
-      saveMessageToChat(
+      const savedReply =
+        saveMessageToChat(
 
-        character.id,
+          character.id,
 
-        chatId,
+          chatId,
 
-        {
-          sender:
-            "character",
+          {
+            sender:
+              "character",
 
-          text:
-            reply,
+            text:
+              reply,
 
-          variants: [
-            reply
-          ],
+            variants: [
+              reply
+            ],
 
-          activeVariant:
-            0,
+            activeVariant:
+              0,
 
-          time:
-            Date.now()
-        }
+            time:
+              Date.now()
+          }
 
-      );
+        );
+
+
+      recentlyCompletedMessageId =
+        savedReply?.id ||
+        null;
 
 
       renderMessages();
+
+
+      recentlyCompletedMessageId =
+        null;
+
 
       renderChatHistory();
 
@@ -10047,7 +10091,16 @@ async function regenerateMessage(
     );
 
 
+    recentlyCompletedMessageId =
+      messageId;
+
+
     renderMessages();
+
+
+    recentlyCompletedMessageId =
+      null;
+
 
     renderChatHistory();
 
