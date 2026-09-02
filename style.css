@@ -6236,3 +6236,38 @@ button:not(:disabled):active {
     0 0 0 1px rgba(153, 139, 214, 0.08),
     0 8px 22px rgba(0, 0, 0, 0.16);
 }
+
+
+/* =========================
+   V3.2.1 ENTITY DELETE
+   ========================= */
+
+.chat-menu .entity-delete-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.chat-menu-line-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-menu-line-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chat-menu .entity-delete-option:hover {
+  background: rgba(116, 34, 45, 0.32);
+  color: #ff8a93;
+}

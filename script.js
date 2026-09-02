@@ -148,6 +148,8 @@ const renameChatBtn = $("renameChatBtn");
 const editCharacterMenuBtn = $("editCharacterMenuBtn");
 const clearChatBtn = $("clearChatBtn");
 const deleteChatBtn = $("deleteChatBtn");
+const deleteEntityBtn = $("deleteEntityBtn");
+const deleteEntityLabel = $("deleteEntityLabel");
 
 const memoryBtn = $("memoryBtn");
 const memoryModal = $("memoryModal");
@@ -3836,6 +3838,28 @@ function updateGroupChatUi() {
       active
         ? "Edit Group"
         : "Edit Character";
+
+  }
+
+
+  if (deleteEntityLabel) {
+
+    deleteEntityLabel.textContent =
+      active
+        ? "Delete Group"
+        : "Delete Character";
+
+  }
+
+
+  if (deleteEntityBtn) {
+
+    deleteEntityBtn.setAttribute(
+      "aria-label",
+      active
+        ? "Delete group"
+        : "Delete character"
+    );
 
   }
 
@@ -12578,6 +12602,573 @@ clearChatBtn.addEventListener(
     autoGrowMessageInput();
 
     messageInput.focus();
+
+  }
+
+);
+
+
+
+function getEntitySavedChats(
+  entityId
+) {
+
+  return getCharacterChats(
+    entityId
+  );
+
+}
+
+
+function removeEntityStorage(
+  entityId
+) {
+
+  const chats =
+    getEntitySavedChats(
+      entityId
+    );
+
+
+  chats.forEach(
+
+    chat => {
+
+      chat.messages.forEach(
+
+        message =>
+          deleteMediaForAttachment(
+            message.attachment
+          )
+
+      );
+
+    }
+
+  );
+
+
+  localStorage.removeItem(
+    getChatsKey(
+      entityId
+    )
+  );
+
+
+  localStorage.removeItem(
+    getActiveChatKey(
+      entityId
+    )
+  );
+
+
+  localStorage.removeItem(
+    getOldChatKey(
+      entityId
+    )
+  );
+
+}
+
+
+function removeGroupResponderStorage(
+  groupId
+) {
+
+  localStorage.removeItem(
+    getGroupResponderKey(
+      groupId
+    )
+  );
+
+}
+
+
+function buildGroupAfterMemberRemoval(
+  group,
+  removedCharacterId
+) {
+
+  const memberIds =
+    (group.memberIds || [])
+      .filter(
+
+        memberId =>
+          String(memberId) !==
+          String(removedCharacterId)
+
+      );
+
+
+  if (
+    memberIds.length < 2
+  ) {
+
+    return null;
+
+  }
+
+
+  const members =
+    memberIds
+      .map(
+        getCharacterById
+      )
+      .filter(Boolean);
+
+
+  return normalizeCharacter({
+
+    ...group,
+
+    memberIds,
+
+    bio:
+      `Group chat with ${members.map(member => member.name).join(", ")}`,
+
+    description:
+      `Group chat with ${members.map(member => member.name).join(", ")}`
+
+  });
+
+}
+
+
+function deleteGroupPermanently(
+  group
+) {
+
+  if (
+    !group ||
+    !isGroupCharacter(
+      group
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  if (
+    getTemporaryPrivateChat(
+      group.id
+    )
+  ) {
+
+    discardPrivateChat();
+
+  }
+
+
+  removeEntityStorage(
+    group.id
+  );
+
+
+  removeGroupResponderStorage(
+    group.id
+  );
+
+
+  characters =
+    characters.filter(
+
+      item =>
+        String(item.id) !==
+        String(group.id)
+
+    );
+
+
+  saveCharacters();
+
+}
+
+
+function deleteStandaloneCharacterPermanently(
+  character
+) {
+
+  if (
+    !character ||
+    isGroupCharacter(
+      character
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  if (
+    getTemporaryPrivateChat(
+      character.id
+    )
+  ) {
+
+    discardPrivateChat();
+
+  }
+
+
+  removeEntityStorage(
+    character.id
+  );
+
+
+  const groups =
+    getGroups();
+
+
+  const groupsToDelete =
+    [];
+
+
+  const groupsToUpdate =
+    [];
+
+
+  groups.forEach(
+
+    group => {
+
+      if (
+        !(group.memberIds || [])
+          .some(
+            memberId =>
+              String(memberId) ===
+              String(character.id)
+          )
+      ) {
+
+        return;
+
+      }
+
+
+      const updatedGroup =
+        buildGroupAfterMemberRemoval(
+          group,
+          character.id
+        );
+
+
+      if (!updatedGroup) {
+
+        groupsToDelete.push(
+          group
+        );
+
+      }
+
+      else {
+
+        groupsToUpdate.push(
+          updatedGroup
+        );
+
+      }
+
+    }
+
+  );
+
+
+  groupsToDelete.forEach(
+
+    group => {
+
+      removeEntityStorage(
+        group.id
+      );
+
+
+      removeGroupResponderStorage(
+        group.id
+      );
+
+    }
+
+  );
+
+
+  groupsToUpdate.forEach(
+
+    group => {
+
+      const responderKey =
+        getGroupResponderKey(
+          group.id
+        );
+
+
+      const savedResponderId =
+        localStorage.getItem(
+          responderKey
+        );
+
+
+      if (
+        savedResponderId &&
+        !group.memberIds
+          .some(
+            memberId =>
+              String(memberId) ===
+              String(savedResponderId)
+          )
+      ) {
+
+        localStorage.setItem(
+          responderKey,
+          String(
+            group.memberIds[0]
+          )
+        );
+
+      }
+
+    }
+
+  );
+
+
+  const groupsToDeleteIds =
+    new Set(
+      groupsToDelete.map(
+        group =>
+          String(group.id)
+      )
+    );
+
+
+  const updatedGroupsById =
+    new Map(
+      groupsToUpdate.map(
+        group => [
+          String(group.id),
+          group
+        ]
+      )
+    );
+
+
+  characters =
+    characters
+      .filter(
+
+        item =>
+          String(item.id) !==
+            String(character.id) &&
+          !groupsToDeleteIds.has(
+            String(item.id)
+          )
+
+      )
+      .map(
+
+        item =>
+          updatedGroupsById.get(
+            String(item.id)
+          ) ||
+          item
+
+      );
+
+
+  saveCharacters();
+
+}
+
+
+function describeCharacterGroupImpact(
+  character
+) {
+
+  const affectedGroups =
+    getGroups()
+      .filter(
+
+        group =>
+          (group.memberIds || [])
+            .some(
+              memberId =>
+                String(memberId) ===
+                String(character.id)
+            )
+
+      );
+
+
+  if (!affectedGroups.length) {
+
+    return "";
+
+  }
+
+
+  const deletedGroups =
+    affectedGroups
+      .filter(
+
+        group =>
+          (group.memberIds || [])
+            .filter(
+              memberId =>
+                String(memberId) !==
+                String(character.id)
+            )
+            .length < 2
+
+      );
+
+
+  const updatedGroups =
+    affectedGroups.length -
+    deletedGroups.length;
+
+
+  const parts =
+    [];
+
+
+  if (updatedGroups) {
+
+    parts.push(
+      `${updatedGroups} group${updatedGroups === 1 ? "" : "s"} will stay, but this character will be removed from ${updatedGroups === 1 ? "it" : "them"}.`
+    );
+
+  }
+
+
+  if (deletedGroups.length) {
+
+    parts.push(
+      `${deletedGroups.length} group${deletedGroups.length === 1 ? "" : "s"} will also be deleted because fewer than two members would remain.`
+    );
+
+  }
+
+
+  return `\n\n${parts.join("\n")}`;
+
+}
+
+
+deleteEntityBtn?.addEventListener(
+
+  "click",
+
+  event => {
+
+    event.preventDefault();
+
+    event.stopPropagation();
+
+
+    if (
+      isSending ||
+      !currentCharacter
+    ) {
+
+      return;
+
+    }
+
+
+    const entity =
+      currentCharacter;
+
+
+    const groupMode =
+      isGroupCharacter(
+        entity
+      );
+
+
+    const impactText =
+      groupMode
+        ? ""
+        : describeCharacterGroupImpact(
+            entity
+          );
+
+
+    const confirmed =
+      confirm(
+
+        groupMode
+
+          ? (
+              `Delete group "${entity.name}" permanently?\n\n` +
+              "This will delete the group and all of its saved conversations. " +
+              "The individual characters inside the group will not be deleted."
+            )
+
+          : (
+              `Delete character "${entity.name}" permanently?\n\n` +
+              "This will delete the character and all of its saved conversations." +
+              impactText
+            )
+
+      );
+
+
+    if (!confirmed) {
+
+      closeChatMenu();
+
+      return;
+
+    }
+
+
+    closeChatMenu();
+
+    closeMemoryViewer();
+
+    clearPendingAttachment();
+
+
+    if (groupMode) {
+
+      deleteGroupPermanently(
+        entity
+      );
+
+    }
+
+    else {
+
+      deleteStandaloneCharacterPermanently(
+        entity
+      );
+
+    }
+
+
+    currentChatId =
+      null;
+
+
+    currentCharacter =
+      null;
+
+
+    currentGroupResponderId =
+      null;
+
+
+    editingCharacterId =
+      null;
+
+
+    editingGroupId =
+      null;
+
+
+    showHomeView();
 
   }
 
