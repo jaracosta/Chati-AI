@@ -107,6 +107,117 @@ app.use(
 
 
 // =========================
+// ROLEPLAY LEVELS
+// =========================
+
+function normalizeRoleplayLevel(
+  value
+) {
+
+  return [
+    "regular",
+    "advanced",
+    "superAdvanced"
+  ].includes(
+    value
+  )
+    ? value
+    : "advanced";
+
+}
+
+
+function getRoleplayLevelConfig(
+  value
+) {
+
+  const level =
+    normalizeRoleplayLevel(
+      value
+    );
+
+
+  if (
+    level ===
+    "regular"
+  ) {
+
+    return {
+      id:
+        "regular",
+
+      label:
+        "REGULAR",
+
+      maxOutputTokens:
+        850,
+
+      instructions:
+        `
+- Keep the roleplay natural, direct, and easy to follow.
+- Prefer shorter dialogue and scene beats unless the moment clearly needs more.
+- Maintain believable emotion and continuity without adding unnecessary dramatic detail.
+- Action and conflict can still be serious, but keep the presentation focused rather than highly cinematic.
+        `.trim()
+    };
+
+  }
+
+
+  if (
+    level ===
+    "superAdvanced"
+  ) {
+
+    return {
+      id:
+        "superAdvanced",
+
+      label:
+        "SUPER ADVANCED",
+
+      maxOutputTokens:
+        1600,
+
+      instructions:
+        `
+- Maximize immersion, continuity, and commitment to the established character.
+- Preserve personality, motives, emotional history, relationships, visual state, and scene continuity even during highly intense moments.
+- Allow layered emotional reactions, complex relationships, powerful non-explicit romantic tension or affection, and meaningful interpersonal conflict when supported by the story.
+- Dark psychological themes, betrayal, tragedy, cruel fictional villains, horror atmosphere, and intense fictional conflict may be treated seriously when they fit the scene.
+- Major battles, transformations, confrontations, revelations, and emotional turning points may become longer and more cinematic.
+- Do not flatten, prematurely de-escalate, moralize over, or break character merely because a fictional scene becomes emotionally intense, dark, dramatic, romantic, or confrontational.
+- Keep intensity story-driven rather than escalating every turn for its own sake.
+        `.trim()
+    };
+
+  }
+
+
+  return {
+    id:
+      "advanced",
+
+    label:
+      "ADVANCED",
+
+    maxOutputTokens:
+      1150,
+
+    instructions:
+      `
+- Use richer emotional continuity and more expressive character reactions.
+- Give important scenes stronger atmosphere, movement, dialogue rhythm, and cinematic detail.
+- Let relationships develop with nuance, including strong non-explicit romantic tension or affection when it naturally fits.
+- Treat serious fictional conflict, dark themes, and dramatic consequences with appropriate weight instead of automatically softening them.
+- Keep casual moments concise, but let battles, revelations, and emotionally important scenes breathe.
+      `.trim()
+  };
+
+}
+
+
+// =========================
 // MEMORY NORMALIZATION
 // =========================
 
@@ -1611,6 +1722,12 @@ app.post(
         req.body.memory;
 
 
+      const roleplayConfig =
+        getRoleplayLevelConfig(
+          req.body.roleplayLevel
+        );
+
+
       if (
         !character.name
       ) {
@@ -1680,7 +1797,7 @@ VISUAL CONTINUITY RULES
 
 - Keep visual descriptions natural and relevant rather than listing the entire outfit every reply.
 
-- Keep appearance descriptions non-sexual and age-appropriate.
+- Keep appearance descriptions non-sexual and appropriate to the established character and scene.
 
 
 PERSONALITY & BACKSTORY
@@ -1727,6 +1844,13 @@ MEMORY RULES
 - Recent messages override older automatic-memory details when they clearly conflict.
 
 - Only the currently selected response variants are part of the active timeline.
+
+
+ROLEPLAY LEVEL
+
+${roleplayConfig.label}
+
+${roleplayConfig.instructions}
 
 
 ROLEPLAY RULES
@@ -1878,11 +2002,17 @@ SCENE AWARENESS
 - React primarily to the latest message and current scene.
 
 
-SAFETY
-
-- Keep the interaction age-appropriate and safe.
+SAFETY BOUNDARIES — APPLY TO EVERY ROLEPLAY LEVEL
 
 - Do not produce sexual or erotic roleplay.
+
+- Never sexualize minors.
+
+- Keep violence non-graphic. Do not dwell on gore, gruesome injuries, or graphic bodily detail.
+
+- Do not provide practical instructions that facilitate dangerous real-world acts.
+
+- Normal fictional drama, non-explicit romance or affection, strong language, fantasy combat, horror atmosphere, dark themes, or villainous behavior are not by themselves reasons to break character when they remain within these boundaries.
 
 
 FINAL RULE
@@ -1938,7 +2068,8 @@ Return only what the character says or does.
             input,
 
             max_output_tokens:
-              1000,
+              roleplayConfig
+                .maxOutputTokens,
 
             stream:
               true
@@ -2851,6 +2982,10 @@ app.listen(
 
     console.log(
       "🎬 Cinematic roleplay enabled"
+    );
+
+    console.log(
+      "🎭 Roleplay levels enabled"
     );
 
     console.log(

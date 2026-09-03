@@ -34,6 +34,20 @@ const chatsBtn = $("chatsBtn");
 const backBtn = $("backBtn");
 const settingsBtn = $("settingsBtn");
 
+const settingsModal = $("settingsModal");
+const settingsOverlay = $("settingsOverlay");
+const closeSettingsBtn = $("closeSettingsBtn");
+const settingsDoneBtn = $("settingsDoneBtn");
+const settingsEditCurrentBtn = $("settingsEditCurrentBtn");
+const settingsEditCurrentLabel = $("settingsEditCurrentLabel");
+const roleplayLevelStatus = $("roleplayLevelStatus");
+const roleplayLevelButtons =
+  [
+    ...document.querySelectorAll(
+      "[data-roleplay-level]"
+    )
+  ];
+
 const sidebar = $("sidebar");
 const sidebarBrandBtn = $("sidebarBrandBtn");
 const sidebarCollapseBtn = $("sidebarCollapseBtn");
@@ -185,6 +199,21 @@ const ctxDelete = $("ctxDelete");
 const SIDEBAR_COLLAPSED_KEY =
   "chatiSidebarCollapsed";
 
+const ROLEPLAY_LEVEL_KEY =
+  "chatiRoleplayLevel";
+
+const ROLEPLAY_LEVEL_LABELS = {
+  regular:
+    "Regular",
+  advanced:
+    "Advanced",
+  superAdvanced:
+    "Super Advanced"
+};
+
+let roleplayLevel =
+  loadRoleplayLevel();
+
 let sidebarSearchQuery = "";
 
 
@@ -227,6 +256,132 @@ const privateMediaStore = new Map();
 
 const memoryUpdateLocks =
   new Set();
+
+
+function normalizeRoleplayLevel(
+  value
+) {
+
+  return [
+    "regular",
+    "advanced",
+    "superAdvanced"
+  ].includes(
+    value
+  )
+    ? value
+    : "advanced";
+
+}
+
+
+function loadRoleplayLevel() {
+
+  try {
+
+    return normalizeRoleplayLevel(
+      localStorage.getItem(
+        ROLEPLAY_LEVEL_KEY
+      )
+    );
+
+  }
+
+  catch {
+
+    return "advanced";
+
+  }
+
+}
+
+
+function saveRoleplayLevel(
+  value
+) {
+
+  roleplayLevel =
+    normalizeRoleplayLevel(
+      value
+    );
+
+
+  try {
+
+    localStorage.setItem(
+      ROLEPLAY_LEVEL_KEY,
+      roleplayLevel
+    );
+
+  }
+
+  catch (
+    error
+  ) {
+
+    console.warn(
+      "Could not save roleplay level:",
+      error
+    );
+
+  }
+
+
+  renderRoleplayLevelSettings();
+
+}
+
+
+function renderRoleplayLevelSettings() {
+
+  const normalized =
+    normalizeRoleplayLevel(
+      roleplayLevel
+    );
+
+
+  if (
+    roleplayLevelStatus
+  ) {
+
+    roleplayLevelStatus.textContent =
+      ROLEPLAY_LEVEL_LABELS[
+        normalized
+      ];
+
+  }
+
+
+  roleplayLevelButtons
+    .forEach(
+      button => {
+
+        const selected =
+          button.dataset
+            .roleplayLevel ===
+          normalized;
+
+
+        button
+          .classList
+          .toggle(
+            "is-selected",
+            selected
+          );
+
+
+        button
+          .setAttribute(
+            "aria-checked",
+            selected
+              ? "true"
+              : "false"
+          );
+
+      }
+    );
+
+}
 
 
 function getSidebarCollapsedPreference() {
@@ -3375,6 +3530,105 @@ function updatePrivateChatUi(
     active,
     groupPrivate
   );
+
+}
+
+
+function closeSettings() {
+
+  settingsModal
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+
+  settingsModal
+    ?.setAttribute(
+      "aria-hidden",
+      "true"
+    );
+
+}
+
+
+function updateSettingsCurrentEditor() {
+
+  if (
+    !settingsEditCurrentBtn ||
+    !settingsEditCurrentLabel
+  ) {
+
+    return;
+
+  }
+
+
+  if (
+    !currentCharacter
+  ) {
+
+    settingsEditCurrentBtn
+      .classList
+      .add(
+        "hidden"
+      );
+
+
+    return;
+
+  }
+
+
+  settingsEditCurrentBtn
+    .classList
+    .remove(
+      "hidden"
+    );
+
+
+  settingsEditCurrentLabel.textContent =
+    isGroupCharacter(
+      currentCharacter
+    )
+      ? "Edit current group"
+      : "Edit current character";
+
+}
+
+
+function openSettings() {
+
+  if (
+    isSending
+  ) {
+
+    return;
+
+  }
+
+
+  closeCreateChoice();
+  closeMemoryViewer();
+  closeAllFloatingUi();
+
+
+  renderRoleplayLevelSettings();
+  updateSettingsCurrentEditor();
+
+
+  settingsModal
+    ?.classList
+    .remove(
+      "hidden"
+    );
+
+
+  settingsModal
+    ?.setAttribute(
+      "aria-hidden",
+      "false"
+    );
 
 }
 
@@ -7343,20 +7597,77 @@ settingsBtn.addEventListener(
 
   "click",
 
+  openSettings
+
+);
+
+
+settingsOverlay?.addEventListener(
+
+  "click",
+
+  closeSettings
+
+);
+
+
+closeSettingsBtn?.addEventListener(
+
+  "click",
+
+  closeSettings
+
+);
+
+
+settingsDoneBtn?.addEventListener(
+
+  "click",
+
+  closeSettings
+
+);
+
+
+roleplayLevelButtons
+  .forEach(
+    button => {
+
+      button.addEventListener(
+
+        "click",
+
+        () => {
+
+          saveRoleplayLevel(
+            button.dataset
+              .roleplayLevel
+          );
+
+        }
+
+      );
+
+    }
+  );
+
+
+settingsEditCurrentBtn?.addEventListener(
+
+  "click",
+
   () => {
 
     if (
       !currentCharacter
     ) {
 
-      alert(
-        "Open a character or group first, then use Settings to edit it."
-      );
-
-
       return;
 
     }
+
+
+    closeSettings();
 
 
     if (
@@ -14231,6 +14542,11 @@ async function requestCharacterReply(
             memory:
               createMemoryPayload(
                 chat.memory
+              ),
+
+            roleplayLevel:
+              normalizeRoleplayLevel(
+                roleplayLevel
               )
 
           })
@@ -15317,6 +15633,8 @@ document.addEventListener(
 
       closeCreateChoice();
 
+      closeSettings();
+
       closeMemoryViewer();
 
       closeChatMenu();
@@ -15346,6 +15664,7 @@ setSidebarCollapsed(
 );
 
 updateSidebarSearchClear();
+renderRoleplayLevelSettings();
 setSidebarViewState(
   "chats"
 );

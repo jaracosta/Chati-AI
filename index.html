@@ -1919,6 +1919,202 @@
   </div>
 
 
+
+  <!-- =========================
+       SETTINGS / ROLEPLAY LEVEL
+  ========================== -->
+
+  <div
+    id="settingsModal"
+    class="settings-modal hidden"
+    aria-hidden="true"
+  >
+    <div
+      id="settingsOverlay"
+      class="settings-overlay"
+    ></div>
+
+    <div
+      class="settings-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settingsTitle"
+    >
+      <div class="settings-header">
+        <div class="settings-heading">
+          <span class="settings-heading-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19 13.6v-3.2l-2-.6a7.3 7.3 0 0 0-.7-1.6l1-1.8-2.3-2.3-1.8 1a7.3 7.3 0 0 0-1.6-.7L11 2.5H8l-.6 1.9a7.3 7.3 0 0 0-1.6.7l-1.8-1-2.3 2.3 1 1.8a7.3 7.3 0 0 0-.7 1.6l-2 .6v3.2l2 .6c.2.6.4 1.1.7 1.6l-1 1.8L4 19.9l1.8-1c.5.3 1 .5 1.6.7L8 21.5h3l.6-1.9c.6-.2 1.1-.4 1.6-.7l1.8 1 2.3-2.3-1-1.8c.3-.5.5-1.1.7-1.6l2-.6Z" transform="translate(1.5 0) scale(.87)"></path>
+            </svg>
+          </span>
+
+          <div>
+            <span class="settings-eyebrow">Chati-AI</span>
+            <h2 id="settingsTitle">Settings</h2>
+            <p>Choose how deeply Chati-AI commits to the roleplay.</p>
+          </div>
+        </div>
+
+        <button
+          id="closeSettingsBtn"
+          class="settings-close-btn"
+          type="button"
+          aria-label="Close settings"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18"></path>
+          </svg>
+        </button>
+      </div>
+
+      <section class="settings-section">
+        <div class="settings-section-title-row">
+          <div>
+            <span class="settings-section-kicker">Conversation behavior</span>
+            <h3>Roleplay Level</h3>
+          </div>
+
+          <span
+            id="roleplayLevelStatus"
+            class="roleplay-level-status"
+          >
+            Advanced
+          </span>
+        </div>
+
+        <p class="settings-section-description">
+          Higher levels increase narrative depth, emotional intensity, continuity, and cinematic detail.
+        </p>
+
+        <div
+          class="roleplay-level-grid"
+          role="radiogroup"
+          aria-label="Roleplay level"
+        >
+          <button
+            type="button"
+            class="roleplay-level-card"
+            data-roleplay-level="regular"
+            role="radio"
+            aria-checked="false"
+          >
+            <span class="roleplay-level-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="7.2"></circle>
+                <path d="M8.5 12h7"></path>
+              </svg>
+            </span>
+
+            <span class="roleplay-level-copy">
+              <strong>Regular</strong>
+              <small>Natural conversation with lighter detail and shorter scene beats.</small>
+            </span>
+
+            <span class="roleplay-level-check" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="m7 12.5 3.2 3.2L17.5 8.5"></path>
+              </svg>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            class="roleplay-level-card"
+            data-roleplay-level="advanced"
+            role="radio"
+            aria-checked="true"
+          >
+            <span class="roleplay-level-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 16.5 9.1 12l3 2.8L19 7.5"></path>
+                <path d="M15.5 7.5H19v3.5"></path>
+              </svg>
+            </span>
+
+            <span class="roleplay-level-copy">
+              <strong>Advanced</strong>
+              <small>Richer emotion, stronger continuity, cinematic action, and expressive relationships.</small>
+            </span>
+
+            <span class="roleplay-level-check" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="m7 12.5 3.2 3.2L17.5 8.5"></path>
+              </svg>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            class="roleplay-level-card"
+            data-roleplay-level="superAdvanced"
+            role="radio"
+            aria-checked="false"
+          >
+            <span class="roleplay-level-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="m12 3 1.7 5.2L19 10l-5.3 1.8L12 17l-1.7-5.2L5 10l5.3-1.8L12 3Z"></path>
+                <path d="m18.5 15 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"></path>
+              </svg>
+            </span>
+
+            <span class="roleplay-level-copy">
+              <span class="roleplay-level-name-row">
+                <strong>Super Advanced</strong>
+                <em>Most immersive</em>
+              </span>
+              <small>Maximum continuity, layered emotion, complex relationships, darker drama, and intense cinematic scenes.</small>
+            </span>
+
+            <span class="roleplay-level-check" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="m7 12.5 3.2 3.2L17.5 8.5"></path>
+              </svg>
+            </span>
+          </button>
+        </div>
+
+        <div class="settings-boundary-note">
+          <span class="settings-boundary-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 3.2 19 6v5.1c0 4.5-2.4 7.7-7 9.7-4.6-2-7-5.2-7-9.7V6l7-2.8Z"></path>
+              <path d="m9 12 2 2 4-4"></path>
+            </svg>
+          </span>
+
+          <span>
+            Safety boundaries stay the same at every level. The setting changes storytelling depth, not the safety rules.
+          </span>
+        </div>
+      </section>
+
+      <div class="settings-actions">
+        <button
+          id="settingsEditCurrentBtn"
+          class="settings-edit-current-btn hidden"
+          type="button"
+        >
+          <span class="settings-action-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="m5 16.5-.7 3.2 3.2-.7L17.8 8.7l-2.5-2.5L5 16.5Z"></path>
+              <path d="m14.4 7.1 2.5 2.5"></path>
+            </svg>
+          </span>
+          <span id="settingsEditCurrentLabel">Edit current character</span>
+        </button>
+
+        <button
+          id="settingsDoneBtn"
+          class="settings-done-btn"
+          type="button"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+
   <!-- =========================
        RIGHT CLICK MENU
   ========================== -->
