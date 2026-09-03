@@ -192,6 +192,137 @@ function normalizePinnedMemories(
 }
 
 
+function normalizeAppearanceProfile(
+  value
+) {
+
+  const appearance =
+    value &&
+    typeof value ===
+      "object"
+      ? value
+      : {};
+
+
+  return {
+
+    physical:
+      typeof appearance.physical ===
+      "string"
+        ? appearance.physical
+        : "",
+
+    defaultOutfit:
+      typeof appearance.defaultOutfit ===
+      "string"
+        ? appearance.defaultOutfit
+        : "",
+
+    startingOutfit:
+      typeof appearance.startingOutfit ===
+      "string"
+        ? appearance.startingOutfit
+        : "",
+
+    accessories:
+      typeof appearance.accessories ===
+      "string"
+        ? appearance.accessories
+        : "",
+
+    maintainContinuity:
+      appearance.maintainContinuity !==
+        false
+
+  };
+
+}
+
+
+function normalizeCurrentAppearance(
+  value
+) {
+
+  return {
+
+    characters:
+      Array.isArray(
+        value?.characters
+      )
+        ? value.characters
+            .map(
+
+              item => {
+
+                if (
+                  !item ||
+                  typeof item !==
+                    "object"
+                ) {
+
+                  return null;
+
+                }
+
+
+                return {
+
+                  characterId:
+                    String(
+                      item.characterId ??
+                      ""
+                    ),
+
+                  characterName:
+                    typeof item.characterName ===
+                    "string"
+                      ? item.characterName
+                      : "Character",
+
+                  outfit:
+                    typeof item.outfit ===
+                    "string"
+                      ? item.outfit
+                      : "",
+
+                  condition:
+                    typeof item.condition ===
+                    "string"
+                      ? item.condition
+                      : "",
+
+                  accessories:
+                    typeof item.accessories ===
+                    "string"
+                      ? item.accessories
+                      : "",
+
+                  temporaryChanges:
+                    Array.isArray(
+                      item.temporaryChanges
+                    )
+                      ? item
+                          .temporaryChanges
+                          .filter(
+                            change =>
+                              typeof change ===
+                              "string"
+                          )
+                      : []
+
+                };
+
+              }
+
+            )
+            .filter(Boolean)
+        : []
+
+  };
+
+}
+
+
 function normalizeMemory(
   memory
 ) {
@@ -216,6 +347,11 @@ function normalizeMemory(
       "string"
         ? memory.currentScene
         : "",
+
+    currentAppearance:
+      normalizeCurrentAppearance(
+        memory?.currentAppearance
+      ),
 
     relationshipState:
       typeof memory?.relationshipState ===
@@ -842,6 +978,10 @@ function normalizeCharacter(
 
   return {
 
+    id:
+      character.id ??
+      "",
+
     name:
       character.name ||
       "Unnamed Character",
@@ -870,6 +1010,47 @@ function normalizeCharacter(
     instructions:
       character.instructions ||
       "",
+
+    appearance:
+      normalizeAppearanceProfile(
+        character.appearance
+      ),
+
+    appearanceRoster:
+      Array.isArray(
+        character.appearanceRoster
+      )
+        ? character.appearanceRoster
+            .map(
+              member => ({
+                id:
+                  String(
+                    member?.id ??
+                    ""
+                  ),
+                name:
+                  member?.name ||
+                  "Character",
+                appearance:
+                  normalizeAppearanceProfile(
+                    member?.appearance
+                  )
+              })
+            )
+        : [],
+
+    isGroup:
+      Boolean(
+        character.isGroup
+      ),
+
+    memberIds:
+      Array.isArray(
+        character.memberIds
+      )
+        ? character.memberIds
+            .map(String)
+        : [],
 
     exampleMessages:
       Array.isArray(
@@ -904,6 +1085,103 @@ function normalizeCharacter(
       ""
 
   };
+
+}
+
+
+function formatAppearanceProfile(
+  character
+) {
+
+  const appearance =
+    normalizeAppearanceProfile(
+      character?.appearance
+    );
+
+
+  return `
+Physical appearance:
+${appearance.physical || "Not specified."}
+
+Default outfit:
+${appearance.defaultOutfit || "Not specified."}
+
+Starting outfit for a new chat:
+${appearance.startingOutfit || appearance.defaultOutfit || "Not specified."}
+
+Accessories / equipment:
+${appearance.accessories || "Not specified."}
+
+Maintain visual continuity:
+${appearance.maintainContinuity ? "Yes" : "No"}
+  `.trim();
+
+}
+
+
+function formatAppearanceRoster(
+  character
+) {
+
+  const roster =
+    Array.isArray(
+      character?.appearanceRoster
+    )
+      ? character.appearanceRoster
+      : [];
+
+
+  if (!roster.length) {
+
+    return formatAppearanceProfile(
+      character
+    );
+
+  }
+
+
+  return roster
+    .map(
+
+      member =>
+        `${member.name} [id: ${member.id}]\n${formatAppearanceProfile(member)}`
+
+    )
+    .join("\n\n");
+
+}
+
+
+function formatCurrentAppearanceForPrompt(
+  value
+) {
+
+  const clean =
+    normalizeCurrentAppearance(
+      value
+    );
+
+
+  if (!clean.characters.length) {
+
+    return "No current visual state has been stored yet. Use the character's Starting Outfit (or Default Outfit if Starting Outfit is blank) until the roleplay establishes a change.";
+
+  }
+
+
+  return clean.characters
+    .map(
+
+      entry => `
+${entry.characterName}${entry.characterId ? ` [id: ${entry.characterId}]` : ""}
+- Current outfit: ${entry.outfit || "Not specified."}
+- Visible condition: ${entry.condition || "No temporary condition stored."}
+- Accessories / equipment: ${entry.accessories || "Not specified."}
+- Temporary visual changes: ${entry.temporaryChanges.length ? entry.temporaryChanges.join("; ") : "None stored."}
+      `.trim()
+
+    )
+    .join("\n\n");
 
 }
 
@@ -965,6 +1243,9 @@ ${bullets(clean.importantFacts)}
 
 CURRENT SCENE:
 ${clean.currentScene || "No specific scene stored yet."}
+
+CURRENT APPEARANCE / VISUAL STATE:
+${formatCurrentAppearanceForPrompt(clean.currentAppearance)}
 
 RELATIONSHIP / SOCIAL STATE:
 ${clean.relationshipState || "No relationship development stored yet."}
@@ -1378,6 +1659,28 @@ ${character.pronouns}
 
 Bio:
 ${character.bio || "No bio provided."}
+
+
+APPEARANCE & OUTFIT
+
+${formatAppearanceProfile(character)}
+
+
+VISUAL CONTINUITY RULES
+
+- Treat the Physical Appearance as the character's stable visual identity unless the roleplay explicitly establishes a lasting change.
+
+- At the beginning of a fresh chat, use Starting Outfit. If Starting Outfit is blank, use Default Outfit.
+
+- The CURRENT APPEARANCE / VISUAL STATE in chat memory represents what is true now and overrides the starting/default outfit when the story has changed it.
+
+- If Maintain visual continuity is Yes, do not randomly change clothing, accessories, equipment, hairstyle state, or visible condition between turns.
+
+- If the story explicitly changes clothing or visible state, follow that change naturally. Do not magically restore removed, lost, damaged, wet, dusty, or altered items unless the story establishes that they were restored or changed again.
+
+- Keep visual descriptions natural and relevant rather than listing the entire outfit every reply.
+
+- Keep appearance descriptions non-sexual and age-appropriate.
 
 
 PERSONALITY & BACKSTORY
@@ -1969,6 +2272,11 @@ CHARACTER:
 ${character.name}
 
 
+BASE APPEARANCE PROFILES:
+
+${formatAppearanceRoster(character)}
+
+
 EXISTING AUTOMATIC MEMORY:
 
 ${JSON.stringify(
@@ -1981,6 +2289,9 @@ ${JSON.stringify(
 
     currentScene:
       oldMemory.currentScene,
+
+    currentAppearance:
+      oldMemory.currentAppearance,
 
     relationshipState:
       oldMemory.relationshipState,
@@ -2053,6 +2364,24 @@ RULES
 - The client sends only the selected response variant.
 
 - Scene clarifications attached to user messages are factual context for that moment and may be remembered when they materially affect the story.
+
+- Maintain currentAppearance separately for each character. Use the supplied characterId and characterName when available.
+
+- currentAppearance.outfit means clothing currently being worn, not a permanent description of the body.
+
+- currentAppearance.condition stores temporary visible state such as wet hair/clothes, dust, torn clothing, visible exhaustion, or similar non-graphic scene conditions.
+
+- currentAppearance.accessories stores currently worn/carried visible accessories or equipment that matter to continuity.
+
+- currentAppearance.temporaryChanges contains concise temporary visual facts that are still true. Remove them when later messages clearly establish they are no longer true.
+
+- Begin from the existing currentAppearance. Only change a visual detail when the new messages explicitly state it or strongly establish it. Never invent outfit changes.
+
+- For group chats, keep every participant's visual state separate. Do not transfer one character's clothing, condition, or equipment to another.
+
+- Visual information supported by a scene clarification or supplied media may update currentAppearance when it clearly affects continuity. Do not guess the identity of an unidentified real person.
+
+- Keep all appearance memory non-sexual, concise, and age-appropriate.
 
 - Treat these messages as the one true active timeline.
 
@@ -2162,6 +2491,97 @@ RULES
                             "string"
                         },
 
+                        currentAppearance: {
+
+                          type:
+                            "object",
+
+                          additionalProperties:
+                            false,
+
+                          properties: {
+
+                            characters: {
+
+                              type:
+                                "array",
+
+                              maxItems:
+                                20,
+
+                              items: {
+
+                                type:
+                                  "object",
+
+                                additionalProperties:
+                                  false,
+
+                                properties: {
+
+                                  characterId: {
+                                    type:
+                                      "string"
+                                  },
+
+                                  characterName: {
+                                    type:
+                                      "string"
+                                  },
+
+                                  outfit: {
+                                    type:
+                                      "string"
+                                  },
+
+                                  condition: {
+                                    type:
+                                      "string"
+                                  },
+
+                                  accessories: {
+                                    type:
+                                      "string"
+                                  },
+
+                                  temporaryChanges: {
+
+                                    type:
+                                      "array",
+
+                                    items: {
+                                      type:
+                                        "string"
+                                    },
+
+                                    maxItems:
+                                      20
+
+                                  }
+
+                                },
+
+                                required: [
+                                  "characterId",
+                                  "characterName",
+                                  "outfit",
+                                  "condition",
+                                  "accessories",
+                                  "temporaryChanges"
+                                ]
+
+                              }
+
+                            }
+
+                          },
+
+                          required: [
+                            "characters"
+                          ]
+
+                        },
+
                         relationshipState: {
                           type:
                             "string"
@@ -2191,6 +2611,8 @@ RULES
                         "importantFacts",
 
                         "currentScene",
+
+                        "currentAppearance",
 
                         "relationshipState",
 

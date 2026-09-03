@@ -59,6 +59,11 @@ const characterPersonality = $("characterPersonality");
 const characterScenario = $("characterScenario");
 const characterInstructions = $("characterInstructions");
 const characterBackground = $("characterBackground");
+const characterPhysicalAppearance = $("characterPhysicalAppearance");
+const characterDefaultOutfit = $("characterDefaultOutfit");
+const characterStartingOutfit = $("characterStartingOutfit");
+const characterAccessories = $("characterAccessories");
+const characterMaintainVisualContinuity = $("characterMaintainVisualContinuity");
 
 const characterAvatarPreview = $("characterAvatarPreview");
 const characterAvatarPlaceholder = $("characterAvatarPlaceholder");
@@ -163,6 +168,7 @@ const memoryPinned = $("memoryPinned");
 const memorySummary = $("memorySummary");
 const memoryFacts = $("memoryFacts");
 const memoryScene = $("memoryScene");
+const memoryAppearance = $("memoryAppearance");
 const memoryRelationship = $("memoryRelationship");
 const memoryThreads = $("memoryThreads");
 const memoryUpdatedAt = $("memoryUpdatedAt");
@@ -740,8 +746,41 @@ function buildGroupContextInstructions(
   const roster =
     members
       .map(
-        member =>
-          `- ${member.name}`
+
+        member => {
+
+          const appearance =
+            normalizeAppearanceProfile(
+              member.appearance
+            );
+
+          const visual = [
+            appearance.physical
+              ? `appearance: ${appearance.physical}`
+              : "",
+            (
+              appearance.startingOutfit ||
+              appearance.defaultOutfit
+            )
+              ? `base outfit: ${appearance.startingOutfit || appearance.defaultOutfit}`
+              : "",
+            appearance.accessories
+              ? `accessories/equipment: ${appearance.accessories}`
+              : ""
+          ]
+            .filter(Boolean)
+            .join("; ");
+
+
+          return (
+            `- ${member.name}` +
+            (visual
+              ? ` — ${visual}`
+              : "")
+          );
+
+        }
+
       )
       .join("\n");
 
@@ -822,7 +861,220 @@ function clamp(
 }
 
 
-function createEmptyMemory() {
+function normalizeAppearanceProfile(
+  value
+) {
+
+  const appearance =
+    value &&
+    typeof value ===
+      "object"
+      ? value
+      : {};
+
+
+  return {
+
+    physical:
+      typeof appearance.physical ===
+      "string"
+        ? appearance.physical
+        : "",
+
+    defaultOutfit:
+      typeof appearance.defaultOutfit ===
+      "string"
+        ? appearance.defaultOutfit
+        : "",
+
+    startingOutfit:
+      typeof appearance.startingOutfit ===
+      "string"
+        ? appearance.startingOutfit
+        : "",
+
+    accessories:
+      typeof appearance.accessories ===
+      "string"
+        ? appearance.accessories
+        : "",
+
+    maintainContinuity:
+      appearance.maintainContinuity !==
+        false
+
+  };
+
+}
+
+
+function createInitialCurrentAppearance(
+  ownerCharacter = null
+) {
+
+  if (!ownerCharacter) {
+
+    return {
+      characters: []
+    };
+
+  }
+
+
+  const participants =
+    isGroupCharacter(
+      ownerCharacter
+    )
+      ? getGroupMembers(
+          ownerCharacter
+        )
+      : [ownerCharacter];
+
+
+  return {
+
+    characters:
+      participants
+        .filter(Boolean)
+        .map(
+
+          participant => {
+
+            const appearance =
+              normalizeAppearanceProfile(
+                participant.appearance
+              );
+
+
+            return {
+
+              characterId:
+                String(
+                  participant.id ??
+                  ""
+                ),
+
+              characterName:
+                participant.name ||
+                "Character",
+
+              outfit:
+                appearance.startingOutfit ||
+                appearance.defaultOutfit ||
+                "",
+
+              condition:
+                "",
+
+              accessories:
+                appearance.accessories ||
+                "",
+
+              temporaryChanges:
+                []
+
+            };
+
+          }
+
+        )
+
+  };
+
+}
+
+
+function normalizeCurrentAppearance(
+  value
+) {
+
+  const entries =
+    Array.isArray(
+      value?.characters
+    )
+      ? value.characters
+      : [];
+
+
+  return {
+
+    characters:
+      entries
+        .map(
+
+          item => {
+
+            if (
+              !item ||
+              typeof item !==
+                "object"
+            ) {
+
+              return null;
+
+            }
+
+
+            return {
+
+              characterId:
+                String(
+                  item.characterId ??
+                  ""
+                ),
+
+              characterName:
+                typeof item.characterName ===
+                "string"
+                  ? item.characterName
+                  : "Character",
+
+              outfit:
+                typeof item.outfit ===
+                "string"
+                  ? item.outfit
+                  : "",
+
+              condition:
+                typeof item.condition ===
+                "string"
+                  ? item.condition
+                  : "",
+
+              accessories:
+                typeof item.accessories ===
+                "string"
+                  ? item.accessories
+                  : "",
+
+              temporaryChanges:
+                Array.isArray(
+                  item.temporaryChanges
+                )
+                  ? item
+                      .temporaryChanges
+                      .filter(
+                        change =>
+                          typeof change ===
+                          "string"
+                      )
+                  : []
+
+            };
+
+          }
+
+        )
+        .filter(Boolean)
+
+  };
+
+}
+
+
+function createEmptyMemory(
+  ownerCharacter = null
+) {
 
   return {
 
@@ -831,6 +1083,11 @@ function createEmptyMemory() {
     importantFacts: [],
 
     currentScene: "",
+
+    currentAppearance:
+      createInitialCurrentAppearance(
+        ownerCharacter
+      ),
 
     relationshipState: "",
 
@@ -976,6 +1233,12 @@ function normalizeMemory(
       "string"
         ? memory.currentScene
         : "",
+
+
+    currentAppearance:
+      normalizeCurrentAppearance(
+        memory.currentAppearance
+      ),
 
 
     relationshipState:
@@ -1514,6 +1777,11 @@ function normalizeCharacter(
       "string"
         ? character.instructions
         : "",
+
+    appearance:
+      normalizeAppearanceProfile(
+        character?.appearance
+      ),
 
     exampleMessages:
       normalizeExamples(
@@ -2301,7 +2569,8 @@ function updateCurrentChat(
 function buildNewChat(
   {
     isPrivate = false,
-    characterId = null
+    characterId = null,
+    ownerCharacter = null
   } = {}
 ) {
 
@@ -2327,7 +2596,9 @@ function buildNewChat(
       [],
 
     memory:
-      createEmptyMemory(),
+      createEmptyMemory(
+        ownerCharacter
+      ),
 
     isPrivate:
       Boolean(
@@ -2363,7 +2634,10 @@ function createNewChat(
 
 
   const chat =
-    buildNewChat();
+    buildNewChat({
+      ownerCharacter:
+        character
+    });
 
 
   chats.push(
@@ -2424,7 +2698,9 @@ function createPrivateChat(
       isPrivate:
         true,
       characterId:
-        character.id
+        character.id,
+      ownerCharacter:
+        character
     });
 
 
@@ -2798,6 +3074,16 @@ function resetCharacterForm() {
     false;
 
 
+  if (
+    characterMaintainVisualContinuity
+  ) {
+
+    characterMaintainVisualContinuity.checked =
+      true;
+
+  }
+
+
   togglePowersFields();
 
   updateAvatarPreview();
@@ -2860,6 +3146,26 @@ function fillCharacterForm(
 
   characterInstructions.value =
     normalized.instructions;
+
+
+  characterPhysicalAppearance.value =
+    normalized.appearance.physical;
+
+
+  characterDefaultOutfit.value =
+    normalized.appearance.defaultOutfit;
+
+
+  characterStartingOutfit.value =
+    normalized.appearance.startingOutfit;
+
+
+  characterAccessories.value =
+    normalized.appearance.accessories;
+
+
+  characterMaintainVisualContinuity.checked =
+    normalized.appearance.maintainContinuity;
 
 
   characterBackground.value =
@@ -7195,6 +7501,34 @@ characterForm.addEventListener(
             .value
             .trim(),
 
+        appearance: {
+
+          physical:
+            characterPhysicalAppearance
+              .value
+              .trim(),
+
+          defaultOutfit:
+            characterDefaultOutfit
+              .value
+              .trim(),
+
+          startingOutfit:
+            characterStartingOutfit
+              .value
+              .trim(),
+
+          accessories:
+            characterAccessories
+              .value
+              .trim(),
+
+          maintainContinuity:
+            characterMaintainVisualContinuity
+              .checked
+
+        },
+
         exampleMessages:
           collectExamples(),
 
@@ -8229,7 +8563,10 @@ function openChat(
   ) {
 
     const firstChat =
-      buildNewChat();
+      buildNewChat({
+        ownerCharacter:
+          currentCharacter
+      });
 
 
     chats.push(
@@ -10337,6 +10674,9 @@ function createMemoryPayload(
     currentScene:
       normalized.currentScene,
 
+    currentAppearance:
+      normalized.currentAppearance,
+
     relationshipState:
       normalized.relationshipState,
 
@@ -10413,9 +10753,27 @@ function resetAutomaticMemory(
         );
 
 
+      const ownerCharacter =
+        getCharacterById(
+          characterId
+        ) ||
+        (
+          String(
+            currentCharacter?.id
+          ) ===
+          String(
+            characterId
+          )
+            ? currentCharacter
+            : null
+        );
+
+
       chat.memory = {
 
-        ...createEmptyMemory(),
+        ...createEmptyMemory(
+          ownerCharacter
+        ),
 
         pinnedMemories:
           memory.pinnedMemories,
@@ -10701,6 +11059,33 @@ async function updateMemoryForChat(
     );
 
 
+    const memoryCharacter =
+      isGroupCharacter(
+        character
+      )
+        ? {
+            ...character,
+            appearanceRoster:
+              getGroupMembers(
+                character
+              ).map(
+                member => ({
+                  id:
+                    String(
+                      member.id
+                    ),
+                  name:
+                    member.name,
+                  appearance:
+                    normalizeAppearanceProfile(
+                      member.appearance
+                    )
+                })
+              )
+          }
+        : character;
+
+
     const response =
       await fetch(
 
@@ -10718,7 +11103,8 @@ async function updateMemoryForChat(
           body:
             JSON.stringify({
 
-              character,
+              character:
+                memoryCharacter,
 
               memory:
                 createMemoryPayload(
@@ -10818,6 +11204,12 @@ async function updateMemoryForChat(
             data.memory
               .currentScene ||
             "",
+
+          currentAppearance:
+            normalizeCurrentAppearance(
+              data.memory
+                .currentAppearance
+            ),
 
           relationshipState:
             data.memory
@@ -11163,6 +11555,215 @@ function fillMemoryList(
 }
 
 
+function createAppearanceMemoryField(
+  label,
+  value,
+  wide = false
+) {
+
+  const field =
+    document.createElement(
+      "div"
+    );
+
+
+  field.className =
+    "memory-appearance-field" +
+    (wide ? " wide" : "");
+
+
+  const labelElement =
+    document.createElement(
+      "span"
+    );
+
+  labelElement.className =
+    "memory-appearance-label";
+
+  labelElement.textContent =
+    label;
+
+
+  const valueElement =
+    document.createElement(
+      "div"
+    );
+
+  valueElement.className =
+    "memory-appearance-value";
+
+  valueElement.textContent =
+    value?.trim() ||
+    "Not currently specified.";
+
+
+  field.append(
+    labelElement,
+    valueElement
+  );
+
+
+  return field;
+
+}
+
+
+function renderMemoryAppearance(
+  memory,
+  ownerCharacter
+) {
+
+  if (!memoryAppearance) {
+
+    return;
+
+  }
+
+
+  memoryAppearance.replaceChildren();
+
+
+  const stored =
+    normalizeCurrentAppearance(
+      memory.currentAppearance
+    );
+
+
+  const fallback =
+    createInitialCurrentAppearance(
+      ownerCharacter
+    );
+
+
+  const entries =
+    stored.characters.length
+      ? stored.characters
+      : fallback.characters;
+
+
+  if (!entries.length) {
+
+    const empty =
+      document.createElement(
+        "p"
+      );
+
+    empty.className =
+      "memory-appearance-empty";
+
+    empty.textContent =
+      "No visual state is stored for this chat yet.";
+
+    memoryAppearance.appendChild(
+      empty
+    );
+
+    return;
+
+  }
+
+
+  entries.forEach(
+
+    entry => {
+
+      const card =
+        document.createElement(
+          "article"
+        );
+
+      card.className =
+        "memory-appearance-card";
+
+
+      const name =
+        document.createElement(
+          "div"
+        );
+
+      name.className =
+        "memory-appearance-name";
+
+
+      const dot =
+        document.createElement(
+          "span"
+        );
+
+      dot.className =
+        "memory-appearance-dot";
+
+
+      const nameText =
+        document.createElement(
+          "span"
+        );
+
+      nameText.textContent =
+        entry.characterName ||
+        "Character";
+
+
+      name.append(
+        dot,
+        nameText
+      );
+
+
+      const grid =
+        document.createElement(
+          "div"
+        );
+
+      grid.className =
+        "memory-appearance-grid";
+
+
+      grid.append(
+
+        createAppearanceMemoryField(
+          "Current outfit",
+          entry.outfit
+        ),
+
+        createAppearanceMemoryField(
+          "Visible condition",
+          entry.condition
+        ),
+
+        createAppearanceMemoryField(
+          "Accessories / equipment",
+          entry.accessories,
+          true
+        ),
+
+        createAppearanceMemoryField(
+          "Temporary changes",
+          entry.temporaryChanges
+            .join(" • "),
+          true
+        )
+
+      );
+
+
+      card.append(
+        name,
+        grid
+      );
+
+
+      memoryAppearance.appendChild(
+        card
+      );
+
+    }
+
+  );
+
+}
+
+
 function renderMemoryViewer() {
 
   const chat =
@@ -11224,6 +11825,11 @@ function renderMemoryViewer() {
       memory
         .currentScene
         .trim() ||
+
+      memory
+        .currentAppearance
+        .characters
+        .length ||
 
       memory
         .relationshipState
@@ -11303,6 +11909,12 @@ function renderMemoryViewer() {
       .currentScene
       .trim() ||
     "No current scene stored.";
+
+
+  renderMemoryAppearance(
+    memory,
+    currentCharacter
+  );
 
 
   memoryRelationship.textContent =
