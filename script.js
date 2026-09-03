@@ -949,9 +949,14 @@ Participants:
 ${roster || "No participants listed."}
 
 You are responding ONLY as ${responder.name}.
-Do not write dialogue, actions, thoughts, or decisions for the other group characters unless the user's latest message explicitly asks for a brief description of something they can directly observe.
+The group is one shared in-world conversation. You are NOT automatically speaking only to the user.
 Treat prior assistant messages prefixed with another participant's name as things that participant already said or did in the shared scene.
-Maintain the same shared timeline, location, relationships, injuries, objects, and events across all participants.
+The user may choose speakers one after another without sending a new in-world message between them. When that happens, continue naturally from the latest in-world speaker or event.
+If another participant just asked ${responder.name} a question, challenged them, addressed them, reacted to them, or did something that naturally calls for a response, answer or react to that participant directly when appropriate.
+${responder.name} may address, question, disagree with, support, interrupt, tease, threaten, or otherwise interact with any other participant when it fits the established personalities and scene.
+Do not write dialogue, actions, thoughts, decisions, or replies FOR the other group characters. Leave their next turns open for the user to select them.
+Do not recap the whole conversation just because the speaker changed. Continue from the immediate conversational beat.
+Maintain the same shared timeline, location, relationships, injuries, objects, appearance states, and events across all participants.
 `.trim();
 
 }
@@ -4317,6 +4322,38 @@ function renderGroupResponderBar() {
 
         () => {
 
+          if (isSending) {
+
+            return;
+
+          }
+
+
+          const hasDraft =
+            Boolean(
+              messageInput?.value?.trim() ||
+              pendingAttachment
+            );
+
+
+          const activeChat =
+            currentChatId
+              ? getStoredChat(
+                  currentCharacter.id,
+                  currentChatId
+                )
+              : null;
+
+
+          const hasConversationContext =
+            Boolean(
+              activeChat &&
+              getActiveMessages(
+                activeChat
+              ).length
+            );
+
+
           currentGroupResponderId =
             member.id;
 
@@ -4336,6 +4373,18 @@ function renderGroupResponderBar() {
 
 
           renderGroupResponderBar();
+
+
+          if (
+            !hasDraft &&
+            hasConversationContext
+          ) {
+
+            void continueGroupConversationAs(
+              member
+            );
+
+          }
 
         }
 
@@ -14390,7 +14439,8 @@ async function requestCharacterReply(
   character,
   chatId,
   messagesOverride = null,
-  storageCharacterId = null
+  storageCharacterId = null,
+  options = {}
 ) {
 
   const ownerId =
@@ -14498,6 +14548,29 @@ async function requestCharacterReply(
   }
 
 
+  const groupContinuation =
+    Boolean(
+      groupMode &&
+      options?.groupContinuation
+    );
+
+
+  if (groupContinuation) {
+
+    activeMessages.push({
+      sender:
+        "user",
+
+      text:
+        `[GROUP TURN CONTROL] The user selected ${character.name} as the next speaker. This is invisible interface control, not in-world dialogue or an action. ${character.name} should continue naturally from the latest real message or event in the shared group scene. If another participant just addressed or questioned ${character.name}, respond to that participant when appropriate.`,
+
+      attachment:
+        null
+    });
+
+  }
+
+
   const requestCharacter =
     groupMode
       ? {
@@ -14547,7 +14620,9 @@ async function requestCharacterReply(
             roleplayLevel:
               normalizeRoleplayLevel(
                 roleplayLevel
-              )
+              ),
+
+            groupContinuation
 
           })
       }
@@ -14593,6 +14668,234 @@ async function requestCharacterReply(
     response,
     character
   );
+
+}
+
+
+async function continueGroupConversationAs(
+  member
+) {
+
+  if (
+    !member ||
+    !currentCharacter ||
+    !isGroupCharacter(
+      currentCharacter
+    ) ||
+    !currentChatId ||
+    isSending
+  ) {
+
+    return;
+
+  }
+
+
+  if (
+    messageInput?.value?.trim() ||
+    pendingAttachment
+  ) {
+
+    return;
+
+  }
+
+
+  const group = {
+    ...currentCharacter
+  };
+
+
+  const chatId =
+    currentChatId;
+
+
+  const chat =
+    getStoredChat(
+      group.id,
+      chatId
+    );
+
+
+  if (
+    !chat ||
+    !getActiveMessages(
+      chat
+    ).length
+  ) {
+
+    return;
+
+  }
+
+
+  currentGroupResponderId =
+    member.id;
+
+
+  if (
+    !isCurrentChatPrivate()
+  ) {
+
+    localStorage.setItem(
+      getGroupResponderKey(
+        group.id
+      ),
+      String(member.id)
+    );
+
+  }
+
+
+  renderGroupResponderBar();
+
+  setSendingState(
+    true
+  );
+
+  showTypingIndicator();
+
+
+  try {
+
+    const {
+      text:
+        reply,
+
+      row:
+        temporaryRow
+    } =
+      await requestCharacterReply(
+        member,
+        chatId,
+        null,
+        group.id,
+        {
+          groupContinuation:
+            true
+        }
+      );
+
+
+    removeTypingIndicator();
+
+
+    if (!reply) {
+
+      throw new Error(
+        "Empty response"
+      );
+
+    }
+
+
+    temporaryRow
+      ?.remove();
+
+
+    const savedReply =
+      saveMessageToChat(
+        group.id,
+        chatId,
+        {
+          sender:
+            "character",
+
+          characterId:
+            member.id,
+
+          characterName:
+            member.name,
+
+          text:
+            reply,
+
+          variants: [
+            reply
+          ],
+
+          activeVariant:
+            0,
+
+          time:
+            Date.now()
+        }
+      );
+
+
+    recentlyCompletedMessageId =
+      savedReply?.id ||
+      null;
+
+
+    renderMessages();
+
+
+    recentlyCompletedMessageId =
+      null;
+
+
+    renderChatHistory();
+
+
+    updateMemoryForChat(
+      group,
+      chatId
+    );
+
+  }
+
+  catch (error) {
+
+    removeTypingIndicator();
+
+
+    document
+      .querySelector(
+        ".message.streaming"
+      )
+      ?.closest(
+        ".message-row"
+      )
+      ?.remove();
+
+
+    console.error(
+      "Group continuation error:",
+      error
+    );
+
+
+    addSystemMessage(
+      "Could not generate the next group response right now."
+    );
+
+  }
+
+  finally {
+
+    setSendingState(
+      false
+    );
+
+
+    setTimeout(
+      () => {
+
+        if (!isSending) {
+
+          renderMessages();
+
+        }
+
+      },
+      620
+    );
+
+
+    messageInput.focus();
+
+  }
 
 }
 

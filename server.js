@@ -1728,6 +1728,12 @@ app.post(
         );
 
 
+      const groupContinuation =
+        Boolean(
+          req.body.groupContinuation
+        );
+
+
       if (
         !character.name
       ) {
@@ -1851,6 +1857,25 @@ ROLEPLAY LEVEL
 ${roleplayConfig.label}
 
 ${roleplayConfig.instructions}
+
+
+${groupContinuation
+  ? `GROUP TURN CONTINUATION
+
+- The interface selected ${character.name} to speak next without adding new in-world user dialogue.
+
+- A final user-role message beginning with [GROUP TURN CONTROL] is invisible interface control. It is NOT something the user said in the scene and no character can hear or observe it.
+
+- Ignore the control marker as story content. Use it only as permission for ${character.name} to take the next conversational turn.
+
+- Look immediately before that marker for the latest real in-world speaker, action, question, challenge, or event. Continue from that beat.
+
+- If another group participant addressed or questioned ${character.name}, answer or react to that participant naturally when appropriate.
+
+- Do not assume every group reply is directed at the user. Characters may converse directly with one another.
+
+- Generate ONLY ${character.name}'s side of the turn. Do not generate the other participants' replies for them.`
+  : ""}
 
 
 ROLEPLAY RULES
@@ -2042,34 +2067,41 @@ Return only what the character says or does.
         );
 
 
+      const responseRequest = {
+
+        model:
+          MODEL,
+
+        store:
+          false,
+
+        reasoning: {
+          effort:
+            "none"
+        },
+
+        text: {
+          verbosity:
+            "low"
+        },
+
+        instructions,
+
+        input,
+
+        max_output_tokens:
+          roleplayConfig
+            .maxOutputTokens
+
+      };
+
+
       const stream =
         await openai
           .responses
           .create({
 
-            model:
-              MODEL,
-
-            store:
-              false,
-
-            reasoning: {
-              effort:
-                "none"
-            },
-
-            text: {
-              verbosity:
-                "low"
-            },
-
-            instructions,
-
-            input,
-
-            max_output_tokens:
-              roleplayConfig
-                .maxOutputTokens,
+            ...responseRequest,
 
             stream:
               true
@@ -2130,6 +2162,88 @@ Return only what the character says or does.
       let generatedText =
         "";
 
+      let refusalText =
+        "";
+
+      let completedResponse =
+        null;
+
+
+      const extractResponseText =
+        response => {
+
+          if (
+            typeof response?.output_text ===
+              "string" &&
+            response.output_text.trim()
+          ) {
+
+            return response.output_text.trim();
+
+          }
+
+
+          const pieces = [];
+
+
+          for (
+            const item of
+              response?.output || []
+          ) {
+
+            if (
+              !Array.isArray(
+                item?.content
+              )
+            ) {
+
+              continue;
+
+            }
+
+
+            for (
+              const part of
+                item.content
+            ) {
+
+              if (
+                part?.type ===
+                  "output_text" &&
+                typeof part.text ===
+                  "string"
+              ) {
+
+                pieces.push(
+                  part.text
+                );
+
+              }
+
+              else if (
+                part?.type ===
+                  "refusal" &&
+                typeof part.refusal ===
+                  "string"
+              ) {
+
+                pieces.push(
+                  part.refusal
+                );
+
+              }
+
+            }
+
+          }
+
+
+          return pieces
+            .join("")
+            .trim();
+
+        };
+
 
       try {
 
@@ -2166,6 +2280,30 @@ Return only what the character says or does.
 
           if (
             event.type ===
+              "response.refusal.delta"
+          ) {
+
+            refusalText +=
+              event.delta ||
+              "";
+
+          }
+
+
+          if (
+            event.type ===
+              "response.completed"
+          ) {
+
+            completedResponse =
+              event.response ||
+              null;
+
+          }
+
+
+          if (
+            event.type ===
             "response.failed"
           ) {
 
@@ -2188,9 +2326,115 @@ Return only what the character says or does.
           !generatedText.trim()
         ) {
 
-          throw new Error(
-            "The model returned an empty response."
-          );
+          const completedText =
+            extractResponseText(
+              completedResponse
+            );
+
+
+          if (completedText) {
+
+            generatedText =
+              completedText;
+
+
+            res.write(
+
+              JSON.stringify({
+
+                type:
+                  "delta",
+
+                delta:
+                  completedText
+
+              }) +
+              "\n"
+
+            );
+
+          }
+
+          else if (
+            refusalText.trim()
+          ) {
+
+            generatedText =
+              refusalText.trim();
+
+
+            res.write(
+
+              JSON.stringify({
+
+                type:
+                  "delta",
+
+                delta:
+                  generatedText
+
+              }) +
+              "\n"
+
+            );
+
+          }
+
+          else {
+
+            console.warn(
+              "⚠️ Empty streamed response; retrying once without streaming."
+            );
+
+
+            const fallbackResponse =
+              await openai
+                .responses
+                .create({
+
+                  ...responseRequest,
+
+                  stream:
+                    false
+
+                });
+
+
+            const fallbackText =
+              extractResponseText(
+                fallbackResponse
+              );
+
+
+            if (!fallbackText) {
+
+              throw new Error(
+                "The model returned an empty response after retry."
+              );
+
+            }
+
+
+            generatedText =
+              fallbackText;
+
+
+            res.write(
+
+              JSON.stringify({
+
+                type:
+                  "delta",
+
+                delta:
+                  fallbackText
+
+              }) +
+              "\n"
+
+            );
+
+          }
 
         }
 
