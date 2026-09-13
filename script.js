@@ -10,7 +10,9 @@ const MAX_VIDEO_DURATION = 30;
 const VIDEO_FRAME_COUNT = 6;
 const MESSAGE_GROUP_WINDOW_MS = 5 * 60 * 1000;
 const MEDIA_DB_NAME = "chatiMediaDB";
+const MEDIA_DB_VERSION = 2;
 const MEDIA_DB_STORE = "media";
+const APP_DATA_DB_STORE = "appData";
 
 const $ = (id) => document.getElementById(id);
 
@@ -33,6 +35,9 @@ const chooseGroupHint = $("chooseGroupHint");
 const chatsBtn = $("chatsBtn");
 const backBtn = $("backBtn");
 const settingsBtn = $("settingsBtn");
+
+const mobileSidebarBtn = $("mobileSidebarBtn");
+const sidebarMobileOverlay = $("sidebarMobileOverlay");
 
 const settingsModal = $("settingsModal");
 const settingsOverlay = $("settingsOverlay");
@@ -91,6 +96,13 @@ const characterAvatarPlaceholder = $("characterAvatarPlaceholder");
 const backgroundPreview = $("backgroundPreview");
 const pronounPicker = $("pronounPicker");
 
+const chooseCharacterImageBtn = $("chooseCharacterImageBtn");
+const removeCharacterImageBtn = $("removeCharacterImageBtn");
+const characterImageFile = $("characterImageFile");
+const chooseCharacterBackgroundBtn = $("chooseCharacterBackgroundBtn");
+const removeCharacterBackgroundBtn = $("removeCharacterBackgroundBtn");
+const characterBackgroundFile = $("characterBackgroundFile");
+
 const exampleMessagesList = $("exampleMessagesList");
 const addExampleBtn = $("addExampleBtn");
 
@@ -106,6 +118,9 @@ const saveGroupBtn = $("saveGroupBtn");
 const groupName = $("groupName");
 const groupBackground = $("groupBackground");
 const groupBackgroundPreview = $("groupBackgroundPreview");
+const chooseGroupBackgroundBtn = $("chooseGroupBackgroundBtn");
+const removeGroupBackgroundBtn = $("removeGroupBackgroundBtn");
+const groupBackgroundFile = $("groupBackgroundFile");
 const groupMembersGrid = $("groupMembersGrid");
 const groupMemberCount = $("groupMemberCount");
 const characterPowerSystem = $("characterPowerSystem");
@@ -222,13 +237,22 @@ const CHATI_BACKUP_FORMAT =
   "chati-ai-backup";
 
 const CHATI_BACKUP_VERSION =
-  1;
+  2;
 
 const CHATI_BACKUP_APP_VERSION =
-  "3.5";
+  "3.6.2";
 
 const CHATI_STORAGE_PREFIX =
   "chati";
+
+const MOBILE_LAYOUT_QUERY =
+  "(max-width: 1024px)";
+
+const MOBILE_POINTER_QUERY =
+  "(hover: none) and (pointer: coarse)";
+
+const MAX_LOCAL_IMAGE_FILE_SIZE =
+  20 * 1024 * 1024;
 
 let roleplayLevel =
   loadRoleplayLevel();
@@ -236,12 +260,16 @@ let roleplayLevel =
 let sidebarSearchQuery = "";
 
 
-let characters =
-  JSON.parse(
-    localStorage.getItem(
-      "chatiCharacters"
-    )
-  ) || [];
+let characters = [];
+
+const appDataCache =
+  new Map();
+
+let appDataFallbackToLocalStorage =
+  false;
+
+let appDataWriteQueue =
+  Promise.resolve();
 
 
 let currentCharacter = null;
@@ -404,6 +432,806 @@ function renderRoleplayLevelSettings() {
 
 
 
+function isAppDataStorageKey(
+  key
+) {
+
+  return (
+    key ===
+      "chatiCharacters" ||
+    key?.startsWith(
+      "chatiChats_"
+    )
+  );
+
+}
+
+
+function getAppDataValue(
+  key
+) {
+
+  if (
+    appDataFallbackToLocalStorage
+  ) {
+
+    return localStorage.getItem(
+      key
+    );
+
+  }
+
+
+  return appDataCache.has(
+    key
+  )
+    ? appDataCache.get(
+        key
+      )
+    : null;
+
+}
+
+
+function getChatiAppDataSnapshot() {
+
+  if (
+    appDataFallbackToLocalStorage
+  ) {
+
+    const snapshot = {};
+
+
+    for (
+      let index = 0;
+      index < localStorage.length;
+      index += 1
+    ) {
+
+      const key =
+        localStorage.key(
+          index
+        );
+
+
+      if (
+        isAppDataStorageKey(
+          key
+        )
+      ) {
+
+        snapshot[key] =
+          localStorage.getItem(
+            key
+          );
+
+      }
+
+    }
+
+
+    return snapshot;
+
+  }
+
+
+  return Object.fromEntries(
+    appDataCache.entries()
+  );
+
+}
+
+
+function queueAppDataWrite(
+  task
+) {
+
+  if (
+    appDataFallbackToLocalStorage
+  ) {
+
+    return;
+
+  }
+
+
+  appDataWriteQueue =
+    appDataWriteQueue
+      .then(
+        task
+      )
+      .catch(
+        error => {
+
+          console.error(
+            "Could not persist Chati-AI app data:",
+            error
+          );
+
+        }
+      );
+
+}
+
+
+function setAppDataValue(
+  key,
+  value
+) {
+
+  const stringValue =
+    String(
+      value ??
+      ""
+    );
+
+
+  if (
+    appDataFallbackToLocalStorage
+  ) {
+
+    localStorage.setItem(
+      key,
+      stringValue
+    );
+
+    return;
+
+  }
+
+
+  appDataCache.set(
+    key,
+    stringValue
+  );
+
+
+  queueAppDataWrite(
+
+    async () => {
+
+      const database =
+        await openChatiDatabase();
+
+
+      await new Promise(
+
+        (
+          resolve,
+          reject
+        ) => {
+
+          const transaction =
+            database.transaction(
+              APP_DATA_DB_STORE,
+              "readwrite"
+            );
+
+
+          transaction
+            .objectStore(
+              APP_DATA_DB_STORE
+            )
+            .put(
+              stringValue,
+              key
+            );
+
+
+          transaction.oncomplete =
+            () => {
+
+              database.close();
+              resolve();
+
+            };
+
+
+          transaction.onerror =
+            () => {
+
+              database.close();
+              reject(
+                transaction.error ||
+                new Error(
+                  "Could not save app data."
+                )
+              );
+
+            };
+
+        }
+
+      );
+
+    }
+
+  );
+
+}
+
+
+function removeAppDataValue(
+  key
+) {
+
+  if (
+    appDataFallbackToLocalStorage
+  ) {
+
+    localStorage.removeItem(
+      key
+    );
+
+    return;
+
+  }
+
+
+  appDataCache.delete(
+    key
+  );
+
+
+  queueAppDataWrite(
+
+    async () => {
+
+      const database =
+        await openChatiDatabase();
+
+
+      await new Promise(
+
+        (
+          resolve,
+          reject
+        ) => {
+
+          const transaction =
+            database.transaction(
+              APP_DATA_DB_STORE,
+              "readwrite"
+            );
+
+
+          transaction
+            .objectStore(
+              APP_DATA_DB_STORE
+            )
+            .delete(
+              key
+            );
+
+
+          transaction.oncomplete =
+            () => {
+
+              database.close();
+              resolve();
+
+            };
+
+
+          transaction.onerror =
+            () => {
+
+              database.close();
+              reject(
+                transaction.error ||
+                new Error(
+                  "Could not remove app data."
+                )
+              );
+
+            };
+
+        }
+
+      );
+
+    }
+
+  );
+
+}
+
+
+async function flushAppDataWrites() {
+
+  await appDataWriteQueue;
+
+}
+
+
+function openChatiDatabase() {
+
+  return new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const request =
+        indexedDB.open(
+          MEDIA_DB_NAME,
+          MEDIA_DB_VERSION
+        );
+
+
+      request.onupgradeneeded =
+        () => {
+
+          const database =
+            request.result;
+
+
+          if (
+            !database
+              .objectStoreNames
+              .contains(
+                MEDIA_DB_STORE
+              )
+          ) {
+
+            database.createObjectStore(
+              MEDIA_DB_STORE
+            );
+
+          }
+
+
+          if (
+            !database
+              .objectStoreNames
+              .contains(
+                APP_DATA_DB_STORE
+              )
+          ) {
+
+            database.createObjectStore(
+              APP_DATA_DB_STORE
+            );
+
+          }
+
+        };
+
+
+      request.onsuccess =
+        () =>
+          resolve(
+            request.result
+          );
+
+
+      request.onerror =
+        () =>
+          reject(
+            request.error ||
+            new Error(
+              "Could not open Chati-AI storage."
+            )
+          );
+
+    }
+
+  );
+
+}
+
+
+async function loadAppDataCacheFromIndexedDB() {
+
+  const database =
+    await openChatiDatabase();
+
+
+  const snapshot =
+    await new Promise(
+
+      (
+        resolve,
+        reject
+      ) => {
+
+        const result = {};
+
+
+        const transaction =
+          database.transaction(
+            APP_DATA_DB_STORE,
+            "readonly"
+          );
+
+
+        const request =
+          transaction
+            .objectStore(
+              APP_DATA_DB_STORE
+            )
+            .openCursor();
+
+
+        request.onsuccess =
+          () => {
+
+            const cursor =
+              request.result;
+
+
+            if (!cursor) {
+
+              return;
+
+            }
+
+
+            result[
+              String(
+                cursor.key
+              )
+            ] =
+              String(
+                cursor.value ??
+                ""
+              );
+
+
+            cursor.continue();
+
+          };
+
+
+        transaction.oncomplete =
+          () =>
+            resolve(
+              result
+            );
+
+
+        transaction.onerror =
+          () =>
+            reject(
+              transaction.error ||
+              new Error(
+                "Could not read Chati-AI app data."
+              )
+            );
+
+      }
+
+    );
+
+
+  database.close();
+
+
+  appDataCache.clear();
+
+
+  Object.entries(
+    snapshot
+  )
+    .forEach(
+      (
+        [
+          key,
+          value
+        ]
+      ) =>
+        appDataCache.set(
+          key,
+          value
+        )
+    );
+
+}
+
+
+async function replaceAppDataSnapshot(
+  snapshot
+) {
+
+  if (
+    appDataFallbackToLocalStorage
+  ) {
+
+    const keys = [];
+
+
+    for (
+      let index = 0;
+      index < localStorage.length;
+      index += 1
+    ) {
+
+      const key =
+        localStorage.key(
+          index
+        );
+
+
+      if (
+        isAppDataStorageKey(
+          key
+        )
+      ) {
+
+        keys.push(
+          key
+        );
+
+      }
+
+    }
+
+
+    keys.forEach(
+      key =>
+        localStorage.removeItem(
+          key
+        )
+    );
+
+
+    Object.entries(
+      snapshot ||
+      {}
+    )
+      .forEach(
+        (
+          [
+            key,
+            value
+          ]
+        ) => {
+
+          if (
+            isAppDataStorageKey(
+              key
+            ) &&
+            value !==
+              null
+          ) {
+
+            localStorage.setItem(
+              key,
+              String(value)
+            );
+
+          }
+
+        }
+      );
+
+
+    return;
+
+  }
+
+
+  await flushAppDataWrites();
+
+
+  const database =
+    await openChatiDatabase();
+
+
+  await new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const transaction =
+        database.transaction(
+          APP_DATA_DB_STORE,
+          "readwrite"
+        );
+
+
+      const store =
+        transaction.objectStore(
+          APP_DATA_DB_STORE
+        );
+
+
+      store.clear();
+
+
+      Object.entries(
+        snapshot ||
+        {}
+      )
+        .forEach(
+          (
+            [
+              key,
+              value
+            ]
+          ) => {
+
+            if (
+              isAppDataStorageKey(
+                key
+              ) &&
+              value !==
+                null
+            ) {
+
+              store.put(
+                String(value),
+                key
+              );
+
+            }
+
+          }
+        );
+
+
+      transaction.oncomplete =
+        () => {
+
+          database.close();
+          resolve();
+
+        };
+
+
+      transaction.onerror =
+        () => {
+
+          database.close();
+          reject(
+            transaction.error ||
+            new Error(
+              "Could not replace Chati-AI app data."
+            )
+          );
+
+        };
+
+    }
+
+  );
+
+
+  appDataCache.clear();
+
+
+  Object.entries(
+    snapshot ||
+    {}
+  )
+    .forEach(
+      (
+        [
+          key,
+          value
+        ]
+      ) => {
+
+        if (
+          isAppDataStorageKey(
+            key
+          ) &&
+          value !==
+            null
+        ) {
+
+          appDataCache.set(
+            key,
+            String(value)
+          );
+
+        }
+
+      }
+    );
+
+}
+
+
+async function initializeAppDataStorage() {
+
+  try {
+
+    await loadAppDataCacheFromIndexedDB();
+
+
+    const legacySnapshot = {};
+    const removeKeys = [];
+
+
+    for (
+      let index = 0;
+      index < localStorage.length;
+      index += 1
+    ) {
+
+      const key =
+        localStorage.key(
+          index
+        );
+
+
+      if (
+        isAppDataStorageKey(
+          key
+        )
+      ) {
+
+        legacySnapshot[key] =
+          localStorage.getItem(
+            key
+          );
+
+        removeKeys.push(
+          key
+        );
+
+      }
+
+    }
+
+
+    if (
+      Object.keys(
+        legacySnapshot
+      ).length
+    ) {
+
+      const merged = {
+        ...Object.fromEntries(
+          appDataCache.entries()
+        ),
+        ...legacySnapshot
+      };
+
+
+      await replaceAppDataSnapshot(
+        merged
+      );
+
+
+      removeKeys.forEach(
+        key =>
+          localStorage.removeItem(
+            key
+          )
+      );
+
+
+      console.log(
+        "✅ Chati-AI local data migrated to IndexedDB"
+      );
+
+    }
+
+  }
+
+  catch (
+    error
+  ) {
+
+    console.warn(
+      "⚠️ IndexedDB app storage unavailable; using localStorage fallback:",
+      error
+    );
+
+
+    appDataFallbackToLocalStorage =
+      true;
+
+  }
+
+}
+
+
 function getChatiLocalStorageSnapshot() {
 
   const snapshot = {};
@@ -425,6 +1253,9 @@ function getChatiLocalStorageSnapshot() {
       !key ||
       !key.startsWith(
         CHATI_STORAGE_PREFIX
+      ) ||
+      isAppDataStorageKey(
+        key
       )
     ) {
 
@@ -1135,14 +1966,22 @@ async function exportChatiBackup() {
 
   try {
 
+    await flushAppDataWrites();
+
+
     const localData =
       getChatiLocalStorageSnapshot();
 
 
+    const appData =
+      getChatiAppDataSnapshot();
+
+
     const textStats =
-      getBackupTextStats(
-        localData
-      );
+      getBackupTextStats({
+        ...localData,
+        ...appData
+      });
 
 
     let media = [];
@@ -1193,6 +2032,7 @@ async function exportChatiBackup() {
       },
       localStorage:
         localData,
+      appData,
       media
     };
 
@@ -1346,6 +2186,15 @@ function normalizeImportedBackup(
     return {
       localStorage:
         data.localStorage,
+      appData:
+        data.appData &&
+        typeof data.appData ===
+          "object" &&
+        !Array.isArray(
+          data.appData
+        )
+          ? data.appData
+          : {},
       media:
         Array.isArray(
           data.media
@@ -1377,6 +2226,8 @@ function normalizeImportedBackup(
     return {
       localStorage:
         data,
+      appData:
+        {},
       media:
         [],
       includesMedia:
@@ -1467,6 +2318,118 @@ function sanitizeImportedLocalStorage(
 
 
   return clean;
+
+}
+
+
+function splitImportedStorage(
+  localStorageData,
+  appDataData = {}
+) {
+
+  const local = {};
+  const appData = {};
+
+
+  const addEntries = (
+    source,
+    preferAppData = false
+  ) => {
+
+    Object.entries(
+      source ||
+      {}
+    )
+      .forEach(
+        (
+          [
+            key,
+            value
+          ]
+        ) => {
+
+          if (
+            typeof key !==
+              "string" ||
+            !key.startsWith(
+              CHATI_STORAGE_PREFIX
+            ) ||
+            !(
+              typeof value ===
+                "string" ||
+              value ===
+                null
+            )
+          ) {
+
+            return;
+
+          }
+
+
+          if (
+            preferAppData ||
+            isAppDataStorageKey(
+              key
+            )
+          ) {
+
+            if (
+              isAppDataStorageKey(
+                key
+              )
+            ) {
+
+              appData[key] =
+                value;
+
+            }
+
+            return;
+
+          }
+
+
+          local[key] =
+            value;
+
+        }
+      );
+
+  };
+
+
+  addEntries(
+    localStorageData,
+    false
+  );
+
+  addEntries(
+    appDataData,
+    true
+  );
+
+
+  if (
+    !Object.keys(
+      local
+    ).length &&
+    !Object.keys(
+      appData
+    ).length
+  ) {
+
+    throw new Error(
+      "The backup does not contain Chati-AI storage keys."
+    );
+
+  }
+
+
+  return {
+    local,
+    appData
+  };
 
 }
 
@@ -1700,6 +2663,105 @@ function replaceChatiLocalStorage(
 }
 
 
+async function replaceChatiPersistentStorage(
+  importedLocal,
+  importedAppData
+) {
+
+  const beforeLocal =
+    getChatiLocalStorageSnapshot();
+
+  const beforeAppData =
+    getChatiAppDataSnapshot();
+
+
+  replaceChatiLocalStorage(
+    importedLocal
+  );
+
+
+  try {
+
+    await replaceAppDataSnapshot(
+      importedAppData
+    );
+
+
+    const legacyHeavyKeys = [];
+
+
+    for (
+      let index = 0;
+      index < localStorage.length;
+      index += 1
+    ) {
+
+      const key =
+        localStorage.key(
+          index
+        );
+
+
+      if (
+        isAppDataStorageKey(
+          key
+        )
+      ) {
+
+        legacyHeavyKeys.push(
+          key
+        );
+
+      }
+
+    }
+
+
+    legacyHeavyKeys.forEach(
+      key =>
+        localStorage.removeItem(
+          key
+        )
+    );
+
+  }
+
+  catch (
+    error
+  ) {
+
+    replaceChatiLocalStorage(
+      beforeLocal
+    );
+
+
+    try {
+
+      await replaceAppDataSnapshot(
+        beforeAppData
+      );
+
+    }
+
+    catch (
+      rollbackError
+    ) {
+
+      console.error(
+        "Could not roll back app data after restore failure:",
+        rollbackError
+      );
+
+    }
+
+
+    throw error;
+
+  }
+
+}
+
+
 async function restoreChatiBackupFile(
   file
 ) {
@@ -1758,15 +2820,17 @@ async function restoreChatiBackupFile(
 
 
     const storage =
-      sanitizeImportedLocalStorage(
-        backup.localStorage
+      splitImportedStorage(
+        backup.localStorage,
+        backup.appData
       );
 
 
     const stats =
-      getBackupTextStats(
-        storage
-      );
+      getBackupTextStats({
+        ...storage.local,
+        ...storage.appData
+      });
 
 
     const mediaCount =
@@ -1816,8 +2880,9 @@ async function restoreChatiBackupFile(
     }
 
 
-    replaceChatiLocalStorage(
-      storage
+    await replaceChatiPersistentStorage(
+      storage.local,
+      storage.appData
     );
 
 
@@ -1897,8 +2962,10 @@ function refreshBackupDataStatus() {
 
   try {
 
-    const snapshot =
-      getChatiLocalStorageSnapshot();
+    const snapshot = {
+      ...getChatiLocalStorageSnapshot(),
+      ...getChatiAppDataSnapshot()
+    };
 
 
     const stats =
@@ -1918,6 +2985,178 @@ function refreshBackupDataStatus() {
       "Local";
 
   }
+
+}
+
+
+function isMobileLayout() {
+
+  const compactViewport =
+    window.matchMedia(
+      MOBILE_LAYOUT_QUERY
+    ).matches;
+
+  const touchFirstDevice =
+    Number(
+      navigator.maxTouchPoints ||
+      0
+    ) > 0 &&
+    window.matchMedia(
+      MOBILE_POINTER_QUERY
+    ).matches;
+
+  return (
+    compactViewport ||
+    touchFirstDevice
+  );
+
+}
+
+
+function updateMobileViewportHeight() {
+
+  const viewport =
+    window.visualViewport;
+
+
+  const height =
+    Math.max(
+      320,
+      Math.round(
+        viewport?.height ||
+        window.innerHeight
+      )
+    );
+
+
+  document.documentElement
+    .style
+    .setProperty(
+      "--app-height",
+      `${height}px`
+    );
+
+}
+
+
+function setMobileSidebarOpen(
+  open
+) {
+
+  const shouldOpen =
+    Boolean(open) &&
+    isMobileLayout();
+
+
+  sidebar
+    ?.classList
+    .toggle(
+      "mobile-open",
+      shouldOpen
+    );
+
+
+  sidebarMobileOverlay
+    ?.classList
+    .toggle(
+      "hidden",
+      !shouldOpen
+    );
+
+
+  mobileSidebarBtn
+    ?.setAttribute(
+      "aria-expanded",
+      shouldOpen
+        ? "true"
+        : "false"
+    );
+
+
+  document.body
+    .classList
+    .toggle(
+      "mobile-sidebar-open",
+      shouldOpen
+    );
+
+}
+
+
+function closeMobileSidebar() {
+
+  setMobileSidebarOpen(
+    false
+  );
+
+}
+
+
+function syncMobileShellState() {
+
+  const mobile =
+    isMobileLayout();
+
+
+  document.body
+    .classList
+    .toggle(
+      "mobile-layout",
+      mobile
+    );
+
+
+  if (mobile) {
+
+    /* Mobile uses an off-canvas drawer, never the desktop compact sidebar. */
+    sidebar
+      ?.classList
+      .remove(
+        "is-collapsed"
+      );
+
+  }
+
+  else {
+
+    setSidebarCollapsed(
+      getSidebarCollapsedPreference(),
+      {
+        persist: false
+      }
+    );
+
+  }
+
+
+  const chatActive =
+    mobile &&
+    chatView &&
+    !chatView.classList
+      .contains(
+        "hidden"
+      );
+
+
+  document.body
+    .classList
+    .toggle(
+      "mobile-chat-active",
+      Boolean(chatActive)
+    );
+
+
+  if (
+    !mobile ||
+    chatActive
+  ) {
+
+    closeMobileSidebar();
+
+  }
+
+
+  updateMobileViewportHeight();
 
 }
 
@@ -3551,7 +4790,7 @@ characters =
 
 function saveCharacters() {
 
-  localStorage.setItem(
+  setAppDataValue(
 
     "chatiCharacters",
 
@@ -3608,7 +4847,7 @@ function migrateOldChat(
 
 
   if (
-    localStorage.getItem(
+    getAppDataValue(
       newKey
     ) !== null
   ) {
@@ -3630,7 +4869,7 @@ function migrateOldChat(
 
   if (!oldRaw) {
 
-    localStorage.setItem(
+    setAppDataValue(
 
       newKey,
 
@@ -3688,7 +4927,7 @@ function migrateOldChat(
         });
 
 
-      localStorage.setItem(
+      setAppDataValue(
 
         newKey,
 
@@ -3713,7 +4952,7 @@ function migrateOldChat(
 
     else {
 
-      localStorage.setItem(
+      setAppDataValue(
 
         newKey,
 
@@ -3742,7 +4981,7 @@ function migrateOldChat(
     );
 
 
-    localStorage.setItem(
+    setAppDataValue(
 
       newKey,
 
@@ -3769,7 +5008,7 @@ function getCharacterChats(
     const raw =
       JSON.parse(
 
-        localStorage.getItem(
+        getAppDataValue(
 
           getChatsKey(
             characterId
@@ -3798,7 +5037,7 @@ function getCharacterChats(
       JSON.stringify(normalized)
     ) {
 
-      localStorage.setItem(
+      setAppDataValue(
 
         getChatsKey(
           characterId
@@ -3837,7 +5076,7 @@ function saveCharacterChats(
   chats
 ) {
 
-  localStorage.setItem(
+  setAppDataValue(
 
     getChatsKey(
       characterId
@@ -4493,6 +5732,387 @@ function setPronouns(
       }
 
     );
+
+}
+
+
+function estimateDataUrlBytes(
+  dataUrl
+) {
+
+  if (
+    typeof dataUrl !==
+      "string"
+  ) {
+
+    return 0;
+
+  }
+
+
+  const commaIndex =
+    dataUrl.indexOf(",");
+
+
+  const payloadLength =
+    commaIndex >= 0
+      ? dataUrl.length -
+        commaIndex -
+        1
+      : dataUrl.length;
+
+
+  return Math.ceil(
+    payloadLength *
+    0.75
+  );
+
+}
+
+
+function loadLocalImage(
+  file
+) {
+
+  return new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const objectUrl =
+        URL.createObjectURL(
+          file
+        );
+
+
+      const image =
+        new Image();
+
+
+      image.onload =
+        () => {
+
+          URL.revokeObjectURL(
+            objectUrl
+          );
+
+
+          resolve(
+            image
+          );
+
+        };
+
+
+      image.onerror =
+        () => {
+
+          URL.revokeObjectURL(
+            objectUrl
+          );
+
+
+          reject(
+            new Error(
+              "Could not open that image."
+            )
+          );
+
+        };
+
+
+      image.src =
+        objectUrl;
+
+    }
+
+  );
+
+}
+
+
+async function prepareLocalImage(
+  file,
+  {
+    maxWidth = 1200,
+    maxHeight = 1200,
+    quality = 0.84,
+    targetBytes = 700 * 1024
+  } = {}
+) {
+
+  if (
+    !file ||
+    !String(
+      file.type ||
+      ""
+    ).startsWith(
+      "image/"
+    )
+  ) {
+
+    throw new Error(
+      "Please choose an image file."
+    );
+
+  }
+
+
+  if (
+    file.size >
+    MAX_LOCAL_IMAGE_FILE_SIZE
+  ) {
+
+    throw new Error(
+      "That image is too large. Choose an image under 20 MB."
+    );
+
+  }
+
+
+  const image =
+    await loadLocalImage(
+      file
+    );
+
+
+  const sourceWidth =
+    image.naturalWidth ||
+    image.width;
+
+  const sourceHeight =
+    image.naturalHeight ||
+    image.height;
+
+
+  if (
+    !sourceWidth ||
+    !sourceHeight
+  ) {
+
+    throw new Error(
+      "That image has an invalid size."
+    );
+
+  }
+
+
+  let scale =
+    Math.min(
+      1,
+      maxWidth /
+        sourceWidth,
+      maxHeight /
+        sourceHeight
+    );
+
+
+  let currentQuality =
+    quality;
+
+  let result =
+    "";
+
+
+  for (
+    let attempt = 0;
+    attempt < 5;
+    attempt += 1
+  ) {
+
+    const width =
+      Math.max(
+        1,
+        Math.round(
+          sourceWidth *
+          scale
+        )
+      );
+
+    const height =
+      Math.max(
+        1,
+        Math.round(
+          sourceHeight *
+          scale
+        )
+      );
+
+
+    const canvas =
+      document.createElement(
+        "canvas"
+      );
+
+
+    canvas.width =
+      width;
+
+    canvas.height =
+      height;
+
+
+    const context =
+      canvas.getContext(
+        "2d",
+        {
+          alpha:
+            true
+        }
+      );
+
+
+    if (!context) {
+
+      throw new Error(
+        "Image processing is not available in this browser."
+      );
+
+    }
+
+
+    context.imageSmoothingEnabled =
+      true;
+
+    context.imageSmoothingQuality =
+      "high";
+
+
+    context.drawImage(
+      image,
+      0,
+      0,
+      width,
+      height
+    );
+
+
+    result =
+      canvas.toDataURL(
+        "image/webp",
+        currentQuality
+      );
+
+
+    if (
+      estimateDataUrlBytes(
+        result
+      ) <=
+      targetBytes
+    ) {
+
+      break;
+
+    }
+
+
+    currentQuality =
+      Math.max(
+        0.56,
+        currentQuality -
+        0.09
+      );
+
+
+    scale *=
+      0.86;
+
+  }
+
+
+  if (!result) {
+
+    throw new Error(
+      "Could not process that image."
+    );
+
+  }
+
+
+  return result;
+
+}
+
+
+async function applyLocalImageSelection(
+  fileInput,
+  targetInput,
+  previewUpdater,
+  options
+) {
+
+  const file =
+    fileInput
+      ?.files?.[0];
+
+
+  if (!file) {
+
+    return;
+
+  }
+
+
+  document.body
+    .classList
+    .add(
+      "image-processing"
+    );
+
+
+  try {
+
+    const dataUrl =
+      await prepareLocalImage(
+        file,
+        options
+      );
+
+
+    targetInput.value =
+      dataUrl;
+
+
+    previewUpdater();
+
+  }
+
+  catch (
+    error
+  ) {
+
+    console.error(
+      "Could not use local image:",
+      error
+    );
+
+
+    alert(
+      error?.message ||
+      "Could not use that image."
+    );
+
+  }
+
+  finally {
+
+    if (fileInput) {
+
+      fileInput.value =
+        "";
+
+    }
+
+
+    document.body
+      .classList
+      .remove(
+        "image-processing"
+      );
+
+  }
 
 }
 
@@ -5652,6 +7272,9 @@ function showGroupCreateView(
     )
     .scrollTop = 0;
 
+
+  syncMobileShellState();
+
 }
 
 
@@ -6094,6 +7717,9 @@ function showCreateView(
     .scrollTop =
     0;
 
+
+  syncMobileShellState();
+
 }
 
 
@@ -6147,6 +7773,9 @@ function showHomeView() {
   renderGroups();
 
   renderChatHistory();
+
+
+  syncMobileShellState();
 
 }
 
@@ -6331,63 +7960,7 @@ async function compressImageFile(
 
 function openMediaDatabase() {
 
-  return new Promise(
-
-    (
-      resolve,
-      reject
-    ) => {
-
-      const request =
-        indexedDB.open(
-          MEDIA_DB_NAME,
-          1
-        );
-
-
-      request.onupgradeneeded =
-        () => {
-
-          const database =
-            request.result;
-
-
-          if (
-            !database
-              .objectStoreNames
-              .contains(
-                MEDIA_DB_STORE
-              )
-          ) {
-
-            database.createObjectStore(
-              MEDIA_DB_STORE
-            );
-
-          }
-
-        };
-
-
-      request.onsuccess =
-        () =>
-          resolve(
-            request.result
-          );
-
-
-      request.onerror =
-        () =>
-          reject(
-            request.error ||
-            new Error(
-              "Could not open media storage."
-            )
-          );
-
-    }
-
-  );
+  return openChatiDatabase();
 
 }
 
@@ -8637,6 +10210,287 @@ async function hydrateAttachmentForApi(
 }
 
 
+mobileSidebarBtn?.addEventListener(
+
+  "click",
+
+  () => {
+
+    const open =
+      sidebar
+        ?.classList
+        .contains(
+          "mobile-open"
+        );
+
+
+    setMobileSidebarOpen(
+      !open
+    );
+
+  }
+
+);
+
+
+sidebarMobileOverlay?.addEventListener(
+  "click",
+  closeMobileSidebar
+);
+
+
+sidebar?.addEventListener(
+
+  "click",
+
+  event => {
+
+    if (
+      !isMobileLayout()
+    ) {
+
+      return;
+
+    }
+
+
+    const navigated =
+      event.target.closest(
+        ".nav-btn, .settings-btn, .history-item, .sidebar-brand"
+      );
+
+
+    if (navigated) {
+
+      closeMobileSidebar();
+
+    }
+
+  }
+
+);
+
+
+document.addEventListener(
+
+  "keydown",
+
+  event => {
+
+    if (
+      event.key ===
+        "Escape" &&
+      sidebar
+        ?.classList
+        .contains(
+          "mobile-open"
+        )
+    ) {
+
+      closeMobileSidebar();
+
+    }
+
+  }
+
+);
+
+
+window.addEventListener(
+  "resize",
+  syncMobileShellState,
+  {
+    passive:
+      true
+  }
+);
+
+
+window.visualViewport
+  ?.addEventListener(
+    "resize",
+    updateMobileViewportHeight,
+    {
+      passive:
+        true
+    }
+  );
+
+
+window.visualViewport
+  ?.addEventListener(
+    "scroll",
+    updateMobileViewportHeight,
+    {
+      passive:
+        true
+    }
+  );
+
+
+chooseCharacterImageBtn?.addEventListener(
+  "click",
+  () =>
+    characterImageFile
+      ?.click()
+);
+
+
+removeCharacterImageBtn?.addEventListener(
+
+  "click",
+
+  () => {
+
+    characterImage.value =
+      "";
+
+    updateAvatarPreview();
+
+  }
+
+);
+
+
+characterImageFile?.addEventListener(
+
+  "change",
+
+  async () => {
+
+    await applyLocalImageSelection(
+      characterImageFile,
+      characterImage,
+      updateAvatarPreview,
+      {
+        maxWidth:
+          720,
+        maxHeight:
+          720,
+        quality:
+          0.86,
+        targetBytes:
+          420 *
+          1024
+      }
+    );
+
+  }
+
+);
+
+
+chooseCharacterBackgroundBtn?.addEventListener(
+  "click",
+  () =>
+    characterBackgroundFile
+      ?.click()
+);
+
+
+removeCharacterBackgroundBtn?.addEventListener(
+
+  "click",
+
+  () => {
+
+    characterBackground.value =
+      "";
+
+    updateBackgroundPreview();
+
+  }
+
+);
+
+
+characterBackgroundFile?.addEventListener(
+
+  "change",
+
+  async () => {
+
+    await applyLocalImageSelection(
+      characterBackgroundFile,
+      characterBackground,
+      updateBackgroundPreview,
+      {
+        maxWidth:
+          1800,
+        maxHeight:
+          1200,
+        quality:
+          0.82,
+        targetBytes:
+          900 *
+          1024
+      }
+    );
+
+  }
+
+);
+
+
+chooseGroupBackgroundBtn?.addEventListener(
+  "click",
+  () =>
+    groupBackgroundFile
+      ?.click()
+);
+
+
+removeGroupBackgroundBtn?.addEventListener(
+
+  "click",
+
+  () => {
+
+    if (
+      groupBackground
+    ) {
+
+      groupBackground.value =
+        "";
+
+    }
+
+
+    updateGroupBackgroundPreview();
+
+  }
+
+);
+
+
+groupBackgroundFile?.addEventListener(
+
+  "change",
+
+  async () => {
+
+    await applyLocalImageSelection(
+      groupBackgroundFile,
+      groupBackground,
+      updateGroupBackgroundPreview,
+      {
+        maxWidth:
+          1800,
+        maxHeight:
+          1200,
+        quality:
+          0.82,
+        targetBytes:
+          900 *
+          1024
+      }
+    );
+
+  }
+
+);
+
+
 pronounPicker.addEventListener(
 
   "click",
@@ -10770,6 +12624,9 @@ function openChat(
   renderMessages();
 
   renderChatHistory();
+
+
+  syncMobileShellState();
 
 
   setTimeout(
@@ -15216,7 +17073,7 @@ function removeEntityStorage(
   );
 
 
-  localStorage.removeItem(
+  removeAppDataValue(
     getChatsKey(
       entityId
     )
@@ -17551,27 +19408,76 @@ document.addEventListener(
 );
 
 
-autoGrowMessageInput();
+async function initializeChatiAI() {
 
-saveCharacters();
+  await initializeAppDataStorage();
 
-setSidebarCollapsed(
-  getSidebarCollapsedPreference(),
-  {
-    persist: false
+
+  try {
+
+    const storedCharacters =
+      JSON.parse(
+        getAppDataValue(
+          "chatiCharacters"
+        ) ||
+        "[]"
+      );
+
+
+    characters =
+      Array.isArray(
+        storedCharacters
+      )
+        ? storedCharacters.map(
+            normalizeCharacter
+          )
+        : [];
+
   }
-);
 
-updateSidebarSearchClear();
-renderRoleplayLevelSettings();
-setSidebarViewState(
-  "chats"
-);
-updateSidebarPrivateStatus(
-  false
-);
+  catch (
+    error
+  ) {
 
-renderCharacters();
-renderGroups();
+    console.error(
+      "Could not load saved characters:",
+      error
+    );
 
-renderChatHistory();
+    characters = [];
+
+  }
+
+
+  autoGrowMessageInput();
+
+  saveCharacters();
+
+  setSidebarCollapsed(
+    getSidebarCollapsedPreference(),
+    {
+      persist: false
+    }
+  );
+
+  updateSidebarSearchClear();
+  renderRoleplayLevelSettings();
+  setSidebarViewState(
+    "chats"
+  );
+  updateSidebarPrivateStatus(
+    false
+  );
+
+  updateMobileViewportHeight();
+  syncMobileShellState();
+
+  renderCharacters();
+  renderGroups();
+
+  renderChatHistory();
+
+}
+
+
+void initializeChatiAI();

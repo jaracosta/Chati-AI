@@ -6,14 +6,14 @@
 
   <meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
   >
 
   <title>Chati-AI</title>
 
   <link
     rel="stylesheet"
-    href="style.css"
+    href="style.css?v=3.6.2"
   >
 </head>
 
@@ -21,6 +21,28 @@
 <body>
 
   <div class="app">
+
+    <!-- Mobile navigation shell -->
+    <button
+      id="mobileSidebarBtn"
+      class="mobile-sidebar-btn"
+      type="button"
+      aria-label="Open navigation"
+      aria-controls="sidebar"
+      aria-expanded="false"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 7h14M5 12h14M5 17h14"></path>
+      </svg>
+    </button>
+
+    <button
+      id="sidebarMobileOverlay"
+      class="sidebar-mobile-overlay hidden"
+      type="button"
+      aria-label="Close navigation"
+      tabindex="-1"
+    ></button>
 
 
     <!-- =========================
@@ -396,18 +418,50 @@
 
 
 
-              <label class="grow-field">
+              <div class="grow-field image-source-field">
 
-                Avatar Image URL
+                <label>
+                  Avatar Image URL
 
+                  <input
+                    type="url"
+                    id="characterImage"
+                    placeholder="https://example.com/avatar.jpg"
+                  >
+                </label>
+
+                <div class="image-source-actions">
+                  <button
+                    id="chooseCharacterImageBtn"
+                    class="image-picker-btn"
+                    type="button"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 6.5h4l1.4-2h5.2l1.4 2h4v12H4z"></path>
+                      <circle cx="12" cy="12.5" r="3.2"></circle>
+                    </svg>
+                    <span>Choose Image</span>
+                  </button>
+
+                  <button
+                    id="removeCharacterImageBtn"
+                    class="image-remove-btn"
+                    type="button"
+                  >
+                    Remove
+                  </button>
+                </div>
 
                 <input
-                  type="url"
-                  id="characterImage"
-                  placeholder="https://example.com/avatar.jpg"
+                  id="characterImageFile"
+                  class="hidden"
+                  type="file"
+                  accept="image/*"
                 >
 
-              </label>
+                <small class="image-source-hint">Choose from your computer, phone gallery, or camera when available.</small>
+
+              </div>
 
             </div>
 
@@ -950,18 +1004,49 @@
             </div>
 
 
-            <label>
+            <div class="image-source-field">
 
-              Background Image URL
+              <label>
+                Background Image URL
 
+                <input
+                  type="url"
+                  id="characterBackground"
+                  placeholder="https://example.com/background.jpg"
+                >
+              </label>
+
+              <div class="image-source-actions">
+                <button
+                  id="chooseCharacterBackgroundBtn"
+                  class="image-picker-btn"
+                  type="button"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect>
+                    <circle cx="8.2" cy="9.3" r="1.4"></circle>
+                    <path d="m5.5 17 4-4 3.2 3 2.2-2.2 3.6 3.2"></path>
+                  </svg>
+                  <span>Choose Image</span>
+                </button>
+
+                <button
+                  id="removeCharacterBackgroundBtn"
+                  class="image-remove-btn"
+                  type="button"
+                >
+                  Remove
+                </button>
+              </div>
 
               <input
-                type="url"
-                id="characterBackground"
-                placeholder="https://example.com/background.jpg"
+                id="characterBackgroundFile"
+                class="hidden"
+                type="file"
+                accept="image/*"
               >
 
-            </label>
+            </div>
 
 
             <div
@@ -1067,14 +1152,46 @@
                 >
               </label>
 
-              <label>
-                Background Image URL
+              <div class="image-source-field">
+                <label>
+                  Background Image URL
+                  <input
+                    type="url"
+                    id="groupBackground"
+                    placeholder="https://example.com/background.jpg"
+                  >
+                </label>
+
+                <div class="image-source-actions">
+                  <button
+                    id="chooseGroupBackgroundBtn"
+                    class="image-picker-btn"
+                    type="button"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect>
+                      <circle cx="8.2" cy="9.3" r="1.4"></circle>
+                      <path d="m5.5 17 4-4 3.2 3 2.2-2.2 3.6 3.2"></path>
+                    </svg>
+                    <span>Choose Image</span>
+                  </button>
+
+                  <button
+                    id="removeGroupBackgroundBtn"
+                    class="image-remove-btn"
+                    type="button"
+                  >
+                    Remove
+                  </button>
+                </div>
+
                 <input
-                  type="url"
-                  id="groupBackground"
-                  placeholder="https://example.com/background.jpg"
+                  id="groupBackgroundFile"
+                  class="hidden"
+                  type="file"
+                  accept="image/*"
                 >
-              </label>
+              </div>
             </div>
 
             <div
@@ -2105,7 +2222,7 @@
         </div>
 
         <p class="settings-section-description">
-          Move your saved characters, groups, chats, memory, and settings to another browser, device, or future Chati-AI domain.
+          Move your saved characters, groups, chats, memory, images, and settings to another browser, device, or future Chati-AI domain.
         </p>
 
         <div class="backup-restore-grid">
@@ -2578,7 +2695,7 @@
 
 
 
-  <script src="script.js"></script>
+  <script src="script.js?v=3.6.2"></script>
 
 </body>
 </html>
