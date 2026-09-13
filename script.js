@@ -48,6 +48,13 @@ const roleplayLevelButtons =
     )
   ];
 
+const backupDataStatus = $("backupDataStatus");
+const backupIncludeMedia = $("backupIncludeMedia");
+const exportBackupBtn = $("exportBackupBtn");
+const restoreBackupBtn = $("restoreBackupBtn");
+const backupFileInput = $("backupFileInput");
+const backupStatusMessage = $("backupStatusMessage");
+
 const sidebar = $("sidebar");
 const sidebarBrandBtn = $("sidebarBrandBtn");
 const sidebarCollapseBtn = $("sidebarCollapseBtn");
@@ -210,6 +217,18 @@ const ROLEPLAY_LEVEL_LABELS = {
   superAdvanced:
     "Super Advanced"
 };
+
+const CHATI_BACKUP_FORMAT =
+  "chati-ai-backup";
+
+const CHATI_BACKUP_VERSION =
+  1;
+
+const CHATI_BACKUP_APP_VERSION =
+  "3.5";
+
+const CHATI_STORAGE_PREFIX =
+  "chati";
 
 let roleplayLevel =
   loadRoleplayLevel();
@@ -380,6 +399,1525 @@ function renderRoleplayLevelSettings() {
 
       }
     );
+
+}
+
+
+
+function getChatiLocalStorageSnapshot() {
+
+  const snapshot = {};
+
+
+  for (
+    let index = 0;
+    index < localStorage.length;
+    index += 1
+  ) {
+
+    const key =
+      localStorage.key(
+        index
+      );
+
+
+    if (
+      !key ||
+      !key.startsWith(
+        CHATI_STORAGE_PREFIX
+      )
+    ) {
+
+      continue;
+
+    }
+
+
+    snapshot[key] =
+      localStorage.getItem(
+        key
+      );
+
+  }
+
+
+  return snapshot;
+
+}
+
+
+function getBackupTextStats(
+  storageSnapshot
+) {
+
+  let characterCount = 0;
+  let groupCount = 0;
+  let chatCount = 0;
+
+
+  try {
+
+    const storedCharacters =
+      JSON.parse(
+        storageSnapshot
+          .chatiCharacters ||
+        "[]"
+      );
+
+
+    if (
+      Array.isArray(
+        storedCharacters
+      )
+    ) {
+
+      groupCount =
+        storedCharacters
+          .filter(
+            item =>
+              Boolean(
+                item?.isGroup
+              )
+          )
+          .length;
+
+
+      characterCount =
+        storedCharacters.length -
+        groupCount;
+
+    }
+
+  }
+
+  catch {
+    // Keep stats at zero when older/corrupt data cannot be counted.
+  }
+
+
+  Object.entries(
+    storageSnapshot
+  )
+    .forEach(
+      (
+        [
+          key,
+          value
+        ]
+      ) => {
+
+        if (
+          !key.startsWith(
+            "chatiChats_"
+          )
+        ) {
+
+          return;
+
+        }
+
+
+        try {
+
+          const chats =
+            JSON.parse(
+              value ||
+              "[]"
+            );
+
+
+          if (
+            Array.isArray(
+              chats
+            )
+          ) {
+
+            chatCount +=
+              chats.length;
+
+          }
+
+        }
+
+        catch {
+          // Ignore a single malformed chat key in the display-only stats.
+        }
+
+      }
+    );
+
+
+  return {
+    characterCount,
+    groupCount,
+    chatCount
+  };
+
+}
+
+
+function formatBackupBytes(
+  bytes
+) {
+
+  if (
+    !Number.isFinite(
+      bytes
+    ) ||
+    bytes <= 0
+  ) {
+
+    return "0 B";
+
+  }
+
+
+  const units = [
+    "B",
+    "KB",
+    "MB",
+    "GB"
+  ];
+
+
+  const index =
+    Math.min(
+      Math.floor(
+        Math.log(
+          bytes
+        ) /
+        Math.log(
+          1024
+        )
+      ),
+      units.length - 1
+    );
+
+
+  const value =
+    bytes /
+    (
+      1024 **
+      index
+    );
+
+
+  return (
+    `${value.toFixed(
+      index === 0 ||
+      value >= 10
+        ? 0
+        : 1
+    )} ${units[index]}`
+  );
+
+}
+
+
+function setBackupStatus(
+  message,
+  state = "neutral"
+) {
+
+  if (
+    !backupStatusMessage
+  ) {
+
+    return;
+
+  }
+
+
+  backupStatusMessage
+    .classList
+    .remove(
+      "is-working",
+      "is-success",
+      "is-error"
+    );
+
+
+  if (
+    state !==
+    "neutral"
+  ) {
+
+    backupStatusMessage
+      .classList
+      .add(
+        `is-${state}`
+      );
+
+  }
+
+
+  const text =
+    backupStatusMessage
+      .querySelector(
+        "span:last-child"
+      );
+
+
+  if (text) {
+
+    text.textContent =
+      message;
+
+  }
+
+}
+
+
+function setBackupBusy(
+  busy
+) {
+
+  if (
+    exportBackupBtn
+  ) {
+
+    exportBackupBtn.disabled =
+      busy;
+
+  }
+
+
+  if (
+    restoreBackupBtn
+  ) {
+
+    restoreBackupBtn.disabled =
+      busy;
+
+  }
+
+
+  if (
+    backupIncludeMedia
+  ) {
+
+    backupIncludeMedia.disabled =
+      busy;
+
+  }
+
+}
+
+
+async function getStoredMediaEntries() {
+
+  const database =
+    await openMediaDatabase();
+
+
+  return new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const entries = [];
+
+
+      const transaction =
+        database.transaction(
+          MEDIA_DB_STORE,
+          "readonly"
+        );
+
+
+      const store =
+        transaction.objectStore(
+          MEDIA_DB_STORE
+        );
+
+
+      const request =
+        store.openCursor();
+
+
+      request.onsuccess =
+        () => {
+
+          const cursor =
+            request.result;
+
+
+          if (!cursor) {
+
+            return;
+
+          }
+
+
+          if (
+            cursor.value
+            instanceof Blob
+          ) {
+
+            entries.push({
+              id:
+                String(
+                  cursor.key
+                ),
+              blob:
+                cursor.value
+            });
+
+          }
+
+
+          cursor.continue();
+
+        };
+
+
+      transaction.oncomplete =
+        () => {
+
+          database.close();
+
+          resolve(
+            entries
+          );
+
+        };
+
+
+      transaction.onerror =
+        () => {
+
+          database.close();
+
+          reject(
+            transaction.error ||
+            new Error(
+              "Could not read stored media."
+            )
+          );
+
+        };
+
+    }
+
+  );
+
+}
+
+
+function blobToDataUrl(
+  blob
+) {
+
+  return new Promise(
+
+    (
+      resolve,
+      reject
+    ) => {
+
+      const reader =
+        new FileReader();
+
+
+      reader.onload =
+        () =>
+          resolve(
+            String(
+              reader.result ||
+              ""
+            )
+          );
+
+
+      reader.onerror =
+        () =>
+          reject(
+            reader.error ||
+            new Error(
+              "Could not encode stored media."
+            )
+          );
+
+
+      reader.readAsDataURL(
+        blob
+      );
+
+    }
+
+  );
+
+}
+
+
+function dataUrlToBlob(
+  dataUrl,
+  fallbackType = ""
+) {
+
+  if (
+    typeof dataUrl !==
+      "string" ||
+    !dataUrl.startsWith(
+      "data:"
+    )
+  ) {
+
+    throw new Error(
+      "Backup media is invalid."
+    );
+
+  }
+
+
+  const commaIndex =
+    dataUrl.indexOf(
+      ","
+    );
+
+
+  if (
+    commaIndex < 0
+  ) {
+
+    throw new Error(
+      "Backup media is invalid."
+    );
+
+  }
+
+
+  const header =
+    dataUrl.slice(
+      5,
+      commaIndex
+    );
+
+
+  const payload =
+    dataUrl.slice(
+      commaIndex + 1
+    );
+
+
+  const isBase64 =
+    /;base64$/i
+      .test(
+        header
+      );
+
+
+  const mimeType =
+    header
+      .replace(
+        /;base64$/i,
+        ""
+      ) ||
+    fallbackType ||
+    "application/octet-stream";
+
+
+  let bytes;
+
+
+  if (isBase64) {
+
+    const binary =
+      atob(
+        payload
+      );
+
+
+    bytes =
+      new Uint8Array(
+        binary.length
+      );
+
+
+    for (
+      let index = 0;
+      index < binary.length;
+      index += 1
+    ) {
+
+      bytes[index] =
+        binary.charCodeAt(
+          index
+        );
+
+    }
+
+  }
+
+  else {
+
+    const text =
+      decodeURIComponent(
+        payload
+      );
+
+
+    bytes =
+      new TextEncoder()
+        .encode(
+          text
+        );
+
+  }
+
+
+  return new Blob(
+    [
+      bytes
+    ],
+    {
+      type:
+        mimeType
+    }
+  );
+
+}
+
+
+async function buildMediaBackup() {
+
+  const stored =
+    await getStoredMediaEntries();
+
+
+  const media = [];
+  let totalBytes = 0;
+
+
+  for (
+    const entry of
+    stored
+  ) {
+
+    totalBytes +=
+      entry.blob.size ||
+      0;
+
+
+    media.push({
+      id:
+        entry.id,
+      type:
+        entry.blob.type ||
+        "",
+      size:
+        entry.blob.size ||
+        0,
+      dataUrl:
+        await blobToDataUrl(
+          entry.blob
+        )
+    });
+
+  }
+
+
+  return {
+    media,
+    totalBytes
+  };
+
+}
+
+
+function downloadBackupFile(
+  backup
+) {
+
+  const payload =
+    JSON.stringify(
+      backup,
+      null,
+      2
+    );
+
+
+  const blob =
+    new Blob(
+      [
+        payload
+      ],
+      {
+        type:
+          "application/json"
+      }
+    );
+
+
+  const url =
+    URL.createObjectURL(
+      blob
+    );
+
+
+  const link =
+    document.createElement(
+      "a"
+    );
+
+
+  const timestamp =
+    new Date()
+      .toISOString()
+      .replace(
+        /[:.]/g,
+        "-"
+      );
+
+
+  link.href =
+    url;
+
+  link.download =
+    `chati-ai-backup-${timestamp}.json`;
+
+
+  document.body.appendChild(
+    link
+  );
+
+
+  link.click();
+  link.remove();
+
+
+  setTimeout(
+    () =>
+      URL.revokeObjectURL(
+        url
+      ),
+    1000
+  );
+
+
+  return blob.size;
+
+}
+
+
+async function exportChatiBackup() {
+
+  if (
+    isSending
+  ) {
+
+    return;
+
+  }
+
+
+  const includeMedia =
+    Boolean(
+      backupIncludeMedia
+        ?.checked
+    );
+
+
+  setBackupBusy(
+    true
+  );
+
+
+  setBackupStatus(
+    includeMedia
+      ? "Preparing backup and collecting stored media..."
+      : "Preparing backup...",
+    "working"
+  );
+
+
+  try {
+
+    const localData =
+      getChatiLocalStorageSnapshot();
+
+
+    const textStats =
+      getBackupTextStats(
+        localData
+      );
+
+
+    let media = [];
+    let mediaBytes = 0;
+
+
+    if (
+      includeMedia
+    ) {
+
+      const mediaBackup =
+        await buildMediaBackup();
+
+
+      media =
+        mediaBackup.media;
+
+      mediaBytes =
+        mediaBackup.totalBytes;
+
+    }
+
+
+    const backup = {
+      format:
+        CHATI_BACKUP_FORMAT,
+      backupVersion:
+        CHATI_BACKUP_VERSION,
+      appVersion:
+        CHATI_BACKUP_APP_VERSION,
+      exportedAt:
+        new Date()
+          .toISOString(),
+      sourceOrigin:
+        window.location.origin,
+      includesMedia:
+        includeMedia,
+      stats: {
+        characters:
+          textStats.characterCount,
+        groups:
+          textStats.groupCount,
+        chats:
+          textStats.chatCount,
+        mediaItems:
+          media.length,
+        mediaBytes
+      },
+      localStorage:
+        localData,
+      media
+    };
+
+
+    const fileBytes =
+      downloadBackupFile(
+        backup
+      );
+
+
+    if (
+      backupDataStatus
+    ) {
+
+      backupDataStatus.textContent =
+        "Backed up";
+
+    }
+
+
+    setBackupStatus(
+      `Backup downloaded · ${textStats.characterCount} characters · ${textStats.groupCount} groups · ${textStats.chatCount} chats${includeMedia ? ` · ${media.length} media items (${formatBackupBytes(mediaBytes)})` : ""} · file ${formatBackupBytes(fileBytes)}.`,
+      "success"
+    );
+
+  }
+
+  catch (
+    error
+  ) {
+
+    console.error(
+      "Could not export Chati-AI backup:",
+      error
+    );
+
+
+    setBackupStatus(
+      "Backup failed. Your existing Chati-AI data was not changed.",
+      "error"
+    );
+
+  }
+
+  finally {
+
+    setBackupBusy(
+      false
+    );
+
+  }
+
+}
+
+
+function isLegacyChatiBackup(
+  data
+) {
+
+  if (
+    !data ||
+    typeof data !==
+      "object" ||
+    Array.isArray(
+      data
+    )
+  ) {
+
+    return false;
+
+  }
+
+
+  const entries =
+    Object.entries(
+      data
+    );
+
+
+  return (
+    entries.length > 0 &&
+    entries.some(
+      (
+        [
+          key
+        ]
+      ) =>
+        key.startsWith(
+          CHATI_STORAGE_PREFIX
+        )
+    ) &&
+    entries.every(
+      (
+        [
+          key,
+          value
+        ]
+      ) =>
+        !key.startsWith(
+          CHATI_STORAGE_PREFIX
+        ) ||
+        typeof value ===
+          "string" ||
+        value ===
+          null
+    )
+  );
+
+}
+
+
+function normalizeImportedBackup(
+  data
+) {
+
+  if (
+    data?.format ===
+      CHATI_BACKUP_FORMAT
+  ) {
+
+    if (
+      Number(
+        data.backupVersion
+      ) >
+      CHATI_BACKUP_VERSION
+    ) {
+
+      throw new Error(
+        "This backup was created by a newer version of Chati-AI."
+      );
+
+    }
+
+
+    if (
+      !data.localStorage ||
+      typeof data.localStorage !==
+        "object" ||
+      Array.isArray(
+        data.localStorage
+      )
+    ) {
+
+      throw new Error(
+        "This backup does not contain valid Chati-AI local data."
+      );
+
+    }
+
+
+    return {
+      localStorage:
+        data.localStorage,
+      media:
+        Array.isArray(
+          data.media
+        )
+          ? data.media
+          : [],
+      includesMedia:
+        Boolean(
+          data.includesMedia
+        ),
+      exportedAt:
+        typeof data.exportedAt ===
+          "string"
+          ? data.exportedAt
+          : "",
+      legacy:
+        false
+    };
+
+  }
+
+
+  if (
+    isLegacyChatiBackup(
+      data
+    )
+  ) {
+
+    return {
+      localStorage:
+        data,
+      media:
+        [],
+      includesMedia:
+        false,
+      exportedAt:
+        "",
+      legacy:
+        true
+    };
+
+  }
+
+
+  throw new Error(
+    "This is not a recognized Chati-AI backup."
+  );
+
+}
+
+
+function sanitizeImportedLocalStorage(
+  storage
+) {
+
+  const clean = {};
+
+
+  Object.entries(
+    storage ||
+    {}
+  )
+    .forEach(
+      (
+        [
+          key,
+          value
+        ]
+      ) => {
+
+        if (
+          typeof key !==
+            "string" ||
+          !key.startsWith(
+            CHATI_STORAGE_PREFIX
+          )
+        ) {
+
+          return;
+
+        }
+
+
+        if (
+          typeof value ===
+            "string"
+        ) {
+
+          clean[key] =
+            value;
+
+        }
+
+        else if (
+          value ===
+          null
+        ) {
+
+          clean[key] =
+            null;
+
+        }
+
+      }
+    );
+
+
+  if (
+    !Object.keys(
+      clean
+    ).length
+  ) {
+
+    throw new Error(
+      "The backup does not contain Chati-AI storage keys."
+    );
+
+  }
+
+
+  return clean;
+
+}
+
+
+async function restoreBackupMedia(
+  media
+) {
+
+  if (
+    !Array.isArray(
+      media
+    ) ||
+    !media.length
+  ) {
+
+    return 0;
+
+  }
+
+
+  let restored = 0;
+
+
+  for (
+    const entry of
+    media
+  ) {
+
+    if (
+      !entry ||
+      typeof entry.id !==
+        "string" ||
+      !entry.id ||
+      typeof entry.dataUrl !==
+        "string"
+    ) {
+
+      continue;
+
+    }
+
+
+    if (
+      isPrivateMediaId(
+        entry.id
+      )
+    ) {
+
+      continue;
+
+    }
+
+
+    const blob =
+      dataUrlToBlob(
+        entry.dataUrl,
+        typeof entry.type ===
+          "string"
+          ? entry.type
+          : ""
+      );
+
+
+    await putMediaBlob(
+      entry.id,
+      blob
+    );
+
+
+    restored += 1;
+
+  }
+
+
+  return restored;
+
+}
+
+
+function replaceChatiLocalStorage(
+  imported
+) {
+
+  const before =
+    getChatiLocalStorageSnapshot();
+
+
+  try {
+
+    const removeKeys = [];
+
+
+    for (
+      let index = 0;
+      index < localStorage.length;
+      index += 1
+    ) {
+
+      const key =
+        localStorage.key(
+          index
+        );
+
+
+      if (
+        key?.startsWith(
+          CHATI_STORAGE_PREFIX
+        )
+      ) {
+
+        removeKeys.push(
+          key
+        );
+
+      }
+
+    }
+
+
+    removeKeys
+      .forEach(
+        key =>
+          localStorage.removeItem(
+            key
+          )
+      );
+
+
+    Object.entries(
+      imported
+    )
+      .forEach(
+        (
+          [
+            key,
+            value
+          ]
+        ) => {
+
+          if (
+            value !==
+            null
+          ) {
+
+            localStorage.setItem(
+              key,
+              value
+            );
+
+          }
+
+        }
+      );
+
+  }
+
+  catch (
+    error
+  ) {
+
+    const rollbackKeys = [];
+
+
+    for (
+      let index = 0;
+      index < localStorage.length;
+      index += 1
+    ) {
+
+      const key =
+        localStorage.key(
+          index
+        );
+
+
+      if (
+        key?.startsWith(
+          CHATI_STORAGE_PREFIX
+        )
+      ) {
+
+        rollbackKeys.push(
+          key
+        );
+
+      }
+
+    }
+
+
+    rollbackKeys
+      .forEach(
+        key =>
+          localStorage.removeItem(
+            key
+          )
+      );
+
+
+    Object.entries(
+      before
+    )
+      .forEach(
+        (
+          [
+            key,
+            value
+          ]
+        ) => {
+
+          if (
+            value !==
+            null
+          ) {
+
+            localStorage.setItem(
+              key,
+              value
+            );
+
+          }
+
+        }
+      );
+
+
+    throw error;
+
+  }
+
+}
+
+
+async function restoreChatiBackupFile(
+  file
+) {
+
+  if (
+    !file
+  ) {
+
+    return;
+
+  }
+
+
+  setBackupBusy(
+    true
+  );
+
+
+  setBackupStatus(
+    "Reading backup...",
+    "working"
+  );
+
+
+  try {
+
+    const text =
+      await file.text();
+
+
+    let parsed;
+
+
+    try {
+
+      parsed =
+        JSON.parse(
+          text
+        );
+
+    }
+
+    catch {
+
+      throw new Error(
+        "The selected file is not valid JSON."
+      );
+
+    }
+
+
+    const backup =
+      normalizeImportedBackup(
+        parsed
+      );
+
+
+    const storage =
+      sanitizeImportedLocalStorage(
+        backup.localStorage
+      );
+
+
+    const stats =
+      getBackupTextStats(
+        storage
+      );
+
+
+    const mediaCount =
+      backup.media.length;
+
+
+    const confirmation =
+      window.confirm(
+        `Restore this Chati-AI backup?\n\n${stats.characterCount} characters\n${stats.groupCount} groups\n${stats.chatCount} chats\n${mediaCount} stored media items\n\nYour current saved Chati-AI local data will be replaced. Private sessions are not affected because they are temporary.`
+      );
+
+
+    if (
+      !confirmation
+    ) {
+
+      setBackupStatus(
+        "Restore cancelled. Nothing was changed.",
+        "neutral"
+      );
+
+      return;
+
+    }
+
+
+    setBackupStatus(
+      mediaCount
+        ? "Restoring saved media and local data..."
+        : "Restoring local data...",
+      "working"
+    );
+
+
+    let restoredMedia = 0;
+
+
+    if (
+      mediaCount
+    ) {
+
+      restoredMedia =
+        await restoreBackupMedia(
+          backup.media
+        );
+
+    }
+
+
+    replaceChatiLocalStorage(
+      storage
+    );
+
+
+    if (
+      backupDataStatus
+    ) {
+
+      backupDataStatus.textContent =
+        "Restored";
+
+    }
+
+
+    setBackupStatus(
+      `Restore complete · ${stats.characterCount} characters · ${stats.groupCount} groups · ${stats.chatCount} chats${restoredMedia ? ` · ${restoredMedia} media items` : ""}. Reloading Chati-AI...`,
+      "success"
+    );
+
+
+    setTimeout(
+      () =>
+        window.location.reload(),
+      650
+    );
+
+  }
+
+  catch (
+    error
+  ) {
+
+    console.error(
+      "Could not restore Chati-AI backup:",
+      error
+    );
+
+
+    setBackupStatus(
+      error?.message ||
+      "Restore failed. Your existing Chati-AI data was not changed.",
+      "error"
+    );
+
+  }
+
+  finally {
+
+    setBackupBusy(
+      false
+    );
+
+
+    if (
+      backupFileInput
+    ) {
+
+      backupFileInput.value =
+        "";
+
+    }
+
+  }
+
+}
+
+
+function refreshBackupDataStatus() {
+
+  if (
+    !backupDataStatus
+  ) {
+
+    return;
+
+  }
+
+
+  try {
+
+    const snapshot =
+      getChatiLocalStorageSnapshot();
+
+
+    const stats =
+      getBackupTextStats(
+        snapshot
+      );
+
+
+    backupDataStatus.textContent =
+      `${stats.characterCount + stats.groupCount} saved`;
+
+  }
+
+  catch {
+
+    backupDataStatus.textContent =
+      "Local";
+
+  }
 
 }
 
@@ -3620,6 +5158,7 @@ function openSettings() {
 
   renderRoleplayLevelSettings();
   updateSettingsCurrentEditor();
+  refreshBackupDataStatus();
 
 
   settingsModal
@@ -7699,6 +9238,63 @@ roleplayLevelButtons
 
     }
   );
+
+
+
+exportBackupBtn?.addEventListener(
+
+  "click",
+
+  exportChatiBackup
+
+);
+
+
+restoreBackupBtn?.addEventListener(
+
+  "click",
+
+  () => {
+
+    if (
+      isSending
+    ) {
+
+      return;
+
+    }
+
+
+    backupFileInput
+      ?.click();
+
+  }
+
+);
+
+
+backupFileInput?.addEventListener(
+
+  "change",
+
+  event => {
+
+    const file =
+      event.target
+        ?.files?.[0];
+
+
+    if (file) {
+
+      restoreChatiBackupFile(
+        file
+      );
+
+    }
+
+  }
+
+);
 
 
 settingsEditCurrentBtn?.addEventListener(

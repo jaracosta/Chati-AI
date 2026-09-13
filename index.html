@@ -1952,7 +1952,7 @@
           <div>
             <span class="settings-eyebrow">Chati-AI</span>
             <h2 id="settingsTitle">Settings</h2>
-            <p>Choose how deeply Chati-AI commits to the roleplay.</p>
+            <p>Control roleplay behavior and protect your local Chati-AI data.</p>
           </div>
         </div>
 
@@ -2084,6 +2084,135 @@
 
           <span>
             Safety boundaries stay the same at every level. The setting changes storytelling depth, not the safety rules.
+          </span>
+        </div>
+      </section>
+
+
+      <section class="settings-section settings-data-section">
+        <div class="settings-section-title-row">
+          <div>
+            <span class="settings-section-kicker">Your data</span>
+            <h3>Backup &amp; Restore</h3>
+          </div>
+
+          <span
+            id="backupDataStatus"
+            class="backup-data-status"
+          >
+            Local
+          </span>
+        </div>
+
+        <p class="settings-section-description">
+          Move your saved characters, groups, chats, memory, and settings to another browser, device, or future Chati-AI domain.
+        </p>
+
+        <div class="backup-restore-grid">
+          <article class="backup-card">
+            <div class="backup-card-heading">
+              <span class="backup-card-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M5 5.5h14v13H5z"></path>
+                  <path d="M8 5.5V3.8h8v1.7M8 9h8"></path>
+                  <path d="M12 11.5v5M9.8 14.3 12 16.5l2.2-2.2"></path>
+                </svg>
+              </span>
+
+              <span class="backup-card-copy">
+                <strong>Export backup</strong>
+                <small>Download a portable copy of your saved Chati-AI data.</small>
+              </span>
+            </div>
+
+            <label class="backup-media-option">
+              <input
+                id="backupIncludeMedia"
+                type="checkbox"
+                checked
+              >
+
+              <span class="backup-media-toggle" aria-hidden="true">
+                <span></span>
+              </span>
+
+              <span class="backup-media-copy">
+                <strong>Include stored media</strong>
+                <small>Also back up saved audio and video from normal chats. This can make the file much larger.</small>
+              </span>
+            </label>
+
+            <button
+              id="exportBackupBtn"
+              class="backup-primary-btn"
+              type="button"
+            >
+              <span class="settings-action-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 3v11"></path>
+                  <path d="m8.5 10.5 3.5 3.5 3.5-3.5"></path>
+                  <path d="M5 14.5V20h14v-5.5"></path>
+                </svg>
+              </span>
+              <span>Export Backup</span>
+            </button>
+          </article>
+
+          <article class="backup-card">
+            <div class="backup-card-heading">
+              <span class="backup-card-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M5 5.5h14v13H5z"></path>
+                  <path d="M8 5.5V3.8h8v1.7M8 9h8"></path>
+                  <path d="M12 16.5v-5"></path>
+                  <path d="m8.5 13.7 3.5-3.5 3.5 3.5"></path>
+                </svg>
+              </span>
+
+              <span class="backup-card-copy">
+                <strong>Restore backup</strong>
+                <small>Import a Chati-AI backup. Saved local data will be replaced, then the app will reload.</small>
+              </span>
+            </div>
+
+            <button
+              id="restoreBackupBtn"
+              class="backup-secondary-btn"
+              type="button"
+            >
+              <span class="settings-action-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M4.5 6.5h6l1.6 2H19.5V19H4.5z"></path>
+                  <path d="M12 16v-5"></path>
+                  <path d="m9.8 13.2 2.2-2.2 2.2 2.2"></path>
+                </svg>
+              </span>
+              <span>Choose Backup</span>
+            </button>
+
+            <input
+              id="backupFileInput"
+              class="hidden"
+              type="file"
+              accept=".json,.chati"
+            >
+          </article>
+        </div>
+
+        <div
+          id="backupStatusMessage"
+          class="backup-status-message"
+          aria-live="polite"
+        >
+          <span class="backup-status-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="8"></circle>
+              <path d="M12 10.5V16M12 7.7v.2"></path>
+            </svg>
+          </span>
+
+          <span>
+            Private Chat and Private Group Chat are temporary and are never included in backups.
           </span>
         </div>
       </section>
