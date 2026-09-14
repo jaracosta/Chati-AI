@@ -48,7 +48,29 @@ const TRANSCRIBE_MODEL =
 
 
 const APP_VERSION =
-  "3.8.1";
+  "3.8.2";
+
+
+const NODE_ENV =
+  process.env.NODE_ENV ||
+  "development";
+
+
+const IS_PRODUCTION =
+  NODE_ENV ===
+  "production";
+
+
+const TRUST_PROXY_ENABLED =
+  [
+    "1",
+    "true"
+  ].includes(
+    String(
+      process.env.TRUST_PROXY ||
+      ""
+    ).toLowerCase()
+  );
 
 
 const API_RATE_LIMIT_WINDOW_MS =
@@ -130,8 +152,7 @@ app.disable(
 
 
 if (
-  process.env.TRUST_PROXY ===
-    "1"
+  TRUST_PROXY_ENABLED
 ) {
 
   app.set(
@@ -179,6 +200,25 @@ app.use(
 
 
     res.setHeader(
+      "Cross-Origin-Resource-Policy",
+      "same-origin"
+    );
+
+
+    if (
+      IS_PRODUCTION &&
+      req.secure
+    ) {
+
+      res.setHeader(
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains"
+      );
+
+    }
+
+
+    res.setHeader(
       "Permissions-Policy",
       "geolocation=(), payment=(), usb=()"
     );
@@ -189,12 +229,32 @@ app.use(
         "/api/"
       ) ||
       req.path ===
-        "/health"
+        "/health" ||
+      req.path ===
+        "/ready"
     ) {
 
       res.setHeader(
         "Cache-Control",
         "no-store"
+      );
+
+    }
+
+    else if (
+      req.path ===
+        "/" ||
+      req.path ===
+        "/index.html" ||
+      req.path ===
+        "/sw.js" ||
+      req.path ===
+        "/manifest.webmanifest"
+    ) {
+
+      res.setHeader(
+        "Cache-Control",
+        "no-cache, must-revalidate"
       );
 
     }
@@ -482,6 +542,31 @@ app.get(
 );
 
 
+app.get(
+
+  "/ready",
+
+  (
+    req,
+    res
+  ) => {
+
+    res.json({
+      status:
+        "ready",
+
+      service:
+        "chati-ai",
+
+      version:
+        APP_VERSION
+    });
+
+  }
+
+);
+
+
 app.use(
 
   express.static(
@@ -490,7 +575,49 @@ app.use(
 
     {
       dotfiles:
-        "deny"
+        "deny",
+
+      etag:
+        true,
+
+      fallthrough:
+        true,
+
+      maxAge:
+        IS_PRODUCTION
+          ? 60 * 60 * 1000
+          : 0,
+
+      setHeaders:
+        (
+          res,
+          filePath
+        ) => {
+
+          const fileName =
+            path.basename(
+              filePath
+            );
+
+
+          if (
+            [
+              "index.html",
+              "sw.js",
+              "manifest.webmanifest"
+            ].includes(
+              fileName
+            )
+          ) {
+
+            res.setHeader(
+              "Cache-Control",
+              "no-cache, must-revalidate"
+            );
+
+          }
+
+        }
     }
 
   )
@@ -3910,3 +4037,7 @@ server.headersTimeout =
 
 server.requestTimeout =
   180000;
+
+
+server.maxHeadersCount =
+  100;
