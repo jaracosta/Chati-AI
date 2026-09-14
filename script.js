@@ -7159,7 +7159,7 @@ function renderInstallExperience() {
     installAppTitle.textContent =
       codespaces
         ? "Install prompt unavailable in this Codespace"
-        : "Install option is not available yet";
+        : "Install from your browser";
 
   }
 
@@ -7170,7 +7170,7 @@ function renderInstallExperience() {
     installAppMessage.textContent =
       codespaces
         ? "The private GitHub Codespaces tunnel can interfere with browser install detection. The install UI is ready for normal hosting."
-        : "This browser has not offered an install prompt for Chati-AI on this page.";
+        : "Chati-AI can still be installed from your browser menu even when the in-page install prompt is not exposed.";
 
   }
 
@@ -7188,14 +7188,16 @@ function renderInstallExperience() {
   ) {
 
     installAppBtnLabel.textContent =
-      "Unavailable";
+      codespaces
+        ? "Unavailable"
+        : "Browser Menu";
 
   }
 
   setInstallHint(
     codespaces
       ? "Nothing is wrong with your saved characters or chats. Final install testing should be repeated after Chati-AI moves to normal HTTPS hosting."
-      : "Try a browser that supports PWA installation, or use its page/app installation menu."
+      : "Use your browser's page/app installation menu. In Chrome: menu > Send, save and share > Install page as app."
   );
 
 }
