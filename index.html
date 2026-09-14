@@ -20,12 +20,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Chati-AI">
 
-  <link rel="manifest" href="manifest.webmanifest?v=3.7.4">
-  <link rel="apple-touch-icon" href="assets/icons/chati-ai-192.png?v=3.7.4">
+  <link rel="manifest" href="manifest.webmanifest?v=3.7.5">
+  <link rel="apple-touch-icon" href="assets/icons/chati-ai-192.png?v=3.7.5">
 
   <link
     rel="stylesheet"
-    href="style.css?v=3.7.4"
+    href="style.css?v=3.7.5"
   >
 </head>
 
@@ -2284,6 +2284,77 @@
       </section>
 
 
+      <section class="settings-section settings-install-section">
+        <div class="settings-section-title-row">
+          <div>
+            <span class="settings-section-kicker">App experience</span>
+            <h3>Install Chati-AI</h3>
+          </div>
+
+          <span
+            id="installAppStatus"
+            class="install-app-status"
+          >
+            Checking
+          </span>
+        </div>
+
+        <p class="settings-section-description">
+          Install Chati-AI for a cleaner standalone window, Home Screen access, and a more app-like experience.
+        </p>
+
+        <article class="install-app-card">
+          <div class="install-app-visual" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <rect x="5" y="3.5" width="14" height="17" rx="3"></rect>
+              <path d="M9 7.5h6"></path>
+              <path d="M12 10v6"></path>
+              <path d="m9.5 13.5 2.5 2.5 2.5-2.5"></path>
+            </svg>
+          </div>
+
+          <div class="install-app-copy">
+            <strong id="installAppTitle">Preparing install options…</strong>
+            <small id="installAppMessage">
+              Chati-AI is checking what installation options are available in this browser.
+            </small>
+          </div>
+
+          <button
+            id="installAppBtn"
+            class="install-app-btn"
+            type="button"
+            disabled
+          >
+            <span class="settings-action-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 3v10"></path>
+                <path d="m8.5 9.8 3.5 3.5 3.5-3.5"></path>
+                <path d="M5 15.5V20h14v-4.5"></path>
+              </svg>
+            </span>
+            <span id="installAppBtnLabel">Install</span>
+          </button>
+        </article>
+
+        <div
+          id="installAppHint"
+          class="install-app-hint"
+          aria-live="polite"
+        >
+          <span class="install-app-hint-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="8"></circle>
+              <path d="M12 10.5V16M12 7.7v.2"></path>
+            </svg>
+          </span>
+          <span id="installAppHintText">
+            Installation availability depends on your browser and hosting environment.
+          </span>
+        </div>
+      </section>
+
+
       <section class="settings-section settings-data-section">
         <div class="settings-section-title-row">
           <div>
@@ -2772,12 +2843,54 @@
   </div>
 
 
+  <!-- =========================
+       INSTALL NUDGE
+  ========================== -->
+  <aside
+    id="installNudge"
+    class="install-nudge hidden"
+    aria-live="polite"
+  >
+    <div class="install-nudge-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <rect x="5" y="3.5" width="14" height="17" rx="3"></rect>
+        <path d="M12 8.5v6"></path>
+        <path d="m9.5 12 2.5 2.5 2.5-2.5"></path>
+      </svg>
+    </div>
+
+    <div class="install-nudge-copy">
+      <strong>Install Chati-AI</strong>
+      <span>Open it like an app from your desktop or Home Screen.</span>
+    </div>
+
+    <button
+      id="installNudgeBtn"
+      class="install-nudge-install"
+      type="button"
+    >
+      Install
+    </button>
+
+    <button
+      id="installNudgeCloseBtn"
+      class="install-nudge-close"
+      type="button"
+      aria-label="Dismiss install suggestion"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 6l12 12M18 6 6 18"></path>
+      </svg>
+    </button>
+  </aside>
+
+
 
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker
-          .register("./sw.js?v=3.7.4", {
+          .register("./sw.js?v=3.7.5", {
             scope: "./",
             updateViaCache: "none"
           })
@@ -2788,7 +2901,7 @@
     }
   </script>
 
-  <script src="script.js?v=3.7.4"></script>
+  <script src="script.js?v=3.7.5"></script>
 
 </body>
 </html>

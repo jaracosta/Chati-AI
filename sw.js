@@ -1,8 +1,9 @@
-const CACHE_NAME = "chati-ai-runtime-v3.7.4.1";
+const CACHE_NAME = "chati-ai-runtime-v3.7.5";
 
 self.addEventListener("install", (event) => {
-  // No hacemos pre-cache aquí.
-  // En Codespaces algunas requests pueden redirigirse y romper la instalación.
+  // Do not pre-cache during install. Private development tunnels such as
+  // GitHub Codespaces can redirect unauthenticated background requests,
+  // which would make cache.addAll() fail the entire Service Worker install.
   event.waitUntil(self.skipWaiting());
 });
 
@@ -35,7 +36,7 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // Nunca interceptar API ni recursos externos.
+  // Never intercept API traffic or third-party resources.
   if (
     url.origin !== self.location.origin ||
     url.pathname.startsWith("/api/")
@@ -43,14 +44,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Navegación: primero red, luego cache si falla.
+  // Navigation: network first, then fall back to a previously cached page.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
           if (response.ok && response.type === "basic") {
             const copy = response.clone();
-
             caches
               .open(CACHE_NAME)
               .then((cache) => cache.put(request, copy))
@@ -61,7 +61,6 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(async () => {
           const cached = await caches.match(request);
-
           return cached || Response.error();
         })
     );
@@ -69,8 +68,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Archivos estáticos:
-  // usa cache si existe, si no los descarga y los guarda.
+  // Static same-origin files: use cache when available; otherwise fetch and
+  // store only successful same-origin responses. Nothing here can block SW install.
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) {
@@ -80,7 +79,6 @@ self.addEventListener("fetch", (event) => {
       return fetch(request).then((response) => {
         if (response.ok && response.type === "basic") {
           const copy = response.clone();
-
           caches
             .open(CACHE_NAME)
             .then((cache) => cache.put(request, copy))

@@ -8,7 +8,10 @@
   "orientation": "any",
   "background_color": "#0b0b0f",
   "theme_color": "#111116",
-  "categories": ["entertainment", "social"],
+  "categories": [
+    "entertainment",
+    "social"
+  ],
   "icons": [
     {
       "src": "assets/icons/chati-ai-192.png",
@@ -28,5 +31,13 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "id": "./",
+  "lang": "en",
+  "dir": "ltr",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "prefer_related_applications": false
 }

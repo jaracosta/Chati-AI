@@ -6555,6 +6555,10 @@ button:not(:disabled):active {
 .settings-boundary-icon svg,
 .backup-card-icon svg,
 .backup-status-icon svg,
+.install-app-visual svg,
+.install-app-hint-icon svg,
+.install-nudge-mark svg,
+.install-nudge-close svg,
 .settings-action-icon svg {
   fill: none;
   stroke: currentColor;
@@ -7077,6 +7081,293 @@ button:not(:disabled):active {
 .backup-status-icon svg {
   width: 17px;
   height: 17px;
+}
+
+
+/* =========================
+   PWA INSTALL EXPERIENCE
+========================= */
+
+.settings-install-section {
+  margin-top: 18px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(84, 81, 99, 0.25);
+}
+
+.install-app-status {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  color: #9e96c5;
+  border: 1px solid rgba(113, 105, 151, 0.24);
+  border-radius: 999px;
+  background: rgba(98, 86, 155, 0.07);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.install-app-status.is-ready {
+  color: #c6baff;
+  border-color: rgba(139, 124, 220, 0.34);
+  background: rgba(104, 88, 188, 0.11);
+}
+
+.install-app-status.is-installed {
+  color: #a9c8b3;
+  border-color: rgba(91, 144, 110, 0.28);
+  background: rgba(51, 118, 73, 0.08);
+}
+
+.install-app-card {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 16px;
+  border: 1px solid rgba(84, 81, 99, 0.34);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 90% 15%, rgba(126, 109, 235, 0.07), transparent 35%),
+    linear-gradient(140deg, rgba(27, 27, 36, 0.8), rgba(17, 17, 24, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.018);
+}
+
+.install-app-visual {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+  color: #aaa1d7;
+  border: 1px solid rgba(126, 116, 169, 0.3);
+  border-radius: 13px;
+  background: rgba(104, 89, 181, 0.08);
+}
+
+.install-app-visual svg {
+  width: 20px;
+  height: 20px;
+}
+
+.install-app-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.install-app-copy strong {
+  color: #e8e5f0;
+  font-size: 13px;
+}
+
+.install-app-copy small {
+  color: #777482;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.install-app-btn {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 14px;
+  color: #111016;
+  border: 0;
+  border-radius: 11px;
+  background: #e7e2f6;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.install-app-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #fff;
+}
+
+.install-app-btn:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.install-app-hint {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 11px;
+  color: #74717e;
+  border: 1px solid rgba(83, 80, 96, 0.24);
+  border-radius: 12px;
+  background: rgba(12, 12, 17, 0.34);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.install-app-hint.is-ready {
+  color: #a59cc9;
+  border-color: rgba(125, 113, 177, 0.3);
+  background: rgba(95, 78, 166, 0.07);
+}
+
+.install-app-hint.is-installed {
+  color: #9eb9a8;
+  border-color: rgba(91, 144, 110, 0.26);
+  background: rgba(51, 118, 73, 0.07);
+}
+
+.install-app-hint-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  color: currentColor;
+}
+
+.install-app-hint-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.install-nudge {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 1400;
+  width: min(390px, calc(100vw - 36px));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 11px;
+  padding: 12px;
+  color: #e7e4ef;
+  border: 1px solid rgba(112, 105, 145, 0.36);
+  border-radius: 17px;
+  background:
+    radial-gradient(circle at 85% 15%, rgba(126, 109, 235, 0.14), transparent 40%),
+    rgba(18, 18, 25, 0.96);
+  box-shadow:
+    0 18px 55px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  animation: installNudgeIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes installNudgeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.install-nudge-mark {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  color: #b3a9e1;
+  border: 1px solid rgba(126, 116, 169, 0.28);
+  border-radius: 12px;
+  background: rgba(104, 89, 181, 0.09);
+}
+
+.install-nudge-mark svg {
+  width: 19px;
+  height: 19px;
+}
+
+.install-nudge-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.install-nudge-copy strong {
+  font-size: 12px;
+}
+
+.install-nudge-copy span {
+  color: #817d8b;
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.install-nudge-install {
+  min-height: 34px;
+  padding: 7px 12px;
+  color: #111016;
+  border: 0;
+  border-radius: 10px;
+  background: #e7e2f6;
+  font-size: 10.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.install-nudge-install:hover {
+  background: #fff;
+}
+
+.install-nudge-close {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  color: #777381;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.install-nudge-close:hover {
+  color: #d5d1df;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.install-nudge-close svg {
+  width: 15px;
+  height: 15px;
+}
+
+@media (max-width: 620px) {
+  .install-app-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .install-app-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .install-nudge {
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .install-nudge-install {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .install-nudge-close {
+    grid-column: 3;
+    grid-row: 1;
+  }
 }
 
 .settings-actions {

@@ -59,6 +59,16 @@ const exportBackupBtn = $("exportBackupBtn");
 const restoreBackupBtn = $("restoreBackupBtn");
 const backupFileInput = $("backupFileInput");
 const backupStatusMessage = $("backupStatusMessage");
+const installAppStatus = $("installAppStatus");
+const installAppTitle = $("installAppTitle");
+const installAppMessage = $("installAppMessage");
+const installAppBtn = $("installAppBtn");
+const installAppBtnLabel = $("installAppBtnLabel");
+const installAppHint = $("installAppHint");
+const installAppHintText = $("installAppHintText");
+const installNudge = $("installNudge");
+const installNudgeBtn = $("installNudgeBtn");
+const installNudgeCloseBtn = $("installNudgeCloseBtn");
 
 const sidebar = $("sidebar");
 const sidebarBrandBtn = $("sidebarBrandBtn");
@@ -253,6 +263,16 @@ const MOBILE_POINTER_QUERY =
 
 const MAX_LOCAL_IMAGE_FILE_SIZE =
   20 * 1024 * 1024;
+
+
+const INSTALL_NUDGE_DISMISSED_KEY =
+  "chatiInstallNudgeDismissedAt";
+
+const INSTALL_NUDGE_COOLDOWN_MS =
+  7 * 24 * 60 * 60 * 1000;
+
+let deferredInstallPrompt = null;
+let installPromptInProgress = false;
 
 let roleplayLevel =
   loadRoleplayLevel();
@@ -6760,6 +6780,541 @@ function updateSettingsCurrentEditor() {
 }
 
 
+
+function isStandaloneAppMode() {
+
+  return (
+    window.matchMedia(
+      "(display-mode: standalone)"
+    ).matches ||
+    window.navigator.standalone === true
+  );
+
+}
+
+
+function isIosDevice() {
+
+  return /iphone|ipad|ipod/i.test(
+    navigator.userAgent
+  );
+
+}
+
+
+function isCodespacesHost() {
+
+  return window.location.hostname
+    .endsWith(
+      ".app.github.dev"
+    );
+
+}
+
+
+function wasInstallNudgeRecentlyDismissed() {
+
+  try {
+
+    const value =
+      Number(
+        localStorage.getItem(
+          INSTALL_NUDGE_DISMISSED_KEY
+        ) ||
+        0
+      );
+
+    return (
+      value > 0 &&
+      Date.now() - value <
+        INSTALL_NUDGE_COOLDOWN_MS
+    );
+
+  }
+
+  catch {
+
+    return false;
+
+  }
+
+}
+
+
+function dismissInstallNudge() {
+
+  installNudge
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+  try {
+
+    localStorage.setItem(
+      INSTALL_NUDGE_DISMISSED_KEY,
+      String(
+        Date.now()
+      )
+    );
+
+  }
+
+  catch {
+    // A dismissed nudge is only a UI preference.
+  }
+
+}
+
+
+function showInstallNudgeIfUseful() {
+
+  if (
+    !deferredInstallPrompt ||
+    isStandaloneAppMode() ||
+    wasInstallNudgeRecentlyDismissed()
+  ) {
+
+    installNudge
+      ?.classList
+      .add(
+        "hidden"
+      );
+
+    return;
+
+  }
+
+  installNudge
+    ?.classList
+    .remove(
+      "hidden"
+    );
+
+}
+
+
+function setInstallHint(
+  text,
+  state = ""
+) {
+
+  if (
+    installAppHintText
+  ) {
+
+    installAppHintText.textContent =
+      text;
+
+  }
+
+  installAppHint
+    ?.classList
+    .toggle(
+      "is-ready",
+      state === "ready"
+    );
+
+  installAppHint
+    ?.classList
+    .toggle(
+      "is-installed",
+      state === "installed"
+    );
+
+}
+
+
+function renderInstallExperience() {
+
+  const installed =
+    isStandaloneAppMode();
+
+  const ios =
+    isIosDevice();
+
+  const codespaces =
+    isCodespacesHost();
+
+
+  installAppStatus
+    ?.classList
+    .remove(
+      "is-ready",
+      "is-installed"
+    );
+
+
+  if (
+    installed
+  ) {
+
+    if (
+      installAppStatus
+    ) {
+
+      installAppStatus.textContent =
+        "Installed";
+
+      installAppStatus
+        .classList
+        .add(
+          "is-installed"
+        );
+
+    }
+
+    if (
+      installAppTitle
+    ) {
+
+      installAppTitle.textContent =
+        "Chati-AI is installed";
+
+    }
+
+    if (
+      installAppMessage
+    ) {
+
+      installAppMessage.textContent =
+        "You are already running Chati-AI in standalone app mode.";
+
+    }
+
+    if (
+      installAppBtn
+    ) {
+
+      installAppBtn.disabled =
+        true;
+
+    }
+
+    if (
+      installAppBtnLabel
+    ) {
+
+      installAppBtnLabel.textContent =
+        "Installed";
+
+    }
+
+    setInstallHint(
+      "Installed successfully. Chati-AI can launch without the normal browser chrome.",
+      "installed"
+    );
+
+    installNudge
+      ?.classList
+      .add(
+        "hidden"
+      );
+
+    return;
+
+  }
+
+
+  if (
+    deferredInstallPrompt
+  ) {
+
+    if (
+      installAppStatus
+    ) {
+
+      installAppStatus.textContent =
+        "Ready";
+
+      installAppStatus
+        .classList
+        .add(
+          "is-ready"
+        );
+
+    }
+
+    if (
+      installAppTitle
+    ) {
+
+      installAppTitle.textContent =
+        "Install Chati-AI on this device";
+
+    }
+
+    if (
+      installAppMessage
+    ) {
+
+      installAppMessage.textContent =
+        "Open Chati-AI in its own window and launch it directly from your device.";
+
+    }
+
+    if (
+      installAppBtn
+    ) {
+
+      installAppBtn.disabled =
+        installPromptInProgress;
+
+    }
+
+    if (
+      installAppBtnLabel
+    ) {
+
+      installAppBtnLabel.textContent =
+        installPromptInProgress
+          ? "Opening…"
+          : "Install";
+
+    }
+
+    setInstallHint(
+      "Your browser reports that Chati-AI is ready to install.",
+      "ready"
+    );
+
+    return;
+
+  }
+
+
+  if (
+    ios
+  ) {
+
+    if (
+      installAppStatus
+    ) {
+
+      installAppStatus.textContent =
+        "Home Screen";
+
+    }
+
+    if (
+      installAppTitle
+    ) {
+
+      installAppTitle.textContent =
+        "Add Chati-AI to your Home Screen";
+
+    }
+
+    if (
+      installAppMessage
+    ) {
+
+      installAppMessage.textContent =
+        "On iPhone or iPad, use Safari's Share menu and choose Add to Home Screen.";
+
+    }
+
+    if (
+      installAppBtn
+    ) {
+
+      installAppBtn.disabled =
+        true;
+
+    }
+
+    if (
+      installAppBtnLabel
+    ) {
+
+      installAppBtnLabel.textContent =
+        "Use Share";
+
+    }
+
+    setInstallHint(
+      "Safari controls iPhone and iPad installation, so Chati-AI cannot open that system prompt itself."
+    );
+
+    return;
+
+  }
+
+
+  if (
+    installAppStatus
+  ) {
+
+    installAppStatus.textContent =
+      codespaces
+        ? "Development"
+        : "Browser";
+
+  }
+
+  if (
+    installAppTitle
+  ) {
+
+    installAppTitle.textContent =
+      codespaces
+        ? "Install prompt unavailable in this Codespace"
+        : "Install option is not available yet";
+
+  }
+
+  if (
+    installAppMessage
+  ) {
+
+    installAppMessage.textContent =
+      codespaces
+        ? "The private GitHub Codespaces tunnel can interfere with browser install detection. The install UI is ready for normal hosting."
+        : "This browser has not offered an install prompt for Chati-AI on this page.";
+
+  }
+
+  if (
+    installAppBtn
+  ) {
+
+    installAppBtn.disabled =
+      true;
+
+  }
+
+  if (
+    installAppBtnLabel
+  ) {
+
+    installAppBtnLabel.textContent =
+      "Unavailable";
+
+  }
+
+  setInstallHint(
+    codespaces
+      ? "Nothing is wrong with your saved characters or chats. Final install testing should be repeated after Chati-AI moves to normal HTTPS hosting."
+      : "Try a browser that supports PWA installation, or use its page/app installation menu."
+  );
+
+}
+
+
+async function requestChatiInstall() {
+
+  if (
+    !deferredInstallPrompt ||
+    installPromptInProgress
+  ) {
+
+    renderInstallExperience();
+    return;
+
+  }
+
+
+  installPromptInProgress =
+    true;
+
+  renderInstallExperience();
+
+
+  try {
+
+    await deferredInstallPrompt
+      .prompt();
+
+    await deferredInstallPrompt
+      .userChoice;
+
+  }
+
+  catch (
+    error
+  ) {
+
+    console.warn(
+      "Chati-AI install prompt could not open:",
+      error
+    );
+
+  }
+
+  finally {
+
+    deferredInstallPrompt =
+      null;
+
+    installPromptInProgress =
+      false;
+
+    installNudge
+      ?.classList
+      .add(
+        "hidden"
+      );
+
+    renderInstallExperience();
+
+  }
+
+}
+
+
+function initializeInstallExperience() {
+
+  renderInstallExperience();
+
+
+  window.addEventListener(
+    "beforeinstallprompt",
+    event => {
+
+      event.preventDefault();
+
+      deferredInstallPrompt =
+        event;
+
+      renderInstallExperience();
+      showInstallNudgeIfUseful();
+
+    }
+  );
+
+
+  window.addEventListener(
+    "appinstalled",
+    () => {
+
+      deferredInstallPrompt =
+        null;
+
+      installPromptInProgress =
+        false;
+
+      installNudge
+        ?.classList
+        .add(
+          "hidden"
+        );
+
+      renderInstallExperience();
+
+    }
+  );
+
+
+  window.matchMedia(
+    "(display-mode: standalone)"
+  )
+    .addEventListener?.(
+      "change",
+      renderInstallExperience
+    );
+
+}
+
 function openSettings() {
 
   if (
@@ -6779,6 +7334,7 @@ function openSettings() {
   renderRoleplayLevelSettings();
   updateSettingsCurrentEditor();
   refreshBackupDataStatus();
+  renderInstallExperience();
 
 
   settingsModal
@@ -11067,6 +11623,33 @@ settingsDoneBtn?.addEventListener(
   "click",
 
   closeSettings
+
+);
+
+
+installAppBtn?.addEventListener(
+
+  "click",
+
+  requestChatiInstall
+
+);
+
+
+installNudgeBtn?.addEventListener(
+
+  "click",
+
+  requestChatiInstall
+
+);
+
+
+installNudgeCloseBtn?.addEventListener(
+
+  "click",
+
+  dismissInstallNudge
 
 );
 
@@ -19600,4 +20183,5 @@ async function initializeChatiAI() {
 
 
 initializeCinematicSplash();
+initializeInstallExperience();
 void initializeChatiAI();
