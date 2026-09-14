@@ -1,0 +1,32 @@
+{
+  "name": "Chati-AI",
+  "short_name": "Chati-AI",
+  "description": "Create characters, build ongoing stories, and chat with them in Chati-AI.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0b0f",
+  "theme_color": "#111116",
+  "categories": ["entertainment", "social"],
+  "icons": [
+    {
+      "src": "assets/icons/chati-ai-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/chati-ai-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/chati-ai-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
