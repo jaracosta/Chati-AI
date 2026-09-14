@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap");
+
 * {
   margin: 0;
   padding: 0;
@@ -8167,5 +8169,519 @@ body.image-processing * {
   .image-remove-btn {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+
+/* =========================================================
+   V3.7.2.2 — CHATI-AI FULL-SCREEN LIGHT CINEMATIC SPLASH
+   ========================================================= */
+
+body.splash-active {
+  overflow: hidden;
+}
+
+body.splash-active .app {
+  opacity: 0;
+  transform: scale(.992);
+}
+
+.app {
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity .72s cubic-bezier(.22, .72, .22, 1),
+    transform .9s cubic-bezier(.16, 1, .3, 1);
+}
+
+.cinematic-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(155, 165, 194, .09), transparent 34%),
+    radial-gradient(circle at 50% 62%, rgba(114, 91, 176, .035), transparent 46%),
+    linear-gradient(180deg, #08090d 0%, #050609 58%, #030407 100%);
+  opacity: 1;
+  visibility: visible;
+  isolation: isolate;
+  transition:
+    opacity .78s cubic-bezier(.4, 0, .2, 1),
+    filter .78s ease,
+    visibility 0s linear .78s;
+}
+
+.cinematic-splash::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(224, 229, 243, .07), transparent 27%),
+    linear-gradient(115deg, transparent 34%, rgba(255, 255, 255, .012) 49%, transparent 64%);
+  opacity: 0;
+  animation: splashAmbientBloom 2.65s ease .2s forwards;
+}
+
+.cinematic-splash.is-leaving {
+  opacity: 0;
+  filter: blur(12px) brightness(.74);
+  pointer-events: none;
+}
+
+.cinematic-splash-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, rgba(255, 255, 255, .026), transparent 58%),
+    linear-gradient(180deg, rgba(255,255,255,.006), transparent 34%, rgba(0,0,0,.12));
+  opacity: .72;
+}
+
+/* This layer covers the ENTIRE splash viewport, so the light is never boxed
+   by the logo/wordmark dimensions. */
+.cinematic-splash-lightfield {
+  display: none;
+}
+
+.cinematic-splash-sweep {
+  position: absolute;
+  top: -14vh;
+  bottom: -14vh;
+  left: -34vw;
+  width: clamp(180px, 22vw, 420px);
+  transform: skewX(-11deg) translate3d(-12vw, 0, 0);
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(178, 191, 221, .018) 10%,
+      rgba(214, 224, 244, .10) 31%,
+      rgba(245, 248, 255, .32) 46%,
+      rgba(255, 255, 255, .76) 51%,
+      rgba(225, 233, 250, .18) 63%,
+      rgba(187, 202, 235, .035) 83%,
+      transparent 100%
+    );
+  filter: blur(18px);
+  opacity: 0;
+  animation: splashScreenSweep 1.42s cubic-bezier(.28, .68, .28, 1) .72s forwards;
+}
+
+.cinematic-splash-ray {
+  position: absolute;
+  top: -8vh;
+  bottom: -8vh;
+  left: -8vw;
+  width: 2px;
+  transform: rotate(2.5deg);
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(255,255,255,.46) 13%,
+    rgba(255,255,255,.92) 43%,
+    rgba(255,255,255,.98) 54%,
+    rgba(255,255,255,.50) 84%,
+    transparent
+  );
+  box-shadow:
+    0 0 12px rgba(241, 245, 255, .9),
+    0 0 34px rgba(198, 211, 243, .54),
+    0 0 78px rgba(143, 165, 219, .22),
+    0 0 130px rgba(129, 151, 209, .08);
+  opacity: 0;
+  animation: splashScreenRay 1.36s cubic-bezier(.28, .68, .28, 1) .75s forwards;
+}
+
+.cinematic-splash-stage {
+  position: relative;
+  z-index: 2;
+  width: min(92vw, 720px);
+  min-height: min(68vh, 500px);
+  display: grid;
+  place-items: center;
+  overflow: visible;
+  transform: translateY(-1vh) scale(.965);
+  opacity: 0;
+  animation: splashStageEnter .78s cubic-bezier(.16, 1, .3, 1) .12s forwards;
+}
+
+.cinematic-splash-halo {
+  position: absolute;
+  width: min(74vw, 560px);
+  height: min(42vw, 310px);
+  min-height: 210px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at center, rgba(224, 229, 242, .12), rgba(151, 161, 187, .035) 46%, transparent 74%);
+  opacity: 0;
+  filter: blur(34px);
+  transform: scale(.8);
+  animation: splashHalo 2.32s ease .42s forwards;
+  pointer-events: none;
+}
+
+.cinematic-splash-logo {
+  position: relative;
+  z-index: 3;
+  width: auto;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 3vh, 30px);
+  overflow: visible;
+  padding: 28px 40px 34px;
+}
+
+/* CA is now a true centered row. No absolute left/right positioning, no
+   overlap, no clipping box around either glyph. */
+.cinematic-splash-monogram {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: clamp(8px, 1.6vw, 18px);
+  width: max-content;
+  max-width: 92vw;
+  overflow: visible;
+  opacity: 0;
+  transform: translateY(6px) scale(.95);
+  animation: splashMarkReveal 1.12s cubic-bezier(.16, 1, .3, 1) .3s forwards;
+}
+
+.cinematic-splash-letter {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  font-family: "Roboto", Arial, sans-serif;
+  font-weight: 700;
+  font-size: clamp(126px, 16vw, 202px);
+  line-height: .88;
+  letter-spacing: 0;
+  padding: .08em .07em .13em;
+  overflow: visible;
+  color: transparent;
+  background: linear-gradient(
+    108deg,
+    #626874 0%,
+    #c9ced8 24%,
+    #858b98 39%,
+    #f7f9ff 47%,
+    #ffffff 50%,
+    #dce4f3 53%,
+    #7c828f 62%,
+    #d9dde6 82%,
+    #616672 100%
+  );
+  background-size: 320% 100%;
+  background-position: 100% 50%;
+  background-repeat: no-repeat;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter:
+    drop-shadow(0 1px 1px rgba(255, 255, 255, .065))
+    drop-shadow(0 18px 24px rgba(0, 0, 0, .58));
+  user-select: none;
+}
+
+.cinematic-splash-letter-c {
+  transform: scaleX(.91);
+  transform-origin: center;
+  animation: splashLetterShine 1.05s cubic-bezier(.28, .68, .28, 1) .72s forwards;
+}
+
+.cinematic-splash-letter-a {
+  transform: scaleX(.86);
+  transform-origin: center;
+  animation: splashLetterShine 1.05s cubic-bezier(.28, .68, .28, 1) .90s forwards;
+}
+
+.cinematic-splash-wordmark {
+  position: relative;
+  z-index: 2;
+  width: max-content;
+  max-width: 92vw;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  overflow: visible;
+  opacity: 0;
+  transform: translateY(10px);
+  animation:
+    splashWordmarkReveal .86s cubic-bezier(.16, 1, .3, 1) 1.5s forwards,
+    splashWordmarkPulse .78s ease 2.2s forwards;
+}
+
+.cinematic-splash-word,
+.cinematic-splash-word-glow {
+  grid-area: 1 / 1;
+  display: inline-block;
+  width: max-content;
+  max-width: 92vw;
+  font-family: "Helvetica Neue", "Avenir Next", Avenir, Inter, Arial, sans-serif;
+  font-size: clamp(17px, 2vw, 25px);
+  font-weight: 300;
+  line-height: 1.25;
+  letter-spacing: .42em;
+  padding: .28em .22em .42em .64em;
+  white-space: nowrap;
+  overflow: visible;
+  user-select: none;
+}
+
+.cinematic-splash-word {
+  color: transparent;
+  background: linear-gradient(180deg, #fbfbfd 0%, #aeb4c1 50%, #d8dce5 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .08));
+}
+
+.cinematic-splash-word-glow {
+  color: rgba(246, 248, 255, .78);
+  opacity: 0;
+  filter:
+    blur(2px)
+    drop-shadow(0 0 10px rgba(236, 241, 255, .8))
+    drop-shadow(0 0 26px rgba(190, 204, 235, .46));
+  animation: splashWordGlow .88s ease 2.08s forwards;
+}
+
+@keyframes splashStageEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(calc(-1vh + 10px)) scale(.94);
+    filter: blur(9px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-1vh) scale(.965);
+    filter: blur(0);
+  }
+}
+
+@keyframes splashMarkReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(.925);
+    filter: brightness(.56) blur(3px);
+  }
+  62% { opacity: .97; }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter:
+      brightness(1.03)
+      drop-shadow(0 0 16px rgba(219, 225, 240, .08));
+  }
+}
+
+@keyframes splashLetterShine {
+  0% {
+    background-position: 100% 50%;
+    filter:
+      brightness(.94)
+      drop-shadow(0 1px 1px rgba(255, 255, 255, .065))
+      drop-shadow(0 18px 24px rgba(0, 0, 0, .58));
+  }
+  48% {
+    filter:
+      brightness(1.34)
+      drop-shadow(0 0 10px rgba(239, 244, 255, .36))
+      drop-shadow(0 0 24px rgba(204, 218, 250, .20))
+      drop-shadow(0 18px 24px rgba(0, 0, 0, .58));
+  }
+  100% {
+    background-position: 0% 50%;
+    filter:
+      brightness(1.03)
+      drop-shadow(0 1px 1px rgba(255, 255, 255, .065))
+      drop-shadow(0 18px 24px rgba(0, 0, 0, .58));
+  }
+}
+
+@keyframes splashScreenSweep {
+  0% {
+    left: -34vw;
+    opacity: 0;
+    transform: skewX(-11deg) translate3d(-12vw, 0, 0);
+  }
+  10% { opacity: .94; }
+  76% { opacity: .70; }
+  100% {
+    left: 118vw;
+    opacity: 0;
+    transform: skewX(-11deg) translate3d(12vw, 0, 0);
+  }
+}
+
+@keyframes splashScreenRay {
+  0% {
+    left: -8vw;
+    opacity: 0;
+  }
+  9% { opacity: .96; }
+  82% { opacity: .86; }
+  100% {
+    left: 108vw;
+    opacity: 0;
+  }
+}
+
+@keyframes splashWordmarkReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(2.6px) brightness(.72);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0) brightness(1.08);
+  }
+}
+
+@keyframes splashWordmarkPulse {
+  0% { filter: brightness(1.08); }
+  48% { filter: brightness(1.46); }
+  100% { filter: brightness(1.12); }
+}
+
+@keyframes splashWordGlow {
+  0% {
+    opacity: 0;
+    transform: scale(.985);
+  }
+  44% {
+    opacity: .98;
+    transform: scale(1.015);
+  }
+  100% {
+    opacity: .2;
+    transform: scale(1);
+  }
+}
+
+@keyframes splashHalo {
+  0% {
+    opacity: 0;
+    transform: scale(.76);
+  }
+  43% { opacity: .9; }
+  100% {
+    opacity: .28;
+    transform: scale(1.07);
+  }
+}
+
+@keyframes splashAmbientBloom {
+  0% { opacity: 0; }
+  54% { opacity: 1; }
+  100% { opacity: .56; }
+}
+
+@media (max-width: 760px) {
+  .cinematic-splash-stage {
+    width: 100vw;
+    min-height: 66vh;
+    transform: translateY(-2.4vh) scale(.97);
+  }
+
+  .cinematic-splash-logo {
+    gap: 20px;
+    padding: 24px 18px 32px;
+  }
+
+  .cinematic-splash-monogram {
+    gap: clamp(4px, 2vw, 10px);
+    max-width: 96vw;
+  }
+
+  .cinematic-splash-letter {
+    font-size: clamp(112px, 31vw, 158px);
+    padding-inline: .05em;
+  }
+
+  .cinematic-splash-word,
+  .cinematic-splash-word-glow {
+    max-width: 96vw;
+    font-size: clamp(15px, 4.7vw, 20px);
+    letter-spacing: .32em;
+    padding-left: .5em;
+    padding-right: .12em;
+  }
+
+  .cinematic-splash-sweep {
+    width: clamp(150px, 40vw, 260px);
+    filter: blur(15px);
+  }
+
+  @keyframes splashStageEnter {
+    0% {
+      opacity: 0;
+      transform: translateY(calc(-2.4vh + 8px)) scale(.95);
+      filter: blur(8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(-2.4vh) scale(.97);
+      filter: blur(0);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.splash-active .app {
+    opacity: 0;
+    transform: none;
+  }
+
+  .cinematic-splash-stage,
+  .cinematic-splash-halo,
+  .cinematic-splash-monogram,
+  .cinematic-splash-letter,
+  .cinematic-splash-wordmark,
+  .cinematic-splash-word-glow,
+  .cinematic-splash-sweep,
+  .cinematic-splash-ray,
+  .cinematic-splash::before {
+    animation: none !important;
+  }
+
+  .cinematic-splash-stage,
+  .cinematic-splash-monogram,
+  .cinematic-splash-wordmark {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+
+  .cinematic-splash-halo {
+    opacity: .22;
+    transform: none;
+  }
+
+  .cinematic-splash-word-glow {
+    opacity: .12;
+  }
+
+  .cinematic-splash-sweep,
+  .cinematic-splash-ray {
+    display: none;
+  }
+
+  .cinematic-splash,
+  .app {
+    transition-duration: .28s !important;
   }
 }

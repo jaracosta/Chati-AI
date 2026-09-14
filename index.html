@@ -13,12 +13,45 @@
 
   <link
     rel="stylesheet"
-    href="style.css?v=3.6.2"
+    href="style.css?v=3.7.2.2"
   >
 </head>
 
 
-<body>
+<body class="splash-active">
+
+  <!-- =========================
+       CHATI-AI FULL-SCREEN LIGHT CINEMATIC SPLASH
+  ========================== -->
+  <div
+    id="cinematicSplash"
+    class="cinematic-splash"
+    aria-hidden="true"
+  >
+    <div class="cinematic-splash-ambient"></div>
+
+    <!-- Full-viewport light pass: intentionally outside the logo container. -->
+    <div class="cinematic-splash-lightfield" aria-hidden="true">
+      <span class="cinematic-splash-sweep"></span>
+      <span class="cinematic-splash-ray"></span>
+    </div>
+
+    <div class="cinematic-splash-stage">
+      <div class="cinematic-splash-halo"></div>
+
+      <div class="cinematic-splash-logo" aria-hidden="true">
+        <div class="cinematic-splash-monogram">
+          <span class="cinematic-splash-letter cinematic-splash-letter-c">C</span>
+          <span class="cinematic-splash-letter cinematic-splash-letter-a">A</span>
+        </div>
+
+        <div class="cinematic-splash-wordmark">
+          <span class="cinematic-splash-word">CHATI-AI</span>
+          <span class="cinematic-splash-word-glow">CHATI-AI</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="app">
 
@@ -2695,7 +2728,7 @@
 
 
 
-  <script src="script.js?v=3.6.2"></script>
+  <script src="script.js?v=3.7.2.2"></script>
 
 </body>
 </html>

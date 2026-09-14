@@ -19408,6 +19408,125 @@ document.addEventListener(
 );
 
 
+// =========================
+// V3.7.2.2 FULL-SCREEN LIGHT CINEMATIC SPLASH
+// =========================
+
+function initializeCinematicSplash() {
+
+  const splash =
+    document.getElementById(
+      "cinematicSplash"
+    );
+
+
+  if (!splash) {
+
+    document.body
+      .classList
+      .remove(
+        "splash-active"
+      );
+
+    return;
+
+  }
+
+
+  const reducedMotion =
+    window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+
+  const holdDuration =
+    reducedMotion
+      ? 560
+      : 3380;
+
+
+  const exitDuration =
+    reducedMotion
+      ? 300
+      : 800;
+
+
+  let dismissed = false;
+
+
+  const dismissSplash = () => {
+
+    if (dismissed) {
+
+      return;
+
+    }
+
+
+    dismissed = true;
+
+
+    splash
+      .classList
+      .add(
+        "is-leaving"
+      );
+
+
+    document.body
+      .classList
+      .remove(
+        "splash-active"
+      );
+
+
+    window.setTimeout(
+
+      () => {
+
+        splash.remove();
+
+      },
+
+      exitDuration
+
+    );
+
+  };
+
+
+  window.setTimeout(
+    dismissSplash,
+    holdDuration
+  );
+
+
+  // Safety escape: never let a splash animation trap the app.
+  window.setTimeout(
+
+    () => {
+
+      if (
+        document.body
+          .classList
+          .contains(
+            "splash-active"
+          )
+      ) {
+
+        dismissSplash();
+
+      }
+
+    },
+
+    5400
+
+  );
+
+}
+
+
 async function initializeChatiAI() {
 
   await initializeAppDataStorage();
@@ -19480,4 +19599,5 @@ async function initializeChatiAI() {
 }
 
 
+initializeCinematicSplash();
 void initializeChatiAI();
