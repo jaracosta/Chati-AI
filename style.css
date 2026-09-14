@@ -9059,3 +9059,241 @@ body.splash-active .app {
     height: 42px;
   }
 }
+
+
+/* =========================================================
+   V3.10.5 — MOBILE CHAT STABILITY
+   ========================================================= */
+
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+
+  body.mobile-chat-active {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: var(--app-height, 100dvh);
+    overflow: hidden;
+  }
+
+  .chat-header.chat-layer {
+    position: relative;
+    z-index: 5200;
+    overflow: visible;
+  }
+
+  .new-chat-menu-wrapper,
+  .chat-menu-wrapper {
+    position: relative;
+    z-index: 5400;
+    overflow: visible;
+  }
+
+  #newChatBtn,
+  #chatMenuBtn {
+    position: relative;
+    z-index: 5450;
+    pointer-events: auto !important;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .new-chat-menu,
+  .chat-menu {
+    z-index: 6000 !important;
+    pointer-events: auto;
+    touch-action: manipulation;
+  }
+
+  .new-chat-menu button,
+  .chat-menu button {
+    min-height: 48px;
+    pointer-events: auto;
+    touch-action: manipulation;
+  }
+
+  .messages.chat-layer {
+    position: relative;
+    z-index: 10;
+  }
+
+  .chat-form.chat-layer {
+    position: relative;
+    z-index: 5000;
+  }
+
+  body.mobile-keyboard-open .chat-form.chat-layer {
+    margin-bottom:
+      max(
+        4px,
+        env(safe-area-inset-bottom, 0px)
+      );
+  }
+
+  body.mobile-keyboard-open .messages.chat-layer {
+    scroll-behavior: auto;
+  }
+
+  #messageInput {
+    touch-action: manipulation;
+  }
+
+}
+
+
+
+
+/* V3.10.6 MOBILE CHAT FIX */
+
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+
+  /*
+     Do not lock the BODY itself with position: fixed.
+     iOS can pan the visual viewport when the keyboard opens.
+  */
+  body.mobile-chat-active {
+    position: relative !important;
+    inset: auto !important;
+    top: auto !important;
+    left: auto !important;
+
+    width: 100% !important;
+    max-width: 100% !important;
+
+    height:
+      var(
+        --app-height,
+        100dvh
+      ) !important;
+
+    overflow: hidden !important;
+  }
+
+
+  /*
+     Menus are moved directly into <body> on phones.
+     This keeps them out of transformed/overflow stacking contexts.
+  */
+  .new-chat-menu.mobile-floating-menu,
+  .chat-menu.mobile-floating-menu {
+    position: fixed !important;
+
+    top: auto !important;
+
+    left:
+      max(
+        10px,
+        env(safe-area-inset-left)
+      ) !important;
+
+    right:
+      max(
+        10px,
+        env(safe-area-inset-right)
+      ) !important;
+
+    bottom:
+      calc(
+        env(safe-area-inset-bottom, 0px)
+        + 82px
+      ) !important;
+
+    width: auto !important;
+    max-width: none !important;
+
+    z-index: 50000 !important;
+
+    pointer-events: auto !important;
+
+    transform: none;
+  }
+
+
+  .new-chat-menu.mobile-floating-menu button,
+  .chat-menu.mobile-floating-menu button {
+    min-height: 50px;
+
+    pointer-events:
+      auto !important;
+
+    touch-action:
+      manipulation;
+  }
+
+
+  #newChatBtn,
+  #chatMenuBtn {
+    pointer-events:
+      auto !important;
+
+    touch-action:
+      manipulation;
+
+    position:
+      relative;
+
+    z-index:
+      5100;
+  }
+
+
+  /*
+     PHONE BACKGROUND:
+     show the full artwork instead of heavily cropping it.
+  */
+  .chat-background {
+    background-size:
+      contain !important;
+
+    background-position:
+      center center !important;
+
+    background-repeat:
+      no-repeat !important;
+
+    background-color:
+      #08080d !important;
+  }
+
+
+  /*
+     Keep the composer anchored to the usable phone viewport.
+  */
+  .chat-form.chat-layer {
+    position:
+      relative;
+
+    flex-shrink:
+      0;
+
+    z-index:
+      5000;
+  }
+
+
+  body.mobile-keyboard-open
+  .chat-form.chat-layer {
+    margin-bottom:
+      4px !important;
+  }
+
+
+  .messages.chat-layer {
+    min-height:
+      0;
+
+    overscroll-behavior:
+      contain;
+  }
+
+
+  #messageInput {
+    font-size:
+      16px !important;
+
+    touch-action:
+      manipulation;
+  }
+
+}
+

@@ -1,4 +1,4 @@
-const CACHE_NAME = "chati-ai-runtime-v3.7.5";
+const CACHE_NAME = "chati-ai-runtime-v3.10.6";
 
 self.addEventListener("install", (event) => {
   // Do not pre-cache during install. Private development tunnels such as

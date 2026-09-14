@@ -3056,6 +3056,67 @@ function updateMobileViewportHeight() {
       `${height}px`
     );
 
+
+  if (
+    isMobileLayout()
+  ) {
+
+    const keyboardOpen =
+      Boolean(
+        viewport &&
+        window.innerHeight -
+          viewport.height >
+          120
+      );
+
+
+    document.body
+      .classList
+      .toggle(
+        "mobile-keyboard-open",
+        keyboardOpen
+      );
+
+  }
+
+}
+
+
+function stabilizeMobileChatViewport() {
+
+  if (
+    !isMobileLayout() ||
+    !chatView ||
+    chatView.classList.contains(
+      "hidden"
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  updateMobileViewportHeight();
+
+
+  if (
+    document.activeElement ===
+      messageInput &&
+    messages
+  ) {
+
+    requestAnimationFrame(
+      () => {
+
+        messages.scrollTop =
+          messages.scrollHeight;
+
+      }
+    );
+
+  }
+
 }
 
 
@@ -3107,6 +3168,94 @@ function closeMobileSidebar() {
 
   setMobileSidebarOpen(
     false
+  );
+
+}
+
+
+function syncMobileFloatingMenus() {
+
+  const mobile =
+    isMobileLayout();
+
+
+  const chatMenuHome =
+    chatMenuBtn
+      ?.closest(
+        ".chat-menu-wrapper"
+      );
+
+
+  const menuPairs = [
+
+    [
+      newChatMenu,
+      newChatMenuWrapper
+    ],
+
+    [
+      chatMenu,
+      chatMenuHome
+    ]
+
+  ];
+
+
+  menuPairs.forEach(
+    ([menu, home]) => {
+
+      if (
+        !menu ||
+        !home
+      ) {
+
+        return;
+
+      }
+
+
+      if (mobile) {
+
+        if (
+          menu.parentElement !==
+          document.body
+        ) {
+
+          document.body
+            .appendChild(
+              menu
+            );
+
+        }
+
+
+        menu.classList.add(
+          "mobile-floating-menu"
+        );
+
+      }
+
+      else {
+
+        if (
+          menu.parentElement !==
+          home
+        ) {
+
+          home.appendChild(
+            menu
+          );
+
+        }
+
+
+        menu.classList.remove(
+          "mobile-floating-menu"
+        );
+
+      }
+
+    }
   );
 
 }
@@ -3176,9 +3325,173 @@ function syncMobileShellState() {
   }
 
 
+  syncMobileFloatingMenus();
+
   updateMobileViewportHeight();
 
 }
+
+
+if (
+  window.visualViewport
+) {
+
+  window.visualViewport
+    .addEventListener(
+      "resize",
+      stabilizeMobileChatViewport
+    );
+
+
+  window.visualViewport
+    .addEventListener(
+      "scroll",
+      stabilizeMobileChatViewport
+    );
+
+}
+
+
+messageInput
+  ?.addEventListener(
+    "focus",
+    () => {
+
+      if (
+        !isMobileLayout()
+      ) {
+
+        return;
+
+      }
+
+
+      closeNewChatMenu();
+      closeChatMenu();
+      closeMediaAttachMenu();
+
+
+      requestAnimationFrame(
+        stabilizeMobileChatViewport
+      );
+
+    }
+  );
+
+
+messageInput
+  ?.addEventListener(
+    "blur",
+    () => {
+
+      if (
+        !isMobileLayout()
+      ) {
+
+        return;
+
+      }
+
+
+      window.setTimeout(
+        stabilizeMobileChatViewport,
+        80
+      );
+
+    }
+  );
+
+
+function restoreMobileChatViewport() {
+
+  if (
+    !isMobileLayout()
+  ) {
+
+    return;
+
+  }
+
+
+  const refresh = () => {
+
+    updateMobileViewportHeight();
+
+
+    try {
+
+      window.scrollTo(
+        0,
+        0
+      );
+
+    }
+
+    catch {
+      // Ignore browsers that block programmatic scroll.
+    }
+
+
+    if (
+      messages &&
+      document.activeElement ===
+        messageInput
+    ) {
+
+      messages.scrollTop =
+        messages.scrollHeight;
+
+    }
+
+  };
+
+
+  refresh();
+
+
+  window.setTimeout(
+    refresh,
+    80
+  );
+
+  window.setTimeout(
+    refresh,
+    180
+  );
+
+  window.setTimeout(
+    refresh,
+    360
+  );
+
+}
+
+
+messageInput
+  ?.addEventListener(
+    "focus",
+    restoreMobileChatViewport
+  );
+
+
+messageInput
+  ?.addEventListener(
+    "blur",
+    restoreMobileChatViewport
+  );
+
+
+window.addEventListener(
+  "orientationchange",
+  () => {
+
+    window.setTimeout(
+      restoreMobileChatViewport,
+      180
+    );
+
+  }
+);
 
 
 function getSidebarCollapsedPreference() {
@@ -9605,49 +9918,7 @@ async function extractVideoFrames(
 }
 
 
-function blobToDataUrl(
-  blob
-) {
 
-  return new Promise(
-
-    (
-      resolve,
-      reject
-    ) => {
-
-      const reader =
-        new FileReader();
-
-
-      reader.onload =
-        () =>
-          resolve(
-            String(
-              reader.result
-            )
-          );
-
-
-      reader.onerror =
-        () =>
-          reject(
-            reader.error ||
-            new Error(
-              "Could not read stored media."
-            )
-          );
-
-
-      reader.readAsDataURL(
-        blob
-      );
-
-    }
-
-  );
-
-}
 
 
 function formatDuration(
@@ -13216,8 +13487,19 @@ function openChat(
 
   setTimeout(
 
-    () =>
-      messageInput.focus(),
+    () => {
+
+      if (
+        !isMobileLayout()
+      ) {
+
+        messageInput.focus({
+          preventScroll: true
+        });
+
+      }
+
+    },
 
     80
 
@@ -17513,7 +17795,9 @@ clearChatBtn.addEventListener(
 
       autoGrowMessageInput();
 
-      messageInput.focus();
+      messageInput.focus({
+      preventScroll: true
+    });
 
       return;
 
@@ -17611,7 +17895,9 @@ clearChatBtn.addEventListener(
 
     autoGrowMessageInput();
 
-    messageInput.focus();
+    messageInput.focus({
+      preventScroll: true
+    });
 
   }
 
@@ -18931,7 +19217,9 @@ async function continueGroupConversationAs(
     );
 
 
-    messageInput.focus();
+    messageInput.focus({
+      preventScroll: true
+    });
 
   }
 
@@ -19519,7 +19807,9 @@ chatForm.addEventListener(
       );
 
 
-      messageInput.focus();
+      messageInput.focus({
+      preventScroll: true
+    });
 
     }
 
@@ -19880,7 +20170,9 @@ async function regenerateMessage(
     );
 
 
-    messageInput.focus();
+    messageInput.focus({
+      preventScroll: true
+    });
 
   }
 
