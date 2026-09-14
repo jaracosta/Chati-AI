@@ -4,6 +4,10 @@ import dotenv from "dotenv";
 
 import OpenAI, { toFile } from "openai";
 
+import {
+  randomUUID
+} from "node:crypto";
+
 import path from "path";
 
 import {
@@ -43,6 +47,42 @@ const TRANSCRIBE_MODEL =
   "gpt-4o-transcribe";
 
 
+const APP_VERSION =
+  "3.8.1";
+
+
+const API_RATE_LIMIT_WINDOW_MS =
+  Number.parseInt(
+    process.env.API_RATE_LIMIT_WINDOW_MS ||
+      "600000",
+    10
+  );
+
+
+const CHAT_RATE_LIMIT_MAX =
+  Number.parseInt(
+    process.env.CHAT_RATE_LIMIT_MAX ||
+      "80",
+    10
+  );
+
+
+const MEMORY_RATE_LIMIT_MAX =
+  Number.parseInt(
+    process.env.MEMORY_RATE_LIMIT_MAX ||
+      "120",
+    10
+  );
+
+
+const MAX_CHAT_MESSAGES =
+  200;
+
+
+const MAX_MEMORY_MESSAGES =
+  100;
+
+
 if (
   !process.env
     .OPENAI_API_KEY
@@ -80,12 +120,364 @@ const __dirname =
   );
 
 
+// =========================
+// PRODUCTION HARDENING
+// =========================
+
+app.disable(
+  "x-powered-by"
+);
+
+
+if (
+  process.env.TRUST_PROXY ===
+    "1"
+) {
+
+  app.set(
+    "trust proxy",
+    1
+  );
+
+}
+
+
+app.use(
+
+  (
+    req,
+    res,
+    next
+  ) => {
+
+    req.requestId =
+      randomUUID();
+
+
+    res.setHeader(
+      "X-Request-ID",
+      req.requestId
+    );
+
+
+    res.setHeader(
+      "X-Content-Type-Options",
+      "nosniff"
+    );
+
+
+    res.setHeader(
+      "Referrer-Policy",
+      "strict-origin-when-cross-origin"
+    );
+
+
+    res.setHeader(
+      "X-Frame-Options",
+      "DENY"
+    );
+
+
+    res.setHeader(
+      "Permissions-Policy",
+      "geolocation=(), payment=(), usb=()"
+    );
+
+
+    if (
+      req.path.startsWith(
+        "/api/"
+      ) ||
+      req.path ===
+        "/health"
+    ) {
+
+      res.setHeader(
+        "Cache-Control",
+        "no-store"
+      );
+
+    }
+
+
+    next();
+
+  }
+
+);
+
+
 app.use(
 
   express.json({
     limit:
-      "50mb"
+      process.env.JSON_BODY_LIMIT ||
+      "50mb",
+
+    strict:
+      true
   })
+
+);
+
+
+const rateLimitBuckets =
+  new Map();
+
+
+function getClientRateLimitKey(
+  req
+) {
+
+  return (
+    req.ip ||
+    req.socket
+      ?.remoteAddress ||
+    "unknown"
+  );
+
+}
+
+
+function createRateLimiter({
+  name,
+  maxRequests
+}) {
+
+  return (
+    req,
+    res,
+    next
+  ) => {
+
+    const now =
+      Date.now();
+
+
+    const key =
+      `${name}:${getClientRateLimitKey(req)}`;
+
+
+    let bucket =
+      rateLimitBuckets.get(
+        key
+      );
+
+
+    if (
+      !bucket ||
+      now >=
+        bucket.resetAt
+    ) {
+
+      bucket = {
+        count:
+          0,
+
+        resetAt:
+          now +
+          API_RATE_LIMIT_WINDOW_MS
+      };
+
+
+      rateLimitBuckets.set(
+        key,
+        bucket
+      );
+
+    }
+
+
+    const remaining =
+      Math.max(
+        0,
+        maxRequests -
+          bucket.count
+      );
+
+
+    res.setHeader(
+      "X-RateLimit-Limit",
+      String(
+        maxRequests
+      )
+    );
+
+
+    res.setHeader(
+      "X-RateLimit-Remaining",
+      String(
+        remaining
+      )
+    );
+
+
+    res.setHeader(
+      "X-RateLimit-Reset",
+      String(
+        Math.ceil(
+          bucket.resetAt /
+          1000
+        )
+      )
+    );
+
+
+    if (
+      bucket.count >=
+      maxRequests
+    ) {
+
+      const retryAfterSeconds =
+        Math.max(
+          1,
+          Math.ceil(
+            (
+              bucket.resetAt -
+              now
+            ) /
+            1000
+          )
+        );
+
+
+      res.setHeader(
+        "Retry-After",
+        String(
+          retryAfterSeconds
+        )
+      );
+
+
+      return res
+        .status(429)
+        .json({
+
+          error:
+            "Too many requests. Please wait a moment and try again."
+
+        });
+
+    }
+
+
+    bucket.count +=
+      1;
+
+
+    next();
+
+  };
+
+}
+
+
+const chatRateLimiter =
+  createRateLimiter({
+    name:
+      "chat",
+
+    maxRequests:
+      Number.isFinite(
+        CHAT_RATE_LIMIT_MAX
+      ) &&
+      CHAT_RATE_LIMIT_MAX >
+        0
+
+        ? CHAT_RATE_LIMIT_MAX
+
+        : 80
+  });
+
+
+const memoryRateLimiter =
+  createRateLimiter({
+    name:
+      "memory",
+
+    maxRequests:
+      Number.isFinite(
+        MEMORY_RATE_LIMIT_MAX
+      ) &&
+      MEMORY_RATE_LIMIT_MAX >
+        0
+
+        ? MEMORY_RATE_LIMIT_MAX
+
+        : 120
+  });
+
+
+const rateLimitCleanupTimer =
+  setInterval(
+
+    () => {
+
+      const now =
+        Date.now();
+
+
+      for (
+        const [
+          key,
+          bucket
+        ] of
+        rateLimitBuckets
+      ) {
+
+        if (
+          now >=
+          bucket.resetAt
+        ) {
+
+          rateLimitBuckets.delete(
+            key
+          );
+
+        }
+
+      }
+
+    },
+
+    Math.max(
+      60000,
+      API_RATE_LIMIT_WINDOW_MS
+    )
+
+  );
+
+
+rateLimitCleanupTimer
+  .unref?.();
+
+
+app.get(
+
+  "/health",
+
+  (
+    req,
+    res
+  ) => {
+
+    res.json({
+      status:
+        "ok",
+
+      service:
+        "chati-ai",
+
+      version:
+        APP_VERSION,
+
+      uptimeSeconds:
+        Math.floor(
+          process.uptime()
+        )
+    });
+
+  }
 
 );
 
@@ -1701,6 +2093,8 @@ app.post(
 
   "/api/chat",
 
+  chatRateLimiter,
+
   async (
     req,
     res
@@ -1763,6 +2157,23 @@ app.post(
 
             error:
               "Conversation is empty."
+
+          });
+
+      }
+
+
+      if (
+        messages.length >
+        MAX_CHAT_MESSAGES
+      ) {
+
+        return res
+          .status(400)
+          .json({
+
+            error:
+              "Conversation payload is too large."
 
           });
 
@@ -2503,7 +2914,6 @@ Return only what the character says or does.
           .json({
 
             error:
-              error?.message ||
               "Chati-AI could not generate a response."
 
           });
@@ -2530,6 +2940,8 @@ Return only what the character says or does.
 app.post(
 
   "/api/memory",
+
+  memoryRateLimiter,
 
   async (
     req,
@@ -2583,6 +2995,23 @@ app.post(
 
             error:
               "No new messages to remember."
+
+          });
+
+      }
+
+
+      if (
+        messages.length >
+        MAX_MEMORY_MESSAGES
+      ) {
+
+        return res
+          .status(400)
+          .json({
+
+            error:
+              "Memory payload is too large."
 
           });
 
@@ -3184,10 +3613,218 @@ RULES
 
 
 // =========================
+// API / ERROR FALLBACKS
+// =========================
+
+app.use(
+
+  "/api",
+
+  (
+    req,
+    res
+  ) => {
+
+    res
+      .status(404)
+      .json({
+
+        error:
+          "API route not found."
+
+      });
+
+  }
+
+);
+
+
+app.use(
+
+  (
+    error,
+    req,
+    res,
+    next
+  ) => {
+
+    if (
+      res.headersSent
+    ) {
+
+      return next(
+        error
+      );
+
+    }
+
+
+    if (
+      error?.type ===
+        "entity.too.large"
+    ) {
+
+      return res
+        .status(413)
+        .json({
+
+          error:
+            "Request payload is too large."
+
+        });
+
+    }
+
+
+    if (
+      error instanceof
+        SyntaxError &&
+      error?.status ===
+        400
+    ) {
+
+      return res
+        .status(400)
+        .json({
+
+          error:
+            "Invalid JSON request."
+
+        });
+
+    }
+
+
+    console.error(
+      `❌ Unhandled server error [${req.requestId || "no-request-id"}]:`,
+      error
+    );
+
+
+    return res
+      .status(500)
+      .json({
+
+        error:
+          "Unexpected server error."
+
+      });
+
+  }
+
+);
+
+
+
+
+
+let isShuttingDown =
+  false;
+
+
+function shutdown(
+  signal
+) {
+
+  if (
+    isShuttingDown
+  ) {
+
+    return;
+
+  }
+
+
+  isShuttingDown =
+    true;
+
+
+  console.log(
+    `\n🛑 ${signal} received. Shutting down Chati-AI...`
+  );
+
+
+  server.close(
+
+    error => {
+
+      if (error) {
+
+        console.error(
+          "❌ Graceful shutdown failed:",
+          error
+        );
+
+
+        process.exitCode =
+          1;
+
+      }
+
+      else {
+
+        console.log(
+          "✅ Chati-AI server closed cleanly."
+        );
+
+      }
+
+    }
+
+  );
+
+
+  const forceExitTimer =
+    setTimeout(
+
+      () => {
+
+        console.error(
+          "❌ Forced shutdown after timeout."
+        );
+
+
+        process.exit(
+          1
+        );
+
+      },
+
+      10000
+
+    );
+
+
+  forceExitTimer
+    .unref?.();
+
+}
+
+
+process.on(
+  "SIGTERM",
+  () =>
+    shutdown(
+      "SIGTERM"
+    )
+);
+
+
+process.on(
+  "SIGINT",
+  () =>
+    shutdown(
+      "SIGINT"
+    )
+);
+
+
+// =========================
 // START
 // =========================
 
-app.listen(
+const server =
+  app.listen(
 
   PORT,
 
@@ -3261,3 +3898,15 @@ app.listen(
   }
 
 );
+
+
+server.keepAliveTimeout =
+  65000;
+
+
+server.headersTimeout =
+  66000;
+
+
+server.requestTimeout =
+  180000;
