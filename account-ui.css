@@ -1,0 +1,320 @@
+/* ============================================================
+   CHATI-AI V4.0.1 — ACCOUNT UI
+   Account Foundation only. No cloud chat sync yet.
+   ============================================================ */
+
+.account-settings-section {
+  position: relative;
+}
+
+.account-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.account-status-badge.is-connected {
+  border-color: rgba(123, 226, 167, 0.24);
+  background: rgba(84, 181, 126, 0.1);
+  color: #9ce3b8;
+}
+
+.account-card {
+  margin-top: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.045),
+      rgba(255, 255, 255, 0.018)
+    );
+  overflow: hidden;
+}
+
+.account-state-view {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px;
+}
+
+.account-state-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.account-state-icon,
+.account-avatar-initial {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.account-state-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.account-avatar-initial {
+  font-size: 1rem;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.account-state-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.account-state-copy strong {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 0.96rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-state-copy small {
+  color: rgba(255, 255, 255, 0.53);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.account-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.account-primary-btn,
+.account-secondary-btn,
+.account-danger-btn {
+  min-height: 38px;
+  padding: 9px 14px;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 0.79rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.account-primary-btn {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+  color: #111116;
+}
+
+.account-secondary-btn {
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.account-danger-btn {
+  border: 1px solid rgba(255, 115, 115, 0.2);
+  background: rgba(180, 62, 62, 0.08);
+  color: #ffabab;
+}
+
+.account-primary-btn:hover,
+.account-secondary-btn:hover,
+.account-danger-btn:hover {
+  transform: translateY(-1px);
+}
+
+.account-primary-btn:disabled,
+.account-secondary-btn:disabled,
+.account-danger-btn:disabled {
+  cursor: wait;
+  opacity: 0.55;
+  transform: none;
+}
+
+.account-auth-form {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.account-form-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.account-form-kicker {
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.account-form-heading h4 {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 1rem;
+}
+
+.account-form-close {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.account-form-close svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.account-field {
+  display: grid;
+  gap: 7px;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 0.75rem;
+  font-weight: 760;
+}
+
+.account-field input {
+  width: 100%;
+  min-height: 43px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 11px;
+  outline: none;
+  background: rgba(7, 7, 11, 0.52);
+  color: rgba(255, 255, 255, 0.94);
+  font: inherit;
+}
+
+.account-field input:focus {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(7, 7, 11, 0.72);
+}
+
+.account-field input::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.account-password-hint {
+  margin: -5px 0 0;
+  color: rgba(255, 255, 255, 0.43);
+  font-size: 0.71rem;
+}
+
+.account-submit-btn {
+  width: 100%;
+  margin-top: 2px;
+}
+
+.account-message {
+  margin-top: 12px;
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.account-message.is-success {
+  border-color: rgba(123, 226, 167, 0.2);
+  background: rgba(84, 181, 126, 0.07);
+  color: #a6e9c0;
+}
+
+.account-message.is-error {
+  border-color: rgba(255, 115, 115, 0.18);
+  background: rgba(180, 62, 62, 0.07);
+  color: #ffb2b2;
+}
+
+.account-local-note {
+  margin-top: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.73rem;
+  line-height: 1.5;
+}
+
+.account-local-note-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.account-local-note-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 720px) {
+  .account-state-view {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .account-actions {
+    width: 100%;
+  }
+
+  .account-actions .account-primary-btn,
+  .account-actions .account-secondary-btn,
+  .account-danger-btn {
+    flex: 1 1 0;
+  }
+}

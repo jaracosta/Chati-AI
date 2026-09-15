@@ -27,6 +27,12 @@
     rel="stylesheet"
     href="style.css?v=3.10.6"
   >
+
+  <!-- V4.0.1 — Account UI -->
+  <link
+    rel="stylesheet"
+    href="account-ui.css?v=4.0.1"
+  >
 </head>
 
 
@@ -2163,6 +2169,188 @@
         </button>
       </div>
 
+      <!-- =========================
+           V4.0.1 — ACCOUNT
+      ========================== -->
+      <section
+        id="accountSettingsSection"
+        class="settings-section account-settings-section"
+      >
+        <div class="settings-section-title-row">
+          <div>
+            <span class="settings-section-kicker">Account &amp; cloud</span>
+            <h3>Chati-AI Account</h3>
+          </div>
+
+          <span
+            id="accountStatusBadge"
+            class="account-status-badge is-local"
+          >
+            Local
+          </span>
+        </div>
+
+        <p class="settings-section-description">
+          Sign in to prepare Chati-AI for cloud sync across devices. Your current local data stays on this device until Cloud Sync is enabled in a later V4 step.
+        </p>
+
+        <div class="account-card">
+          <div
+            id="accountSignedOutView"
+            class="account-state-view"
+          >
+            <div class="account-state-main">
+              <span class="account-state-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="8" r="3.2"></circle>
+                  <path d="M5.5 19c.8-3.8 3.1-5.8 6.5-5.8s5.7 2 6.5 5.8"></path>
+                  <rect x="3" y="3" width="18" height="18" rx="6"></rect>
+                </svg>
+              </span>
+
+              <span class="account-state-copy">
+                <strong>Not signed in</strong>
+                <small>Chati-AI is currently running in local-only mode.</small>
+              </span>
+            </div>
+
+            <div class="account-actions">
+              <button
+                id="accountSignInBtn"
+                class="account-secondary-btn"
+                type="button"
+              >
+                Sign In
+              </button>
+
+              <button
+                id="accountCreateBtn"
+                class="account-primary-btn"
+                type="button"
+              >
+                Create Account
+              </button>
+            </div>
+          </div>
+
+          <form
+            id="accountAuthForm"
+            class="account-auth-form hidden"
+            novalidate
+          >
+            <div class="account-form-heading">
+              <div>
+                <span
+                  id="accountFormKicker"
+                  class="account-form-kicker"
+                >
+                  Welcome back
+                </span>
+                <h4 id="accountFormTitle">Sign In</h4>
+              </div>
+
+              <button
+                id="accountFormCloseBtn"
+                class="account-form-close"
+                type="button"
+                aria-label="Close account form"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18"></path>
+                </svg>
+              </button>
+            </div>
+
+            <label class="account-field">
+              <span>Email</span>
+              <input
+                id="accountEmailInput"
+                type="email"
+                inputmode="email"
+                autocomplete="email"
+                placeholder="you@example.com"
+                required
+              >
+            </label>
+
+            <label class="account-field">
+              <span>Password</span>
+              <input
+                id="accountPasswordInput"
+                type="password"
+                autocomplete="current-password"
+                minlength="8"
+                placeholder="At least 8 characters"
+                required
+              >
+            </label>
+
+            <p
+              id="accountPasswordHint"
+              class="account-password-hint hidden"
+            >
+              Use at least 8 characters.
+            </p>
+
+            <button
+              id="accountSubmitBtn"
+              class="account-primary-btn account-submit-btn"
+              type="submit"
+            >
+              Sign In
+            </button>
+          </form>
+
+          <div
+            id="accountSignedInView"
+            class="account-state-view hidden"
+          >
+            <div class="account-state-main">
+              <span
+                id="accountAvatarInitial"
+                class="account-avatar-initial"
+                aria-hidden="true"
+              >
+                C
+              </span>
+
+              <span class="account-state-copy">
+                <strong id="accountUserEmail">Signed in</strong>
+                <small>Supabase account connected. Cloud Sync is not enabled yet.</small>
+              </span>
+            </div>
+
+            <button
+              id="accountSignOutBtn"
+              class="account-danger-btn"
+              type="button"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="accountMessage"
+          class="account-message hidden"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <div class="account-local-note">
+          <span class="account-local-note-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 3.2 19 6v5.1c0 4.5-2.4 7.7-7 9.7-4.6-2-7-5.2-7-9.7V6l7-2.8Z"></path>
+              <path d="m9 12 2 2 4-4"></path>
+            </svg>
+          </span>
+          <span>
+            Private Chat and Private Group remain temporary and will never be uploaded to the cloud.
+          </span>
+        </div>
+      </section>
+
+
       <section class="settings-section">
         <div class="settings-section-title-row">
           <div>
@@ -2906,8 +3094,8 @@
   <!-- =========================
        V4.0.1 — SUPABASE AUTH
   ========================== -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-auth.js?v=4.0.1"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-auth-v4.js?v=4.0.1-final1"></script>
+    <script src="account-ui.js?v=4.0.1-final1"></script>
 </body>
 </html>
