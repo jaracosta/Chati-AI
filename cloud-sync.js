@@ -31,6 +31,9 @@
   let reloadScheduled = false;
   let lastConflicts = [];
 
+  // V4.0.6.4 — deterministic conflict testing / real pause.
+  let autoSyncEnabled = true;
+
 
   // ------------------------------------------------------------
   // LOCAL DATABASE
@@ -4703,6 +4706,20 @@
     delay =
       AUTO_SYNC_DELAY_MS
   ) {
+
+    if (
+      !autoSyncEnabled
+    ) {
+
+      console.log(
+        "[Chati-AI Sync] Automatic sync paused:",
+        reason
+      );
+
+      return;
+    }
+
+
     window.clearTimeout(
       syncTimer
     );
@@ -4739,6 +4756,11 @@
 
 
   function startAutoSync() {
+
+    autoSyncEnabled =
+      true;
+
+
     if (
       intervalTimer
     ) {
@@ -4783,6 +4805,11 @@
 
 
   function stopAutoSync() {
+
+    autoSyncEnabled =
+      false;
+
+
     window.clearTimeout(
       syncTimer
     );
@@ -4872,8 +4899,11 @@
 
       autoSyncRunning:
         Boolean(
+          autoSyncEnabled &&
           intervalTimer
         ),
+
+      autoSyncEnabled,
 
       autoSyncBusy:
         syncBusy,
