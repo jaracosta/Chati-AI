@@ -114,6 +114,11 @@
   }
 
 
+  function getClient() {
+    return client;
+  }
+
+
   function onAuthStateChange(
     callback
   ) {
@@ -134,6 +139,7 @@
       signOut,
       getSession,
       getUser,
+      getClient,
       onAuthStateChange
     });
 
