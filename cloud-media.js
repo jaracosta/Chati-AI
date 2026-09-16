@@ -264,6 +264,133 @@
   }
 
 
+  // ------------------------------------------------------------
+  // MEDIA CONTENT FINGERPRINT
+  // ------------------------------------------------------------
+
+  function fallbackByteHash(
+    bytes
+  ) {
+
+    let hash =
+      0x811c9dc5;
+
+
+    for (
+      let index = 0;
+      index < bytes.length;
+      index += 1
+    ) {
+
+      hash ^=
+        bytes[index];
+
+
+      hash =
+        Math.imul(
+          hash,
+          0x01000193
+        ) >>>
+        0;
+
+    }
+
+
+    return hash
+      .toString(
+        16
+      )
+      .padStart(
+        8,
+        "0"
+      );
+
+  }
+
+
+  async function fingerprintSource(
+    source
+  ) {
+
+    const blob =
+      await sourceToBlob(
+        source
+      );
+
+
+    const buffer =
+      await blob.arrayBuffer();
+
+
+    const bytes =
+      new Uint8Array(
+        buffer
+      );
+
+
+    let hash;
+
+
+    if (
+      window.crypto
+        ?.subtle
+    ) {
+
+      const digest =
+        await window.crypto
+          .subtle
+          .digest(
+            "SHA-256",
+            buffer
+          );
+
+
+      hash =
+        Array.from(
+          new Uint8Array(
+            digest
+          )
+        )
+          .map(
+            byte =>
+              byte
+                .toString(
+                  16
+                )
+                .padStart(
+                  2,
+                  "0"
+                )
+          )
+          .join(
+            ""
+          );
+
+    }
+
+    else {
+
+      hash =
+        fallbackByteHash(
+          bytes
+        );
+
+    }
+
+
+    return {
+      hash,
+
+      mimeType:
+        blob.type,
+
+      size:
+        blob.size
+    };
+
+  }
+
+
   async function uploadCharacterMedia(
     characterId,
     kind,
@@ -360,6 +487,180 @@
         normalizeKind(
           kind
         ),
+
+      mimeType:
+        blob.type,
+
+      size:
+        blob.size
+    };
+
+  }
+
+
+  // ------------------------------------------------------------
+  // STABLE CHARACTER MEDIA UPLOAD
+  //
+  // Uses the content hash in the object path.
+  // Uploading the same image again therefore reuses the same
+  // Storage object instead of creating unlimited duplicates.
+  // ------------------------------------------------------------
+
+  async function uploadCharacterMediaStable(
+    characterId,
+    kind,
+    source,
+    knownFingerprint = null
+  ) {
+
+    const blob =
+      await sourceToBlob(
+        source
+      );
+
+
+    const mediaKind =
+      normalizeKind(
+        kind
+      );
+
+
+    const fingerprint =
+      (
+        knownFingerprint &&
+        knownFingerprint.hash
+      )
+        ? {
+            hash:
+              String(
+                knownFingerprint.hash
+              ),
+
+            mimeType:
+              knownFingerprint.mimeType ||
+              blob.type,
+
+            size:
+              Number(
+                knownFingerprint.size
+              ) ||
+              blob.size
+          }
+
+        : await fingerprintSource(
+            blob
+          );
+
+
+    const extension =
+      EXTENSIONS[
+        blob.type
+      ];
+
+
+    if (!extension) {
+
+      throw new Error(
+        `Unsupported image type: ${blob.type || "unknown"}`
+      );
+
+    }
+
+
+    const user =
+      await getUser();
+
+
+    const path =
+      [
+        sanitizeSegment(
+          user.id
+        ),
+
+        "characters",
+
+        sanitizeSegment(
+          characterId
+        ),
+
+        `${mediaKind}-${fingerprint.hash}.${extension}`
+      ]
+        .join(
+          "/"
+        );
+
+
+    const bytes =
+      await blob.arrayBuffer();
+
+
+    const client =
+      getClient();
+
+
+    const {
+      data,
+      error
+    } =
+      await client
+        .storage
+        .from(
+          BUCKET
+        )
+        .upload(
+          path,
+          bytes,
+          {
+            cacheControl:
+              "3600",
+
+            contentType:
+              blob.type,
+
+            // Deterministic object path.
+            // Re-uploading identical content is safe.
+            upsert:
+              true
+          }
+        );
+
+
+    if (error) {
+
+      console.error(
+        "[Chati-AI Media] Stable upload failed:",
+        error
+      );
+
+
+      throw error;
+
+    }
+
+
+    const savedPath =
+      data?.path ||
+      path;
+
+
+    console.log(
+      "[Chati-AI Media] Stable media ready:",
+      savedPath
+    );
+
+
+    return {
+      bucket:
+        BUCKET,
+
+      path:
+        savedPath,
+
+      kind:
+        mediaKind,
+
+      hash:
+        fingerprint.hash,
 
       mimeType:
         blob.type,
@@ -730,7 +1031,9 @@
     Object.freeze({
       status,
       getMediaPath,
+      fingerprintSource,
       uploadCharacterMedia,
+      uploadCharacterMediaStable,
       downloadMedia,
       downloadToDataUrl,
       getSignedUrl,

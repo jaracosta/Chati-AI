@@ -2153,6 +2153,15 @@
           0,
 
         conflicts:
+          [],
+
+        uploadedMedia:
+          0,
+
+        downloadedMedia:
+          0,
+
+        mediaConflicts:
           []
       };
 
@@ -2953,6 +2962,604 @@
             })
           );
         }
+      }
+
+
+      // ========================================================
+      // V4.0.6.2 — PROTECTED CHARACTER MEDIA PASS
+      //
+      // Character text/version synchronization above remains
+      // unchanged. Media synchronization is layered on top.
+      //
+      // Rules:
+      // - Local media + no cloud media -> upload.
+      // - Same local/cloud hash -> do nothing.
+      // - Cloud media + empty local field -> download.
+      // - Different local/cloud hashes -> protect both.
+      // ========================================================
+
+      if (
+        window.ChatiMedia &&
+        typeof window.ChatiMedia
+          .fingerprintSource ===
+          "function" &&
+        typeof window.ChatiMedia
+          .uploadCharacterMediaStable ===
+          "function" &&
+        typeof window.ChatiMedia
+          .downloadToDataUrl ===
+          "function"
+      ) {
+
+        const characterConflictIds =
+          new Set(
+            result.conflicts
+              .map(
+                conflict =>
+                  String(
+                    conflict.id
+                  )
+              )
+          );
+
+
+        const mediaFields = [
+          {
+            kind:
+              "avatar",
+
+            field:
+              "image"
+          },
+
+          {
+            kind:
+              "background",
+
+            field:
+              "background"
+          }
+        ];
+
+
+        for (
+          const [
+            rawId,
+            initialLocal
+          ] of
+          Array.from(
+            localMap.entries()
+          )
+        ) {
+
+          const id =
+            String(
+              rawId
+            );
+
+
+          // Never attach media changes to a character whose
+          // normal character data is already conflicted.
+          if (
+            characterConflictIds.has(
+              id
+            )
+          ) {
+
+            continue;
+
+          }
+
+
+          let local =
+            initialLocal;
+
+
+          let cloud =
+            cloudMap.get(
+              id
+            ) ||
+            null;
+
+
+          if (
+            !local ||
+            !cloud ||
+            cloud.deleted_at ||
+            !state[id]
+          ) {
+
+            continue;
+
+          }
+
+
+          for (
+            const spec of
+            mediaFields
+          ) {
+
+            const {
+              kind,
+              field
+            } =
+              spec;
+
+
+            const localValue =
+              local?.[field] ||
+              "";
+
+
+            const descriptor =
+              cloud
+                ?.payload
+                ?.media
+                ?.[kind] ||
+              null;
+
+
+            // ==================================================
+            // LOCAL MEDIA EXISTS
+            // ==================================================
+
+            if (
+              isLocalMedia(
+                localValue
+              )
+            ) {
+
+              let fingerprint;
+
+
+              try {
+
+                fingerprint =
+                  await window.ChatiMedia
+                    .fingerprintSource(
+                      localValue
+                    );
+
+              }
+
+              catch (
+                error
+              ) {
+
+                result.mediaConflicts.push({
+                  id,
+
+                  name:
+                    local.name ||
+                    "Unnamed Character",
+
+                  kind,
+
+                  type:
+                    "local-media-unreadable",
+
+                  message:
+                    error?.message ||
+                    String(
+                      error
+                    )
+                });
+
+
+                continue;
+
+              }
+
+
+              // Already synchronized.
+              if (
+                descriptor?.hash &&
+                descriptor.hash ===
+                  fingerprint.hash &&
+                descriptor?.path
+              ) {
+
+                continue;
+
+              }
+
+
+              // Cloud already has DIFFERENT media.
+              // Protect both sides. Never overwrite silently.
+              if (
+                descriptor?.path &&
+                descriptor?.hash &&
+                descriptor.hash !==
+                  fingerprint.hash
+              ) {
+
+                result.mediaConflicts.push({
+                  id,
+
+                  name:
+                    local.name ||
+                    "Unnamed Character",
+
+                  kind,
+
+                  type:
+                    "media-divergence",
+
+                  localHash:
+                    fingerprint.hash,
+
+                  cloudHash:
+                    descriptor.hash,
+
+                  cloudPath:
+                    descriptor.path
+                });
+
+
+                continue;
+
+              }
+
+
+              let uploaded;
+
+
+              try {
+
+                uploaded =
+                  await window.ChatiMedia
+                    .uploadCharacterMediaStable(
+                      id,
+                      kind,
+                      localValue,
+                      fingerprint
+                    );
+
+              }
+
+              catch (
+                error
+              ) {
+
+                result.mediaConflicts.push({
+                  id,
+
+                  name:
+                    local.name ||
+                    "Unnamed Character",
+
+                  kind,
+
+                  type:
+                    "media-upload-failed",
+
+                  message:
+                    error?.message ||
+                    String(
+                      error
+                    )
+                });
+
+
+                continue;
+
+              }
+
+
+              const nextPayload =
+                clone(
+                  cloud.payload ||
+                  {}
+                );
+
+
+              nextPayload.media = {
+                ...(
+                  nextPayload.media ||
+                  {}
+                ),
+
+                [kind]: {
+                  bucket:
+                    uploaded.bucket,
+
+                  path:
+                    uploaded.path,
+
+                  hash:
+                    uploaded.hash,
+
+                  mimeType:
+                    uploaded.mimeType,
+
+                  size:
+                    uploaded.size
+                }
+              };
+
+
+              // Keep deferred=true only while another local
+              // media field still has no cloud descriptor.
+              nextPayload.media.deferred =
+                mediaFields.some(
+                  pendingSpec => {
+
+                    const pendingValue =
+                      local?.[
+                        pendingSpec.field
+                      ] ||
+                      "";
+
+
+                    const pendingDescriptor =
+                      nextPayload
+                        .media
+                        ?.[
+                          pendingSpec.kind
+                        ];
+
+
+                    return (
+                      isLocalMedia(
+                        pendingValue
+                      ) &&
+                      !pendingDescriptor?.path
+                    );
+
+                  }
+                );
+
+
+              const saved =
+                await window.ChatiCloud
+                  .updateIfVersion(
+                    "character",
+                    id,
+                    cloud.version,
+                    nextPayload
+                  );
+
+
+              if (
+                !saved
+              ) {
+
+                const latest =
+                  await window.ChatiCloud
+                    .get(
+                      "character",
+                      id,
+                      {
+                        includeDeleted:
+                          true
+                      }
+                    );
+
+
+                const latestDescriptor =
+                  latest
+                    ?.payload
+                    ?.media
+                    ?.[kind] ||
+                  null;
+
+
+                // Another device may have uploaded the exact
+                // same content first. That's not a conflict.
+                if (
+                  latest &&
+                  !latest.deleted_at &&
+                  latestDescriptor?.hash ===
+                    fingerprint.hash
+                ) {
+
+                  cloud =
+                    latest;
+
+
+                  cloudMap.set(
+                    id,
+                    latest
+                  );
+
+
+                  if (
+                    state[id]
+                  ) {
+
+                    state[id].version =
+                      latest.version;
+
+                  }
+
+
+                  continue;
+
+                }
+
+
+                result.mediaConflicts.push({
+                  id,
+
+                  name:
+                    local.name ||
+                    "Unnamed Character",
+
+                  kind,
+
+                  type:
+                    "stale-media-upload-blocked",
+
+                  localHash:
+                    fingerprint.hash,
+
+                  cloudHash:
+                    latestDescriptor
+                      ?.hash ||
+                    null,
+
+                  cloudVersion:
+                    latest
+                      ?.version ||
+                    cloud.version
+                });
+
+
+                continue;
+
+              }
+
+
+              cloud =
+                saved;
+
+
+              cloudMap.set(
+                id,
+                saved
+              );
+
+
+              // Media-only cloud updates increment cloud_items
+              // version. Move this device's baseline forward
+              // without changing the character-data fingerprint.
+              if (
+                state[id]
+              ) {
+
+                state[id].version =
+                  saved.version;
+
+
+                state[id].deleted =
+                  false;
+
+              }
+
+
+              result.uploadedMedia +=
+                1;
+
+
+              continue;
+
+            }
+
+
+            // ==================================================
+            // CLOUD MEDIA EXISTS, LOCAL MEDIA IS EMPTY
+            // ==================================================
+
+            if (
+              (
+                !localValue ||
+                !String(
+                  localValue
+                ).trim()
+              ) &&
+              descriptor?.path
+            ) {
+
+              try {
+
+                const dataUrl =
+                  await window.ChatiMedia
+                    .downloadToDataUrl(
+                      descriptor.path
+                    );
+
+
+                local = {
+                  ...local,
+
+                  [field]:
+                    dataUrl
+                };
+
+
+                localItems =
+                  replaceCharacter(
+                    localItems,
+                    local
+                  );
+
+
+                localMap.set(
+                  id,
+                  local
+                );
+
+
+                localChangedByCloud =
+                  true;
+
+
+                result.downloadedMedia +=
+                  1;
+
+              }
+
+              catch (
+                error
+              ) {
+
+                result.mediaConflicts.push({
+                  id,
+
+                  name:
+                    local.name ||
+                    "Unnamed Character",
+
+                  kind,
+
+                  type:
+                    "media-download-failed",
+
+                  cloudPath:
+                    descriptor.path,
+
+                  message:
+                    error?.message ||
+                    String(
+                      error
+                    )
+                });
+
+              }
+
+            }
+
+          }
+
+        }
+
+
+        if (
+          result.mediaConflicts.length
+        ) {
+
+          console.warn(
+            `[Chati-AI Sync] ${result.mediaConflicts.length} media conflict${result.mediaConflicts.length === 1 ? "" : "s"} protected.`,
+            result.mediaConflicts
+          );
+
+
+          window.dispatchEvent(
+            new CustomEvent(
+              "chati:mediasyncconflict",
+              {
+                detail: {
+                  conflicts:
+                    clone(
+                      result.mediaConflicts
+                    )
+                }
+              }
+            )
+          );
+
+        }
+
       }
 
 
