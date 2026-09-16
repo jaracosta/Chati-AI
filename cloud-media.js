@@ -801,6 +801,324 @@
   }
 
 
+  // ------------------------------------------------------------
+  // V4.0.6.3B — CHARACTER MEDIA FOLDER CLEANUP
+  //
+  // Every normal character stores media under:
+  //
+  //   <user-id>/characters/<character-id>/
+  //
+  // When a character is permanently deleted from the user's
+  // active collection, all objects in that folder can be
+  // removed after the cloud tombstone succeeds.
+  // ------------------------------------------------------------
+
+  async function getCharacterMediaFolder(
+    characterId
+  ) {
+
+    const user =
+      await getUser();
+
+
+    return [
+      sanitizeSegment(
+        user.id
+      ),
+
+      "characters",
+
+      sanitizeSegment(
+        characterId
+      )
+    ]
+      .join(
+        "/"
+      );
+
+  }
+
+
+  async function listCharacterMedia(
+    characterId
+  ) {
+
+    const folder =
+      await getCharacterMediaFolder(
+        characterId
+      );
+
+
+    const client =
+      getClient();
+
+
+    const limit =
+      100;
+
+
+    let offset =
+      0;
+
+
+    const files =
+      [];
+
+
+    // Safety bound. A normal Chati-AI character should never
+    // have anywhere near this many objects.
+    for (
+      let page = 0;
+      page < 100;
+      page += 1
+    ) {
+
+      const {
+        data,
+        error
+      } =
+        await client
+          .storage
+          .from(
+            BUCKET
+          )
+          .list(
+            folder,
+            {
+              limit,
+
+              offset,
+
+              sortBy: {
+                column:
+                  "name",
+
+                order:
+                  "asc"
+              }
+            }
+          );
+
+
+      if (error) {
+
+        console.error(
+          "[Chati-AI Media] Character folder listing failed:",
+          folder,
+          error
+        );
+
+
+        throw error;
+
+      }
+
+
+      const entries =
+        Array.isArray(
+          data
+        )
+          ? data
+          : [];
+
+
+      for (
+        const entry of
+        entries
+      ) {
+
+        // Supabase folder entries may have id === null.
+        // We only want actual files.
+        if (
+          !entry ||
+          !entry.name ||
+          !entry.id
+        ) {
+
+          continue;
+
+        }
+
+
+        files.push({
+          name:
+            entry.name,
+
+          path:
+            `${folder}/${entry.name}`,
+
+          id:
+            entry.id,
+
+          metadata:
+            entry.metadata ||
+            null
+        });
+
+      }
+
+
+      if (
+        entries.length <
+        limit
+      ) {
+
+        break;
+
+      }
+
+
+      offset +=
+        entries.length;
+
+    }
+
+
+    return {
+      folder,
+
+      count:
+        files.length,
+
+      files
+    };
+
+  }
+
+
+  async function deleteCharacterMedia(
+    characterId
+  ) {
+
+    const listing =
+      await listCharacterMedia(
+        characterId
+      );
+
+
+    const paths =
+      listing.files
+        .map(
+          file =>
+            file.path
+        );
+
+
+    if (
+      !paths.length
+    ) {
+
+      console.log(
+        "[Chati-AI Media] Character media folder already empty:",
+        listing.folder
+      );
+
+
+      return {
+        ok:
+          true,
+
+        characterId:
+          String(
+            characterId
+          ),
+
+        folder:
+          listing.folder,
+
+        deletedCount:
+          0,
+
+        deletedPaths:
+          []
+      };
+
+    }
+
+
+    const client =
+      getClient();
+
+
+    const deletedPaths =
+      [];
+
+
+    // Keep batches small and predictable.
+    for (
+      let index = 0;
+      index < paths.length;
+      index += 100
+    ) {
+
+      const batch =
+        paths.slice(
+          index,
+          index + 100
+        );
+
+
+      const {
+        error
+      } =
+        await client
+          .storage
+          .from(
+            BUCKET
+          )
+          .remove(
+            batch
+          );
+
+
+      if (error) {
+
+        console.error(
+          "[Chati-AI Media] Character media cleanup failed:",
+          listing.folder,
+          error
+        );
+
+
+        throw error;
+
+      }
+
+
+      deletedPaths.push(
+        ...batch
+      );
+
+    }
+
+
+    console.log(
+      `[Chati-AI Media] Deleted ${deletedPaths.length} file${deletedPaths.length === 1 ? "" : "s"} for character:`,
+      characterId
+    );
+
+
+    return {
+      ok:
+        true,
+
+      characterId:
+        String(
+          characterId
+        ),
+
+      folder:
+        listing.folder,
+
+      deletedCount:
+        deletedPaths.length,
+
+      deletedPaths
+    };
+
+  }
+
+
   async function deleteMedia(path) {
     if (!path) {
       return {
@@ -1037,6 +1355,8 @@
       downloadMedia,
       downloadToDataUrl,
       getSignedUrl,
+      listCharacterMedia,
+      deleteCharacterMedia,
       deleteMedia,
       replaceCharacterMedia,
       testRoundTrip

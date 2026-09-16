@@ -2176,6 +2176,11 @@
       );
 
 
+      await cleanupDeletedCharacterMedia(
+        id
+      );
+
+
       console.log(
         "[Chati-AI Sync] Conflict resolved using local deletion:",
         id
@@ -2290,6 +2295,118 @@
       version:
         savedRow.version
     };
+  }
+
+
+  // ============================================================
+  // V4.0.6.3B — POST-TOMBSTONE MEDIA CLEANUP
+  //
+  // IMPORTANT:
+  // This runs only AFTER a cloud delete/tombstone succeeds.
+  // A Storage cleanup failure must never undo the character
+  // deletion or create a character-sync conflict.
+  // ============================================================
+
+  async function cleanupDeletedCharacterMedia(
+    characterId,
+    result = null
+  ) {
+
+    if (
+      !window.ChatiMedia ||
+      typeof window.ChatiMedia
+        .deleteCharacterMedia !==
+        "function"
+    ) {
+
+      return {
+        ok:
+          false,
+
+        skipped:
+          true,
+
+        reason:
+          "cloud-media-unavailable"
+      };
+
+    }
+
+
+    try {
+
+      const cleanup =
+        await window.ChatiMedia
+          .deleteCharacterMedia(
+            characterId
+          );
+
+
+      if (
+        result &&
+        typeof result ===
+          "object"
+      ) {
+
+        result.cleanedCharacterMediaFiles +=
+          Number(
+            cleanup?.deletedCount
+          ) ||
+          0;
+
+      }
+
+
+      return {
+        ok:
+          true,
+
+        ...cleanup
+      };
+
+    }
+
+    catch (
+      error
+    ) {
+
+      if (
+        result &&
+        typeof result ===
+          "object"
+      ) {
+
+        result.mediaCleanupFailures +=
+          1;
+
+      }
+
+
+      console.warn(
+        "[Chati-AI Sync] Character was deleted, but media cleanup will need another attempt:",
+        characterId,
+        error
+      );
+
+
+      return {
+        ok:
+          false,
+
+        characterId:
+          String(
+            characterId
+          ),
+
+        error:
+          error?.message ||
+          String(
+            error
+          )
+      };
+
+    }
+
   }
 
 
@@ -2461,6 +2578,12 @@
           0,
 
         removedMedia:
+          0,
+
+        cleanedCharacterMediaFiles:
+          0,
+
+        mediaCleanupFailures:
           0,
 
         mediaConflicts:
@@ -2941,6 +3064,12 @@
             1;
 
 
+          await cleanupDeletedCharacterMedia(
+            id,
+            result
+          );
+
+
           continue;
         }
 
@@ -3030,6 +3159,12 @@
 
           result.downloadedDeletes +=
             1;
+
+
+          await cleanupDeletedCharacterMedia(
+            id,
+            result
+          );
 
 
           continue;
