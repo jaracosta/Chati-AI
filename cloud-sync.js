@@ -351,8 +351,10 @@
 
 
   function prepareForCloud(
-    character
+    character,
+    existingMedia = null
   ) {
+
     const clean =
       clone(
         character
@@ -368,11 +370,13 @@
         clean.image
       )
     ) {
+
       clean.image =
         "";
 
       deferred =
         true;
+
     }
 
 
@@ -381,12 +385,29 @@
         clean.background
       )
     ) {
+
       clean.background =
         "";
 
       deferred =
         true;
+
     }
+
+
+    const preservedMedia =
+      (
+        existingMedia &&
+        typeof existingMedia ===
+          "object" &&
+        !Array.isArray(
+          existingMedia
+        )
+      )
+        ? clone(
+            existingMedia
+          )
+        : {};
 
 
     return {
@@ -397,9 +418,232 @@
         clean,
 
       media: {
+        ...preservedMedia,
+
         deferred
       }
     };
+
+  }
+
+
+  // ------------------------------------------------------------
+  // V4.0.6.3 — MEDIA BASELINES
+  // ------------------------------------------------------------
+
+  function getMediaBaseline(
+    state,
+    id,
+    kind
+  ) {
+
+    const value =
+      state
+        ?.[
+          String(
+            id
+          )
+        ]
+        ?.media
+        ?.[kind];
+
+
+    if (
+      !value ||
+      typeof value !==
+        "object" ||
+      !value.hash ||
+      !value.path
+    ) {
+
+      return null;
+
+    }
+
+
+    return {
+      hash:
+        String(
+          value.hash
+        ),
+
+      path:
+        String(
+          value.path
+        ),
+
+      mimeType:
+        value.mimeType ||
+        null,
+
+      size:
+        Number(
+          value.size
+        ) ||
+        null
+    };
+
+  }
+
+
+  function setMediaBaseline(
+    state,
+    id,
+    kind,
+    descriptor
+  ) {
+
+    const key =
+      String(
+        id
+      );
+
+
+    if (
+      !state[key]
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      !state[key].media ||
+      typeof state[key].media !==
+        "object" ||
+      Array.isArray(
+        state[key].media
+      )
+    ) {
+
+      state[key].media =
+        {};
+
+    }
+
+
+    if (
+      !descriptor ||
+      !descriptor.hash ||
+      !descriptor.path
+    ) {
+
+      state[key].media[kind] =
+        null;
+
+      return;
+
+    }
+
+
+    state[key].media[kind] = {
+      hash:
+        String(
+          descriptor.hash
+        ),
+
+      path:
+        String(
+          descriptor.path
+        ),
+
+      mimeType:
+        descriptor.mimeType ||
+        null,
+
+      size:
+        Number(
+          descriptor.size
+        ) ||
+        null
+    };
+
+  }
+
+
+  function computeMediaDeferred(
+    local,
+    media,
+    mediaFields
+  ) {
+
+    return mediaFields.some(
+      spec => {
+
+        const localValue =
+          local
+            ?.[
+              spec.field
+            ] ||
+          "";
+
+
+        const descriptor =
+          media
+            ?.[
+              spec.kind
+            ] ||
+          null;
+
+
+        return (
+          isLocalMedia(
+            localValue
+          ) &&
+          !descriptor?.path
+        );
+
+      }
+    );
+
+  }
+
+
+  async function bestEffortDeleteMedia(
+    path
+  ) {
+
+    if (
+      !path ||
+      !window.ChatiMedia ||
+      typeof window.ChatiMedia
+        .deleteMedia !==
+        "function"
+    ) {
+
+      return false;
+
+    }
+
+
+    try {
+
+      await window.ChatiMedia
+        .deleteMedia(
+          path
+        );
+
+
+      return true;
+
+    }
+
+    catch (
+      error
+    ) {
+
+      console.warn(
+        "[Chati-AI Sync] Old media cleanup failed:",
+        path,
+        error
+      );
+
+
+      return false;
+
+    }
+
   }
 
 
@@ -860,11 +1104,48 @@
       deleted = false
     }
   ) {
-    state[
+
+    const key =
       String(
         id
+      );
+
+
+    // ========================================================
+    // V4.0.6.3 — PRESERVE MEDIA BASELINE
+    //
+    // Character sync updates cloud row versions frequently.
+    // Do NOT erase avatar/background baseline information when
+    // the normal character baseline is updated.
+    // ========================================================
+
+    const previous =
+      (
+        state[key] &&
+        typeof state[key] ===
+          "object" &&
+        !Array.isArray(
+          state[key]
+        )
       )
-    ] = {
+        ? state[key]
+        : {};
+
+
+    const previousMedia =
+      (
+        previous.media &&
+        typeof previous.media ===
+          "object" &&
+        !Array.isArray(
+          previous.media
+        )
+      )
+        ? previous.media
+        : null;
+
+
+    state[key] = {
       version:
         Number(
           version
@@ -878,8 +1159,18 @@
       deleted:
         Boolean(
           deleted
-        )
+        ),
+
+      ...(
+        previousMedia
+          ? {
+              media:
+                previousMedia
+            }
+          : {}
+      )
     };
+
   }
 
 
@@ -912,6 +1203,10 @@
       cloudVersion
     };
   }
+
+
+  let lastMediaConflicts =
+    [];
 
 
   function publishConflicts(
@@ -1907,7 +2202,8 @@
 
     const payload =
       prepareForCloud(
-        localCharacter
+        localCharacter,
+        cloudRow?.payload?.media
       );
 
 
@@ -2161,6 +2457,12 @@
         downloadedMedia:
           0,
 
+        replacedMedia:
+          0,
+
+        removedMedia:
+          0,
+
         mediaConflicts:
           []
       };
@@ -2212,8 +2514,9 @@
                 "character",
                 id,
                 prepareForCloud(
-                  local
-                )
+                    local,
+                    cloud?.payload?.media
+                  )
               );
 
 
@@ -2793,7 +3096,8 @@
                   id,
                   baseline.version,
                   prepareForCloud(
-                    local
+                    local,
+                    cloud?.payload?.media
                   )
                 );
 
@@ -2966,16 +3270,14 @@
 
 
       // ========================================================
-      // V4.0.6.2 — PROTECTED CHARACTER MEDIA PASS
+      // V4.0.6.3 — BASELINE-AWARE CHARACTER MEDIA PASS
       //
-      // Character text/version synchronization above remains
-      // unchanged. Media synchronization is layered on top.
-      //
-      // Rules:
-      // - Local media + no cloud media -> upload.
-      // - Same local/cloud hash -> do nothing.
-      // - Cloud media + empty local field -> download.
-      // - Different local/cloud hashes -> protect both.
+      // Supports:
+      // - first upload/download
+      // - replace avatar/background
+      // - remove avatar/background
+      // - cloud-side replacement/removal
+      // - simultaneous-change protection
       // ========================================================
 
       if (
@@ -3038,8 +3340,6 @@
             );
 
 
-          // Never attach media changes to a character whose
-          // normal character data is already conflicted.
           if (
             characterConflictIds.has(
               id
@@ -3091,7 +3391,7 @@
               "";
 
 
-            const descriptor =
+            let descriptor =
               cloud
                 ?.payload
                 ?.media
@@ -3099,18 +3399,27 @@
               null;
 
 
-            // ==================================================
-            // LOCAL MEDIA EXISTS
-            // ==================================================
+            let mediaBaseline =
+              getMediaBaseline(
+                state,
+                id,
+                kind
+              );
 
-            if (
+
+            let fingerprint =
+              null;
+
+
+            const localHasMedia =
               isLocalMedia(
                 localValue
-              )
+              );
+
+
+            if (
+              localHasMedia
             ) {
-
-              let fingerprint;
-
 
               try {
 
@@ -3150,27 +3459,109 @@
 
               }
 
+            }
 
-              // Already synchronized.
-              if (
-                descriptor?.hash &&
-                descriptor.hash ===
-                  fingerprint.hash &&
-                descriptor?.path
-              ) {
 
-                continue;
+            const cloudHasMedia =
+              Boolean(
+                descriptor?.path &&
+                descriptor?.hash
+              );
+
+
+            const baselineHasMedia =
+              Boolean(
+                mediaBaseline?.path &&
+                mediaBaseline?.hash
+              );
+
+
+            // ==================================================
+            // BOOTSTRAP:
+            // BOTH SIDES ALREADY HAVE THE SAME MEDIA
+            // ==================================================
+
+            if (
+              !baselineHasMedia &&
+              localHasMedia &&
+              cloudHasMedia &&
+              fingerprint.hash ===
+                descriptor.hash
+            ) {
+
+              setMediaBaseline(
+                state,
+                id,
+                kind,
+                descriptor
+              );
+
+
+              continue;
+
+            }
+
+
+            // ==================================================
+            // BOOTSTRAP:
+            // CLOUD MEDIA ONLY -> DOWNLOAD
+            // ==================================================
+
+            if (
+              !baselineHasMedia &&
+              !localHasMedia &&
+              cloudHasMedia
+            ) {
+
+              try {
+
+                const dataUrl =
+                  await window.ChatiMedia
+                    .downloadToDataUrl(
+                      descriptor.path
+                    );
+
+
+                local = {
+                  ...local,
+
+                  [field]:
+                    dataUrl
+                };
+
+
+                localItems =
+                  replaceCharacter(
+                    localItems,
+                    local
+                  );
+
+
+                localMap.set(
+                  id,
+                  local
+                );
+
+
+                localChangedByCloud =
+                  true;
+
+
+                setMediaBaseline(
+                  state,
+                  id,
+                  kind,
+                  descriptor
+                );
+
+
+                result.downloadedMedia +=
+                  1;
 
               }
 
-
-              // Cloud already has DIFFERENT media.
-              // Protect both sides. Never overwrite silently.
-              if (
-                descriptor?.path &&
-                descriptor?.hash &&
-                descriptor.hash !==
-                  fingerprint.hash
+              catch (
+                error
               ) {
 
                 result.mediaConflicts.push({
@@ -3183,23 +3574,36 @@
                   kind,
 
                   type:
-                    "media-divergence",
-
-                  localHash:
-                    fingerprint.hash,
-
-                  cloudHash:
-                    descriptor.hash,
+                    "media-download-failed",
 
                   cloudPath:
-                    descriptor.path
+                    descriptor.path,
+
+                  message:
+                    error?.message ||
+                    String(
+                      error
+                    )
                 });
-
-
-                continue;
 
               }
 
+
+              continue;
+
+            }
+
+
+            // ==================================================
+            // BOOTSTRAP:
+            // LOCAL MEDIA ONLY -> UPLOAD
+            // ==================================================
+
+            if (
+              !baselineHasMedia &&
+              localHasMedia &&
+              !cloudHasMedia
+            ) {
 
               let uploaded;
 
@@ -3278,35 +3682,11 @@
               };
 
 
-              // Keep deferred=true only while another local
-              // media field still has no cloud descriptor.
               nextPayload.media.deferred =
-                mediaFields.some(
-                  pendingSpec => {
-
-                    const pendingValue =
-                      local?.[
-                        pendingSpec.field
-                      ] ||
-                      "";
-
-
-                    const pendingDescriptor =
-                      nextPayload
-                        .media
-                        ?.[
-                          pendingSpec.kind
-                        ];
-
-
-                    return (
-                      isLocalMedia(
-                        pendingValue
-                      ) &&
-                      !pendingDescriptor?.path
-                    );
-
-                  }
+                computeMediaDeferred(
+                  local,
+                  nextPayload.media,
+                  mediaFields
                 );
 
 
@@ -3324,58 +3704,9 @@
                 !saved
               ) {
 
-                const latest =
-                  await window.ChatiCloud
-                    .get(
-                      "character",
-                      id,
-                      {
-                        includeDeleted:
-                          true
-                      }
-                    );
-
-
-                const latestDescriptor =
-                  latest
-                    ?.payload
-                    ?.media
-                    ?.[kind] ||
-                  null;
-
-
-                // Another device may have uploaded the exact
-                // same content first. That's not a conflict.
-                if (
-                  latest &&
-                  !latest.deleted_at &&
-                  latestDescriptor?.hash ===
-                    fingerprint.hash
-                ) {
-
-                  cloud =
-                    latest;
-
-
-                  cloudMap.set(
-                    id,
-                    latest
-                  );
-
-
-                  if (
-                    state[id]
-                  ) {
-
-                    state[id].version =
-                      latest.version;
-
-                  }
-
-
-                  continue;
-
-                }
+                await bestEffortDeleteMedia(
+                  uploaded.path
+                );
 
 
                 result.mediaConflicts.push({
@@ -3393,14 +3724,7 @@
                   localHash:
                     fingerprint.hash,
 
-                  cloudHash:
-                    latestDescriptor
-                      ?.hash ||
-                    null,
-
                   cloudVersion:
-                    latest
-                      ?.version ||
                     cloud.version
                 });
 
@@ -3420,21 +3744,28 @@
               );
 
 
-              // Media-only cloud updates increment cloud_items
-              // version. Move this device's baseline forward
-              // without changing the character-data fingerprint.
-              if (
-                state[id]
-              ) {
-
-                state[id].version =
-                  saved.version;
+              state[id].version =
+                saved.version;
 
 
-                state[id].deleted =
-                  false;
+              state[id].deleted =
+                false;
 
-              }
+
+              descriptor =
+                saved
+                  ?.payload
+                  ?.media
+                  ?.[kind] ||
+                null;
+
+
+              setMediaBaseline(
+                state,
+                id,
+                kind,
+                descriptor
+              );
 
 
               result.uploadedMedia +=
@@ -3446,20 +3777,532 @@
             }
 
 
+            // Nothing exists anywhere.
+            if (
+              !baselineHasMedia &&
+              !localHasMedia &&
+              !cloudHasMedia
+            ) {
+
+              continue;
+
+            }
+
+
+            // First baseline cannot safely choose between
+            // two DIFFERENT existing media files.
+            if (
+              !baselineHasMedia
+            ) {
+
+              result.mediaConflicts.push({
+                id,
+
+                name:
+                  local.name ||
+                  "Unnamed Character",
+
+                kind,
+
+                type:
+                  "untracked-media-divergence",
+
+                localHash:
+                  fingerprint?.hash ||
+                  null,
+
+                cloudHash:
+                  descriptor?.hash ||
+                  null,
+
+                cloudPath:
+                  descriptor?.path ||
+                  null
+              });
+
+
+              continue;
+
+            }
+
+
             // ==================================================
-            // CLOUD MEDIA EXISTS, LOCAL MEDIA IS EMPTY
+            // BASELINE EXISTS
+            // ==================================================
+
+            const localChanged =
+              (
+                !localHasMedia ||
+                fingerprint.hash !==
+                  mediaBaseline.hash
+              );
+
+
+            const cloudChanged =
+              (
+                !cloudHasMedia ||
+                descriptor.hash !==
+                  mediaBaseline.hash
+              );
+
+
+            // Same content uploaded independently on both sides.
+            if (
+              localChanged &&
+              cloudChanged &&
+              localHasMedia &&
+              cloudHasMedia &&
+              fingerprint.hash ===
+                descriptor.hash
+            ) {
+
+              setMediaBaseline(
+                state,
+                id,
+                kind,
+                descriptor
+              );
+
+
+              continue;
+
+            }
+
+
+            // Both sides removed it.
+            if (
+              localChanged &&
+              cloudChanged &&
+              !localHasMedia &&
+              !cloudHasMedia
+            ) {
+
+              setMediaBaseline(
+                state,
+                id,
+                kind,
+                null
+              );
+
+
+              continue;
+
+            }
+
+
+            // Nothing changed.
+            if (
+              !localChanged &&
+              !cloudChanged
+            ) {
+
+              // Refresh path metadata if content hash stayed
+              // the same but the object path changed.
+              if (
+                descriptor?.path &&
+                descriptor.path !==
+                  mediaBaseline.path
+              ) {
+
+                setMediaBaseline(
+                  state,
+                  id,
+                  kind,
+                  descriptor
+                );
+
+              }
+
+
+              continue;
+
+            }
+
+
+            // ==================================================
+            // ONLY LOCAL CHANGED
             // ==================================================
 
             if (
-              (
-                !localValue ||
-                !String(
-                  localValue
-                ).trim()
-              ) &&
-              descriptor?.path
+              localChanged &&
+              !cloudChanged
             ) {
 
+              // -----------------------------------------------
+              // LOCAL REMOVE
+              // -----------------------------------------------
+
+              if (
+                !localHasMedia
+              ) {
+
+                const oldPath =
+                  descriptor?.path ||
+                  mediaBaseline.path;
+
+
+                const nextPayload =
+                  clone(
+                    cloud.payload ||
+                    {}
+                  );
+
+
+                nextPayload.media = {
+                  ...(
+                    nextPayload.media ||
+                    {}
+                  )
+                };
+
+
+                delete nextPayload
+                  .media[
+                    kind
+                  ];
+
+
+                nextPayload.media.deferred =
+                  computeMediaDeferred(
+                    local,
+                    nextPayload.media,
+                    mediaFields
+                  );
+
+
+                const saved =
+                  await window.ChatiCloud
+                    .updateIfVersion(
+                      "character",
+                      id,
+                      cloud.version,
+                      nextPayload
+                    );
+
+
+                if (
+                  !saved
+                ) {
+
+                  result.mediaConflicts.push({
+                    id,
+
+                    name:
+                      local.name ||
+                      "Unnamed Character",
+
+                    kind,
+
+                    type:
+                      "stale-media-remove-blocked",
+
+                    baselineHash:
+                      mediaBaseline.hash,
+
+                    cloudVersion:
+                      cloud.version
+                  });
+
+
+                  continue;
+
+                }
+
+
+                cloud =
+                  saved;
+
+
+                cloudMap.set(
+                  id,
+                  saved
+                );
+
+
+                state[id].version =
+                  saved.version;
+
+
+                state[id].deleted =
+                  false;
+
+
+                setMediaBaseline(
+                  state,
+                  id,
+                  kind,
+                  null
+                );
+
+
+                result.removedMedia +=
+                  1;
+
+
+                await bestEffortDeleteMedia(
+                  oldPath
+                );
+
+
+                continue;
+
+              }
+
+
+              // -----------------------------------------------
+              // LOCAL REPLACE
+              // -----------------------------------------------
+
+              let uploaded;
+
+
+              try {
+
+                uploaded =
+                  await window.ChatiMedia
+                    .uploadCharacterMediaStable(
+                      id,
+                      kind,
+                      localValue,
+                      fingerprint
+                    );
+
+              }
+
+              catch (
+                error
+              ) {
+
+                result.mediaConflicts.push({
+                  id,
+
+                  name:
+                    local.name ||
+                    "Unnamed Character",
+
+                  kind,
+
+                  type:
+                    "media-replace-upload-failed",
+
+                  message:
+                    error?.message ||
+                    String(
+                      error
+                    )
+                });
+
+
+                continue;
+
+              }
+
+
+              const oldPath =
+                descriptor?.path ||
+                mediaBaseline.path;
+
+
+              const nextPayload =
+                clone(
+                  cloud.payload ||
+                  {}
+                );
+
+
+              nextPayload.media = {
+                ...(
+                  nextPayload.media ||
+                  {}
+                ),
+
+                [kind]: {
+                  bucket:
+                    uploaded.bucket,
+
+                  path:
+                    uploaded.path,
+
+                  hash:
+                    uploaded.hash,
+
+                  mimeType:
+                    uploaded.mimeType,
+
+                  size:
+                    uploaded.size
+                }
+              };
+
+
+              nextPayload.media.deferred =
+                computeMediaDeferred(
+                  local,
+                  nextPayload.media,
+                  mediaFields
+                );
+
+
+              const saved =
+                await window.ChatiCloud
+                  .updateIfVersion(
+                    "character",
+                    id,
+                    cloud.version,
+                    nextPayload
+                  );
+
+
+              if (
+                !saved
+              ) {
+
+                await bestEffortDeleteMedia(
+                  uploaded.path
+                );
+
+
+                result.mediaConflicts.push({
+                  id,
+
+                  name:
+                    local.name ||
+                    "Unnamed Character",
+
+                  kind,
+
+                  type:
+                    "stale-media-replace-blocked",
+
+                  localHash:
+                    fingerprint.hash,
+
+                  baselineHash:
+                    mediaBaseline.hash,
+
+                  cloudVersion:
+                    cloud.version
+                });
+
+
+                continue;
+
+              }
+
+
+              cloud =
+                saved;
+
+
+              cloudMap.set(
+                id,
+                saved
+              );
+
+
+              state[id].version =
+                saved.version;
+
+
+              state[id].deleted =
+                false;
+
+
+              descriptor =
+                saved
+                  ?.payload
+                  ?.media
+                  ?.[kind] ||
+                null;
+
+
+              setMediaBaseline(
+                state,
+                id,
+                kind,
+                descriptor
+              );
+
+
+              result.replacedMedia +=
+                1;
+
+
+              if (
+                oldPath &&
+                oldPath !==
+                  uploaded.path
+              ) {
+
+                await bestEffortDeleteMedia(
+                  oldPath
+                );
+
+              }
+
+
+              continue;
+
+            }
+
+
+            // ==================================================
+            // ONLY CLOUD CHANGED
+            // ==================================================
+
+            if (
+              !localChanged &&
+              cloudChanged
+            ) {
+
+              // Cloud removed media.
+              if (
+                !cloudHasMedia
+              ) {
+
+                local = {
+                  ...local,
+
+                  [field]:
+                    ""
+                };
+
+
+                localItems =
+                  replaceCharacter(
+                    localItems,
+                    local
+                  );
+
+
+                localMap.set(
+                  id,
+                  local
+                );
+
+
+                localChangedByCloud =
+                  true;
+
+
+                setMediaBaseline(
+                  state,
+                  id,
+                  kind,
+                  null
+                );
+
+
+                result.downloadedMedia +=
+                  1;
+
+
+                continue;
+
+              }
+
+
+              // Cloud replaced media.
               try {
 
                 const dataUrl =
@@ -3492,6 +4335,14 @@
 
                 localChangedByCloud =
                   true;
+
+
+                setMediaBaseline(
+                  state,
+                  id,
+                  kind,
+                  descriptor
+                );
 
 
                 result.downloadedMedia +=
@@ -3527,11 +4378,61 @@
 
               }
 
+
+              continue;
+
             }
+
+
+            // ==================================================
+            // BOTH CHANGED DIFFERENTLY
+            // ==================================================
+
+            result.mediaConflicts.push({
+              id,
+
+              name:
+                local.name ||
+                "Unnamed Character",
+
+              kind,
+
+              type:
+                (
+                  !localHasMedia
+                    ? "local-remove-vs-cloud-media-change"
+                    : (
+                        !cloudHasMedia
+                          ? "local-media-change-vs-cloud-remove"
+                          : "media-both-changed"
+                      )
+                ),
+
+              baselineHash:
+                mediaBaseline.hash,
+
+              localHash:
+                fingerprint?.hash ||
+                null,
+
+              cloudHash:
+                descriptor?.hash ||
+                null,
+
+              cloudPath:
+                descriptor?.path ||
+                null
+            });
 
           }
 
         }
+
+
+        lastMediaConflicts =
+          clone(
+            result.mediaConflicts
+          );
 
 
         if (
@@ -3985,6 +4886,503 @@
   );
 
 
+  // ============================================================
+  // V4.0.6.3 — MEDIA CONFLICT RESOLUTION
+  // ============================================================
+
+  function normalizeMediaKind(
+    kind
+  ) {
+
+    const value =
+      String(
+        kind || ""
+      )
+        .trim()
+        .toLowerCase();
+
+
+    if (
+      value === "image"
+    ) {
+
+      return {
+        kind:
+          "avatar",
+
+        field:
+          "image"
+      };
+
+    }
+
+
+    if (
+      value === "avatar"
+    ) {
+
+      return {
+        kind:
+          "avatar",
+
+        field:
+          "image"
+      };
+
+    }
+
+
+    if (
+      value === "background"
+    ) {
+
+      return {
+        kind:
+          "background",
+
+        field:
+          "background"
+      };
+
+    }
+
+
+    throw new Error(
+      'Media kind must be "avatar" or "background".'
+    );
+
+  }
+
+
+  function getMediaConflicts() {
+
+    return clone(
+      lastMediaConflicts
+    );
+
+  }
+
+
+  function clearMediaConflict(
+    localId,
+    kind
+  ) {
+
+    const id =
+      String(
+        localId
+      );
+
+
+    const normalized =
+      normalizeMediaKind(
+        kind
+      ).kind;
+
+
+    lastMediaConflicts =
+      lastMediaConflicts
+        .filter(
+          conflict =>
+            !(
+              String(
+                conflict.id
+              ) === id &&
+              String(
+                conflict.kind
+              ) === normalized
+            )
+        );
+
+  }
+
+
+  async function applyCloudMediaConflict(
+    localId,
+    kind
+  ) {
+
+    const id =
+      String(
+        localId ||
+        ""
+      ).trim();
+
+
+    if (
+      !id
+    ) {
+
+      throw new Error(
+        "Character ID is required."
+      );
+
+    }
+
+
+    const spec =
+      normalizeMediaKind(
+        kind
+      );
+
+
+    const userId =
+      await getUserId();
+
+
+    if (
+      !userId
+    ) {
+
+      throw new Error(
+        "You must be signed in."
+      );
+
+    }
+
+
+    if (
+      !window.ChatiCloud
+    ) {
+
+      throw new Error(
+        "ChatiCloud is unavailable."
+      );
+
+    }
+
+
+    if (
+      !window.ChatiMedia
+    ) {
+
+      throw new Error(
+        "ChatiMedia is unavailable."
+      );
+
+    }
+
+
+    const cloudRow =
+      await window.ChatiCloud
+        .get(
+          "character",
+          id,
+          {
+            includeDeleted:
+              true
+          }
+        );
+
+
+    if (
+      !cloudRow ||
+      cloudRow.deleted_at
+    ) {
+
+      throw new Error(
+        "Active cloud character could not be found."
+      );
+
+    }
+
+
+    let localItems =
+      await getLocalItems();
+
+
+    let localCharacter =
+      localItems.find(
+        item =>
+          (
+            isCharacter(
+              item
+            ) &&
+            String(
+              item.id
+            ) === id
+          )
+      ) ||
+      null;
+
+
+    if (
+      !localCharacter
+    ) {
+
+      throw new Error(
+        "Local character could not be found."
+      );
+
+    }
+
+
+    const descriptor =
+      cloudRow
+        ?.payload
+        ?.media
+        ?.[
+          spec.kind
+        ] ||
+      null;
+
+
+    let localValue =
+      "";
+
+
+    if (
+      descriptor?.path
+    ) {
+
+      localValue =
+        await window.ChatiMedia
+          .downloadToDataUrl(
+            descriptor.path
+          );
+
+    }
+
+
+    localCharacter = {
+      ...localCharacter,
+
+      [spec.field]:
+        localValue
+    };
+
+
+    localItems =
+      replaceCharacter(
+        localItems,
+        localCharacter
+      );
+
+
+    await writeAppData(
+      CHARACTERS_KEY,
+      JSON.stringify(
+        localItems
+      )
+    );
+
+
+    const state =
+      loadState(
+        userId
+      );
+
+
+    const cloudFingerprint =
+      await fingerprintRow(
+        cloudRow
+      );
+
+
+    setBaseline(
+      state,
+      id,
+      {
+        version:
+          cloudRow.version,
+
+        fingerprint:
+          cloudFingerprint,
+
+        deleted:
+          false
+      }
+    );
+
+
+    setMediaBaseline(
+      state,
+      id,
+      spec.kind,
+      descriptor
+    );
+
+
+    saveState(
+      userId,
+      state
+    );
+
+
+    clearMediaConflict(
+      id,
+      spec.kind
+    );
+
+
+    console.log(
+      "[Chati-AI Sync] Media conflict resolved using cloud:",
+      id,
+      spec.kind
+    );
+
+
+    return {
+      ok:
+        true,
+
+      resolution:
+        "cloud",
+
+      id,
+
+      kind:
+        spec.kind,
+
+      hasCloudMedia:
+        Boolean(
+          descriptor?.path
+        ),
+
+      cloudHash:
+        descriptor?.hash ||
+        null,
+
+      cloudPath:
+        descriptor?.path ||
+        null,
+
+      version:
+        cloudRow.version
+    };
+
+  }
+
+
+  async function resolveMediaConflictUseCloud(
+    localId,
+    kind
+  ) {
+
+    const result =
+      await applyCloudMediaConflict(
+        localId,
+        kind
+      );
+
+
+    scheduleReload();
+
+
+    return result;
+
+  }
+
+
+  async function resolveAllMediaConflictsUseCloud() {
+
+    const conflicts =
+      getMediaConflicts();
+
+
+    const targets =
+      [];
+
+
+    const seen =
+      new Set();
+
+
+    for (
+      const conflict of
+      conflicts
+    ) {
+
+      if (
+        !conflict?.id ||
+        !conflict?.kind
+      ) {
+
+        continue;
+
+      }
+
+
+      const key =
+        `${
+          conflict.id
+        }::${
+          conflict.kind
+        }`;
+
+
+      if (
+        seen.has(
+          key
+        )
+      ) {
+
+        continue;
+
+      }
+
+
+      seen.add(
+        key
+      );
+
+
+      targets.push({
+        id:
+          String(
+            conflict.id
+          ),
+
+        kind:
+          String(
+            conflict.kind
+          )
+      });
+
+    }
+
+
+    const results =
+      [];
+
+
+    for (
+      const target of
+      targets
+    ) {
+
+      results.push(
+        await applyCloudMediaConflict(
+          target.id,
+          target.kind
+        )
+      );
+
+    }
+
+
+    if (
+      results.length
+    ) {
+
+      scheduleReload();
+
+    }
+
+
+    return {
+      ok:
+        true,
+
+      resolved:
+        results.length,
+
+      results
+    };
+
+  }
+
+
   // ------------------------------------------------------------
   // V4.0.4 COMPATIBILITY NAMES
   // ------------------------------------------------------------
@@ -4032,6 +5430,12 @@
       syncCharactersProtected,
 
       getConflicts,
+
+      getMediaConflicts,
+
+      resolveMediaConflictUseCloud,
+
+      resolveAllMediaConflictsUseCloud,
 
       resolveConflictUseCloud,
 
