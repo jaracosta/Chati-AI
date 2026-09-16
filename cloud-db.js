@@ -1,11 +1,16 @@
 // ============================================================
-// CHATI-AI V4.0.2 — CLOUD DATABASE
+// CHATI-AI V4.0.5 — CLOUD DATABASE
 //
 // Generic cloud database layer for Chati-AI.
-// Does NOT automatically sync local data.
 //
-// Private Chat / Private Group are blocked here
-// AND protected by the PostgreSQL constraint.
+// Includes:
+// - Authenticated cloud access
+// - RLS-compatible user ownership
+// - Upsert / read / soft delete / restore / purge
+// - V4.0.5 optimistic conflict protection
+//
+// IMPORTANT:
+// Private Chat and Private Group are NEVER allowed here.
 // ============================================================
 
 (() => {
@@ -59,11 +64,13 @@
         entityType
       );
 
+
     if (!normalized) {
       throw new Error(
         "Cloud entity type is required."
       );
     }
+
 
     if (
       BLOCKED_ENTITY_TYPES.has(
@@ -81,6 +88,7 @@
       );
     }
 
+
     return normalized;
   }
 
@@ -93,11 +101,13 @@
         localId || ""
       ).trim();
 
+
     if (!normalized) {
       throw new Error(
         "Cloud local_id is required."
       );
     }
+
 
     return normalized;
   }
@@ -108,11 +118,14 @@
   // =========================
 
   async function getActiveSession() {
-    if (!window.ChatiAuth) {
+    if (
+      !window.ChatiAuth
+    ) {
       throw new Error(
         "ChatiAuth is unavailable."
       );
     }
+
 
     const {
       data,
@@ -121,15 +134,20 @@
       await window.ChatiAuth
         .getSession();
 
+
     if (error) {
       throw error;
     }
 
-    if (!data?.session) {
+
+    if (
+      !data?.session
+    ) {
       throw new Error(
         "You must sign in before using cloud data."
       );
     }
+
 
     return data.session;
   }
@@ -145,13 +163,17 @@
     const text =
       await response.text();
 
+
     let data =
       null;
+
 
     if (text) {
       try {
         data =
-          JSON.parse(text);
+          JSON.parse(
+            text
+          );
       }
 
       catch {
@@ -160,27 +182,40 @@
       }
     }
 
-    if (!response.ok) {
+
+    if (
+      !response.ok
+    ) {
       const message =
         data?.message ||
         data?.error ||
         (
-          typeof data === "string"
+          typeof data ===
+          "string"
+
             ? data
+
             : `Cloud request failed with status ${response.status}.`
         );
 
+
       const error =
-        new Error(message);
+        new Error(
+          message
+        );
+
 
       error.status =
         response.status;
 
+
       error.data =
         data;
 
+
       throw error;
     }
+
 
     return data;
   }
@@ -193,6 +228,7 @@
     const session =
       await getActiveSession();
 
+
     const headers = {
       apikey:
         SUPABASE_PUBLISHABLE_KEY,
@@ -203,6 +239,7 @@
       ...options.headers
     };
 
+
     const response =
       await fetch(
         url,
@@ -212,13 +249,16 @@
         }
       );
 
+
     const data =
       await parseResponse(
         response
       );
 
+
     return {
       data,
+
       user:
         session.user
     };
@@ -227,6 +267,13 @@
 
   // =========================
   // PUT / UPSERT
+  //
+  // Used for:
+  // - Creating new cloud rows
+  // - Explicit/manual upserts
+  //
+  // V4.0.5 automatic edits should use
+  // updateIfVersion() instead.
   // =========================
 
   async function put(
@@ -239,17 +286,21 @@
         entityType
       );
 
+
     const id =
       assertLocalId(
         localId
       );
 
+
     const session =
       await getActiveSession();
+
 
     const url =
       `${CLOUD_ITEMS_URL}` +
       `?on_conflict=user_id,entity_type,local_id`;
+
 
     const response =
       await fetch(
@@ -292,12 +343,17 @@
         }
       );
 
+
     const data =
       await parseResponse(
         response
       );
 
-    return data?.[0] ?? null;
+
+    return (
+      data?.[0] ??
+      null
+    );
   }
 
 
@@ -317,43 +373,54 @@
         entityType
       );
 
+
     const id =
       assertLocalId(
         localId
       );
 
+
     const session =
       await getActiveSession();
 
+
     const params =
       new URLSearchParams();
+
 
     params.set(
       "user_id",
       `eq.${session.user.id}`
     );
 
+
     params.set(
       "entity_type",
       `eq.${type}`
     );
+
 
     params.set(
       "local_id",
       `eq.${id}`
     );
 
-    if (!includeDeleted) {
+
+    if (
+      !includeDeleted
+    ) {
       params.set(
         "deleted_at",
         "is.null"
       );
     }
 
+
     params.set(
       "limit",
       "1"
     );
+
 
     const {
       data
@@ -362,7 +429,11 @@
         `${CLOUD_ITEMS_URL}?${params.toString()}`
       );
 
-    return data?.[0] ?? null;
+
+    return (
+      data?.[0] ??
+      null
+    );
   }
 
 
@@ -380,19 +451,25 @@
     const session =
       await getActiveSession();
 
+
     const params =
       new URLSearchParams();
+
 
     params.set(
       "user_id",
       `eq.${session.user.id}`
     );
 
-    if (entityType) {
+
+    if (
+      entityType
+    ) {
       const type =
         assertAllowedEntityType(
           entityType
         );
+
 
       params.set(
         "entity_type",
@@ -400,16 +477,25 @@
       );
     }
 
-    if (!includeDeleted) {
+
+    if (
+      !includeDeleted
+    ) {
       params.set(
         "deleted_at",
         "is.null"
       );
     }
 
-    if (since) {
+
+    if (
+      since
+    ) {
       const date =
-        new Date(since);
+        new Date(
+          since
+        );
+
 
       if (
         Number.isNaN(
@@ -421,16 +507,19 @@
         );
       }
 
+
       params.set(
         "updated_at",
         `gt.${date.toISOString()}`
       );
     }
 
+
     params.set(
       "order",
       "updated_at.asc"
     );
+
 
     const {
       data
@@ -439,7 +528,10 @@
         `${CLOUD_ITEMS_URL}?${params.toString()}`
       );
 
-    return Array.isArray(data)
+
+    return Array.isArray(
+      data
+    )
       ? data
       : [];
   }
@@ -448,9 +540,7 @@
   // =========================
   // SOFT DELETE
   //
-  // We keep a tombstone so another
-  // device can learn that the item
-  // was deleted.
+  // Keeps a tombstone in cloud.
   // =========================
 
   async function remove(
@@ -462,31 +552,38 @@
         entityType
       );
 
+
     const id =
       assertLocalId(
         localId
       );
 
+
     const session =
       await getActiveSession();
 
+
     const params =
       new URLSearchParams();
+
 
     params.set(
       "user_id",
       `eq.${session.user.id}`
     );
 
+
     params.set(
       "entity_type",
       `eq.${type}`
     );
 
+
     params.set(
       "local_id",
       `eq.${id}`
     );
+
 
     const response =
       await fetch(
@@ -518,12 +615,17 @@
         }
       );
 
+
     const data =
       await parseResponse(
         response
       );
 
-    return data?.[0] ?? null;
+
+    return (
+      data?.[0] ??
+      null
+    );
   }
 
 
@@ -540,31 +642,38 @@
         entityType
       );
 
+
     const id =
       assertLocalId(
         localId
       );
 
+
     const session =
       await getActiveSession();
 
+
     const params =
       new URLSearchParams();
+
 
     params.set(
       "user_id",
       `eq.${session.user.id}`
     );
 
+
     params.set(
       "entity_type",
       `eq.${type}`
     );
 
+
     params.set(
       "local_id",
       `eq.${id}`
     );
+
 
     const response =
       await fetch(
@@ -595,12 +704,17 @@
         }
       );
 
+
     const data =
       await parseResponse(
         response
       );
 
-    return data?.[0] ?? null;
+
+    return (
+      data?.[0] ??
+      null
+    );
   }
 
 
@@ -608,7 +722,7 @@
   // PERMANENT DELETE
   //
   // Mainly for tests / maintenance.
-  // Normal sync should use remove().
+  // Normal sync should prefer remove().
   // =========================
 
   async function purge(
@@ -620,31 +734,38 @@
         entityType
       );
 
+
     const id =
       assertLocalId(
         localId
       );
 
+
     const session =
       await getActiveSession();
 
+
     const params =
       new URLSearchParams();
+
 
     params.set(
       "user_id",
       `eq.${session.user.id}`
     );
 
+
     params.set(
       "entity_type",
       `eq.${type}`
     );
 
+
     params.set(
       "local_id",
       `eq.${id}`
     );
+
 
     const response =
       await fetch(
@@ -666,12 +787,290 @@
         }
       );
 
+
     const data =
       await parseResponse(
         response
       );
 
-    return data?.[0] ?? null;
+
+    return (
+      data?.[0] ??
+      null
+    );
+  }
+
+
+  // ============================================================
+  // V4.0.5 — OPTIMISTIC CONCURRENCY
+  //
+  // Every update can require an expected version.
+  //
+  // Example:
+  //
+  // Device A reads version 5
+  // Device B updates -> cloud becomes version 6
+  // Device A tries update with expected version 5
+  // -> zero rows match
+  // -> update rejected
+  //
+  // This prevents stale devices from silently overwriting
+  // newer data.
+  // ============================================================
+
+
+  // =========================
+  // VALIDATE EXPECTED VERSION
+  // =========================
+
+  function assertExpectedVersion(
+    expectedVersion
+  ) {
+    const version =
+      Number(
+        expectedVersion
+      );
+
+
+    if (
+      !Number.isInteger(
+        version
+      ) ||
+      version < 1
+    ) {
+      throw new Error(
+        "A valid expected cloud version is required."
+      );
+    }
+
+
+    return version;
+  }
+
+
+  // =========================
+  // CONDITIONAL PATCH
+  // =========================
+
+  async function patchIfVersion(
+    entityType,
+    localId,
+    expectedVersion,
+    changes = {}
+  ) {
+    const type =
+      assertAllowedEntityType(
+        entityType
+      );
+
+
+    const id =
+      assertLocalId(
+        localId
+      );
+
+
+    const version =
+      assertExpectedVersion(
+        expectedVersion
+      );
+
+
+    const session =
+      await getActiveSession();
+
+
+    const params =
+      new URLSearchParams();
+
+
+    params.set(
+      "user_id",
+      `eq.${session.user.id}`
+    );
+
+
+    params.set(
+      "entity_type",
+      `eq.${type}`
+    );
+
+
+    params.set(
+      "local_id",
+      `eq.${id}`
+    );
+
+
+    // This is the concurrency lock.
+    params.set(
+      "version",
+      `eq.${version}`
+    );
+
+
+    // Never allow arbitrary columns
+    // through this function.
+    const safeChanges =
+      {};
+
+
+    if (
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          changes,
+          "payload"
+        )
+    ) {
+      safeChanges.payload =
+        changes.payload ??
+        {};
+    }
+
+
+    if (
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          changes,
+          "deleted_at"
+        )
+    ) {
+      safeChanges.deleted_at =
+        changes.deleted_at;
+    }
+
+
+    if (
+      !Object.keys(
+        safeChanges
+      ).length
+    ) {
+      throw new Error(
+        "No allowed cloud changes were provided."
+      );
+    }
+
+
+    const response =
+      await fetch(
+        `${CLOUD_ITEMS_URL}?${params.toString()}`,
+        {
+          method:
+            "PATCH",
+
+          headers: {
+            apikey:
+              SUPABASE_PUBLISHABLE_KEY,
+
+            Authorization:
+              `Bearer ${session.access_token}`,
+
+            "Content-Type":
+              "application/json",
+
+            Prefer:
+              "return=representation"
+          },
+
+          body:
+            JSON.stringify(
+              safeChanges
+            )
+        }
+      );
+
+
+    const data =
+      await parseResponse(
+        response
+      );
+
+
+    // HTTP 200 + [] means the request itself
+    // was valid, but no row matched the version.
+    //
+    // That means the caller has stale data.
+    if (
+      !Array.isArray(
+        data
+      ) ||
+      !data.length
+    ) {
+      return null;
+    }
+
+
+    return data[0];
+  }
+
+
+  // =========================
+  // UPDATE IF VERSION MATCHES
+  // =========================
+
+  async function updateIfVersion(
+    entityType,
+    localId,
+    expectedVersion,
+    payload = {}
+  ) {
+    return patchIfVersion(
+      entityType,
+      localId,
+      expectedVersion,
+      {
+        payload:
+          payload ?? {},
+
+        deleted_at:
+          null
+      }
+    );
+  }
+
+
+  // =========================
+  // DELETE IF VERSION MATCHES
+  // =========================
+
+  async function removeIfVersion(
+    entityType,
+    localId,
+    expectedVersion
+  ) {
+    return patchIfVersion(
+      entityType,
+      localId,
+      expectedVersion,
+      {
+        deleted_at:
+          new Date()
+            .toISOString()
+      }
+    );
+  }
+
+
+  // =========================
+  // RESTORE IF VERSION MATCHES
+  // =========================
+
+  async function restoreIfVersion(
+    entityType,
+    localId,
+    expectedVersion
+  ) {
+    return patchIfVersion(
+      entityType,
+      localId,
+      expectedVersion,
+      {
+        deleted_at:
+          null
+      }
+    );
   }
 
 
@@ -683,30 +1082,38 @@
     const session =
       await getActiveSession();
 
+
     const params =
       new URLSearchParams();
+
 
     params.set(
       "user_id",
       `eq.${session.user.id}`
     );
 
+
     params.set(
       "select",
       "id"
     );
+
 
     params.set(
       "limit",
       "1"
     );
 
+
     await cloudRequest(
       `${CLOUD_ITEMS_URL}?${params.toString()}`
     );
 
+
     return {
-      ok: true,
+      ok:
+        true,
+
       userId:
         session.user.id
     };
@@ -719,18 +1126,25 @@
 
   window.ChatiCloud =
     Object.freeze({
+      // Existing API
       put,
       get,
       getAll,
       remove,
       restore,
       purge,
+
+      // V4.0.5 — conflict protection
+      updateIfVersion,
+      removeIfVersion,
+      restoreIfVersion,
+
       testConnection
     });
 
 
   console.log(
-    "[Chati-AI Cloud] V4.0.2 ready."
+    "[Chati-AI Cloud] V4.0.5 conflict protection ready."
   );
 
 })();

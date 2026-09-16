@@ -5123,15 +5123,64 @@ characters =
 
 function saveCharacters() {
 
+  const snapshot =
+    JSON.stringify(
+      characters
+    );
+
+
   setAppDataValue(
 
     "chatiCharacters",
 
-    JSON.stringify(
-      characters
-    )
+    snapshot
 
   );
+
+
+  // V4.0.5 DELETE SYNC FIX
+  //
+  // setAppDataValue() writes through an asynchronous IndexedDB
+  // queue. Cloud sync must not read IndexedDB until that queued
+  // save has completed, otherwise a recently deleted character
+  // may still appear to exist.
+  const storageReady =
+    appDataFallbackToLocalStorage
+      ? Promise.resolve()
+      : appDataWriteQueue;
+
+
+  Promise.resolve(
+    storageReady
+  )
+    .then(
+      () => {
+
+        window.dispatchEvent(
+          new CustomEvent(
+            "chati:characterschange",
+            {
+              detail: {
+                snapshot,
+                savedAt:
+                  Date.now()
+              }
+            }
+          )
+        );
+
+      }
+    )
+    .catch(
+      error => {
+
+        console.warn(
+          "[Chati-AI] Character save completed with a sync notification error:",
+          error
+        );
+
+      }
+    );
 
 }
 
