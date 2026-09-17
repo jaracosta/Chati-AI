@@ -2170,7 +2170,7 @@
       </div>
 
       <!-- =========================
-           V4.0.1 — ACCOUNT
+           V4.0.7 — ACCOUNT & CLOUD
       ========================== -->
       <section
         id="accountSettingsSection"
@@ -2191,7 +2191,7 @@
         </div>
 
         <p class="settings-section-description">
-          Sign in to prepare Chati-AI for cloud sync across devices. Your current local data stays on this device until Cloud Sync is enabled in a later V4 step.
+          Your Chati-AI account keeps normal characters and cloud media synchronized across signed-in devices. Private Chat and Private Group always remain local and temporary.
         </p>
 
         <div class="account-card">
@@ -2210,7 +2210,7 @@
 
               <span class="account-state-copy">
                 <strong>Not signed in</strong>
-                <small>Chati-AI is currently running in local-only mode.</small>
+                <small>Sign in to sync normal characters and cloud media across your devices.</small>
               </span>
             </div>
 
@@ -2355,7 +2355,7 @@
 
               <span class="account-state-copy">
                 <strong id="accountUserEmail">Signed in</strong>
-                <small>Supabase account connected. Cloud Sync is not enabled yet.</small>
+                <small id="accountUserStatus">Cloud sync is active for normal characters and media.</small>
               </span>
             </div>
 
@@ -3151,7 +3151,7 @@
 
   <script src="cloud-sync.js?v=4.0.6.4a"></script>
 
-  <script src="account-ui.js?v=4.0.7.3"></script>
+  <script src="account-ui.js?v=4.0.7.5"></script>
 
 </body>
 </html>

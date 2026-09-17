@@ -1,5 +1,5 @@
 // ============================================================
-// CHATI-AI V4.0.7.3 — ACCOUNT RECOVERY + PASSWORD RESET
+// CHATI-AI V4.0.7.4 — ACCOUNT UI + RECOVERY HARDENING
 // Uses window.ChatiAuth from supabase-auth.js.
 // Does not sync chats or local data.
 // ============================================================
@@ -70,6 +70,9 @@
   const userEmail =
     document.getElementById("accountUserEmail");
 
+  const userStatus =
+    document.getElementById("accountUserStatus");
+
   const avatarInitial =
     document.getElementById("accountAvatarInitial");
 
@@ -97,6 +100,170 @@
     false;
 
 
+  // ============================================================
+  // V4.0.7.5 — FRIENDLY ACCOUNT ERRORS
+  // ============================================================
+
+  function friendlyAuthMessage(
+    message = "",
+    type = ""
+  ) {
+
+    const raw =
+      String(
+        message ?? ""
+      )
+        .trim();
+
+
+    if (
+      type !== "error"
+    ) {
+
+      return raw;
+
+    }
+
+
+    const normalized =
+      raw.toLowerCase();
+
+
+    if (
+      normalized.includes(
+        "email rate limit exceeded"
+      ) ||
+      normalized.includes(
+        "rate limit"
+      )
+    ) {
+
+      return (
+        "Too many account emails were requested. " +
+        "Please wait a few minutes and try again."
+      );
+
+    }
+
+
+    if (
+      normalized.includes(
+        "invalid login credentials"
+      )
+    ) {
+
+      return (
+        "Email or password is incorrect. " +
+        "Please check your information and try again."
+      );
+
+    }
+
+
+    if (
+      normalized.includes(
+        "email not confirmed"
+      )
+    ) {
+
+      return (
+        "Please confirm your email address before signing in."
+      );
+
+    }
+
+
+    if (
+      normalized.includes(
+        "user already registered"
+      ) ||
+      normalized.includes(
+        "already been registered"
+      )
+    ) {
+
+      return (
+        "An account with this email already exists. " +
+        "Try signing in instead."
+      );
+
+    }
+
+
+    if (
+      normalized.includes(
+        "password should be at least"
+      ) ||
+      normalized.includes(
+        "password must be at least"
+      )
+    ) {
+
+      return (
+        "Your password must be at least 8 characters."
+      );
+
+    }
+
+
+    if (
+      normalized.includes(
+        "failed to fetch"
+      ) ||
+      normalized.includes(
+        "network"
+      ) ||
+      normalized.includes(
+        "load failed"
+      )
+    ) {
+
+      return (
+        "Chati-AI could not reach the account service. " +
+        "Check your internet connection and try again."
+      );
+
+    }
+
+
+    if (
+      normalized.includes(
+        "expired"
+      ) &&
+      normalized.includes(
+        "token"
+      )
+    ) {
+
+      return (
+        "This recovery link has expired. " +
+        "Request a new password reset email."
+      );
+
+    }
+
+
+    if (
+      normalized.includes(
+        "same password"
+      )
+    ) {
+
+      return (
+        "Choose a password different from your current password."
+      );
+
+    }
+
+
+    return (
+      raw ||
+      "Something went wrong. Please try again."
+    );
+
+  }
+
+
   function setMessage(
     message = "",
     type = ""
@@ -105,15 +272,22 @@
       return;
     }
 
+    const displayMessage =
+      friendlyAuthMessage(
+        message,
+        type
+      );
+
+
     messageBox.textContent =
-      message;
+      displayMessage;
 
     messageBox.classList.remove(
       "is-success",
       "is-error"
     );
 
-    if (!message) {
+    if (!displayMessage) {
       messageBox.classList.add(
         "hidden"
       );
@@ -503,6 +677,21 @@
       }
 
       if (
+        userStatus
+      ) {
+
+        userStatus.textContent =
+          (
+            window.ChatiSync &&
+            window.ChatiCloud
+          )
+            ? "Cloud sync is active for normal characters and media."
+            : "Account connected. Cloud sync services are currently unavailable.";
+
+      }
+
+
+      if (
         avatarInitial
       ) {
         avatarInitial.textContent =
@@ -677,7 +866,11 @@
       const password =
         passwordInput.value;
 
-      if (!email) {
+      if (
+        mode !== "reset" &&
+        !email
+      ) {
+
         setMessage(
           "Enter your email address.",
           "error"
@@ -685,6 +878,7 @@
 
         emailInput.focus();
         return;
+
       }
 
       if (
