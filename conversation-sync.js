@@ -1834,6 +1834,1503 @@
 
 
   // ============================================================
+  // V5.0.4A2 — AUTOMATIC NEW CHAT SYNC
+  //
+  // SAFE BASELINE MODE
+  //
+  // - Existing local/cloud chats are baselined first.
+  // - Existing historical chats are NOT mass-uploaded.
+  // - Only NEW normal chats created after the baseline
+  //   are automatically backed up.
+  // - Only NEW cloud chats appearing after the baseline
+  //   are automatically restored.
+  // - Private Chat / Private Group remain excluded.
+  // - Existing conversation edits/messages are handled
+  //   in the next V5.0.4 phase.
+  // ============================================================
+
+
+  const AUTO_CONVERSATION_SYNC_INTERVAL_MS =
+    10000;
+
+
+  let autoConversationEnabled =
+    false;
+
+  let autoConversationBusy =
+    false;
+
+  let autoConversationInterval =
+    null;
+
+  let autoConversationDelay =
+    null;
+
+  let autoConversationReloadPending =
+    false;
+
+  let lastAutoConversationResult =
+    null;
+
+
+  function makeConversationSyncKey(
+    ownerType,
+    ownerLocalId,
+    chatId
+  ) {
+
+    return [
+      String(
+        ownerType ?? ""
+      ),
+
+      String(
+        ownerLocalId ?? ""
+      ),
+
+      String(
+        chatId ?? ""
+      )
+    ].join(
+      "::"
+    );
+
+  }
+
+
+  async function getConversationSyncSession() {
+
+    if (
+      !window.ChatiAuth ||
+      typeof window.ChatiAuth.getSession !==
+        "function"
+    ) {
+
+      return null;
+
+    }
+
+
+    try {
+
+      const result =
+        await window.ChatiAuth
+          .getSession();
+
+
+      return (
+        result?.data?.session ||
+        null
+      );
+
+    }
+
+    catch (
+      error
+    ) {
+
+      console.warn(
+        "[Chati-AI Conversations] Could not read auth session.",
+        error
+      );
+
+
+      return null;
+
+    }
+
+  }
+
+
+  function getConversationBaselineKey(
+    userId
+  ) {
+
+    return (
+      `chatiConversationAutoBaselineV504A2_${String(userId)}`
+    );
+
+  }
+
+
+  function readConversationBaseline(
+    userId
+  ) {
+
+    const key =
+      getConversationBaselineKey(
+        userId
+      );
+
+
+    try {
+
+      const raw =
+        localStorage.getItem(
+          key
+        );
+
+
+      if (!raw) {
+        return null;
+      }
+
+
+      const parsed =
+        JSON.parse(
+          raw
+        );
+
+
+      if (
+        !parsed ||
+        typeof parsed !==
+          "object"
+      ) {
+
+        return null;
+
+      }
+
+
+      return {
+        initializedAt:
+          Number(
+            parsed.initializedAt ||
+            0
+          ),
+
+        knownLocal:
+          (
+            parsed.knownLocal &&
+            typeof parsed.knownLocal ===
+              "object"
+          )
+            ? parsed.knownLocal
+            : {},
+
+        knownCloud:
+          (
+            parsed.knownCloud &&
+            typeof parsed.knownCloud ===
+              "object"
+          )
+            ? parsed.knownCloud
+            : {}
+      };
+
+    }
+
+    catch (
+      error
+    ) {
+
+      console.warn(
+        "[Chati-AI Conversations] Could not read automatic sync baseline.",
+        error
+      );
+
+
+      return null;
+
+    }
+
+  }
+
+
+  function saveConversationBaseline(
+    userId,
+    state
+  ) {
+
+    localStorage.setItem(
+      getConversationBaselineKey(
+        userId
+      ),
+      JSON.stringify(
+        state
+      )
+    );
+
+  }
+
+
+  async function collectLocalConversationSnapshot() {
+
+    const owners =
+      await getLocalOwners();
+
+
+    const rows =
+      [];
+
+
+    for (
+      const owner
+      of owners
+    ) {
+
+      const ownerType =
+        getOwnerType(
+          owner
+        );
+
+      const ownerLocalId =
+        String(
+          owner.id
+        );
+
+
+      const chats =
+        await getOwnerChats(
+          ownerLocalId
+        );
+
+
+      for (
+        const chat
+        of chats
+      ) {
+
+        if (
+          !chat ||
+          chat.isPrivate ||
+          !chat.id
+        ) {
+
+          continue;
+
+        }
+
+
+        const messages =
+          Array.isArray(
+            chat.messages
+          )
+            ? chat.messages
+            : [];
+
+
+        rows.push({
+          ownerType,
+
+          ownerLocalId,
+
+          ownerName:
+            getOwnerName(
+              owner
+            ),
+
+          chatId:
+            String(
+              chat.id
+            ),
+
+          title:
+            String(
+              chat.title ||
+              "New Chat"
+            ),
+
+          messageCount:
+            messages.length,
+
+          attachmentCount:
+            messages.filter(
+              message =>
+                Boolean(
+                  message?.attachment
+                )
+            ).length,
+
+          createdAt:
+            chat.createdAt ??
+            null,
+
+          updatedAt:
+            chat.updatedAt ??
+            null
+        });
+
+      }
+
+    }
+
+
+    return {
+      owners,
+      rows
+    };
+
+  }
+
+
+  function isNormalCloudConversation(
+    conversation
+  ) {
+
+    return Boolean(
+      conversation &&
+      conversation.is_private !==
+        true &&
+      conversation.source_scope ===
+        "normal" &&
+      (
+        conversation.owner_type ===
+          "character" ||
+        conversation.owner_type ===
+          "group"
+      )
+    );
+
+  }
+
+
+  function userIsTypingConversation() {
+
+    const active =
+      document.activeElement;
+
+
+    if (!active) {
+      return false;
+    }
+
+
+    if (
+      active.tagName ===
+        "TEXTAREA" ||
+      active.tagName ===
+        "INPUT" ||
+      active.isContentEditable
+    ) {
+
+      return true;
+
+    }
+
+
+    return false;
+
+  }
+
+
+  function maybeReloadAfterConversationRestore() {
+
+    if (
+      !autoConversationReloadPending
+    ) {
+
+      return false;
+
+    }
+
+
+    if (
+      document.visibilityState !==
+        "visible"
+    ) {
+
+      return false;
+
+    }
+
+
+    if (
+      userIsTypingConversation()
+    ) {
+
+      console.log(
+        "[Chati-AI Conversations] Restore completed. Reload deferred while the user is typing."
+      );
+
+      return false;
+
+    }
+
+
+    autoConversationReloadPending =
+      false;
+
+
+    console.log(
+      "🔥 [Chati-AI Conversations] New cloud chat restored. Reloading UI..."
+    );
+
+
+    setTimeout(
+      () => {
+        location.reload();
+      },
+      700
+    );
+
+
+    return true;
+
+  }
+
+
+  async function initializeAutoConversationBaseline() {
+
+    const session =
+      await getConversationSyncSession();
+
+
+    if (
+      !session?.user?.id
+    ) {
+
+      return {
+        ok:
+          false,
+
+        reason:
+          "signed-out"
+      };
+
+    }
+
+
+    const existing =
+      readConversationBaseline(
+        session.user.id
+      );
+
+
+    if (existing) {
+
+      return {
+        ok:
+          true,
+
+        created:
+          false,
+
+        initializedAt:
+          existing.initializedAt,
+
+        localKnown:
+          Object.keys(
+            existing.knownLocal
+          ).length,
+
+        cloudKnown:
+          Object.keys(
+            existing.knownCloud
+          ).length
+      };
+
+    }
+
+
+    const {
+      rows: localRows
+    } =
+      await collectLocalConversationSnapshot();
+
+
+    const cloudRows =
+      await window
+        .ChatiConversations
+        .getAll({
+          includeDeleted:
+            false
+        });
+
+
+    const state = {
+      initializedAt:
+        Date.now(),
+
+      knownLocal:
+        {},
+
+      knownCloud:
+        {}
+    };
+
+
+    for (
+      const row
+      of localRows
+    ) {
+
+      const key =
+        makeConversationSyncKey(
+          row.ownerType,
+          row.ownerLocalId,
+          row.chatId
+        );
+
+
+      state.knownLocal[
+        key
+      ] = true;
+
+    }
+
+
+    for (
+      const row
+      of cloudRows
+    ) {
+
+      if (
+        !isNormalCloudConversation(
+          row
+        )
+      ) {
+
+        continue;
+
+      }
+
+
+      const key =
+        makeConversationSyncKey(
+          row.owner_type,
+          row.owner_local_id,
+          row.local_id
+        );
+
+
+      state.knownCloud[
+        key
+      ] = true;
+
+    }
+
+
+    saveConversationBaseline(
+      session.user.id,
+      state
+    );
+
+
+    const result = {
+      ok:
+        true,
+
+      created:
+        true,
+
+      initializedAt:
+        state.initializedAt,
+
+      localKnown:
+        Object.keys(
+          state.knownLocal
+        ).length,
+
+      cloudKnown:
+        Object.keys(
+          state.knownCloud
+        ).length
+    };
+
+
+    console.log(
+      "🔥 V5.0.4A2 AUTOMATIC CHAT BASELINE CREATED",
+      result
+    );
+
+
+    return result;
+
+  }
+
+
+  async function syncAutomaticNewChats(
+    reason = "manual"
+  ) {
+
+    if (
+      autoConversationBusy
+    ) {
+
+      return {
+        ok:
+          false,
+
+        reason:
+          "busy"
+      };
+
+    }
+
+
+    autoConversationBusy =
+      true;
+
+
+    const result = {
+      ok:
+        true,
+
+      reason,
+
+      uploadedChats:
+        0,
+
+      restoredChats:
+        0,
+
+      skippedEmpty:
+        0,
+
+      errors:
+        [],
+
+      requiresReload:
+        false
+    };
+
+
+    try {
+
+      if (
+        !window.ChatiConversations ||
+        !window.ChatiMessages
+      ) {
+
+        return {
+          ...result,
+
+          ok:
+            false,
+
+          reason:
+            "cloud-client-unavailable"
+        };
+
+      }
+
+
+      const session =
+        await getConversationSyncSession();
+
+
+      if (
+        !session?.user?.id
+      ) {
+
+        return {
+          ...result,
+
+          ok:
+            false,
+
+          reason:
+            "signed-out"
+        };
+
+      }
+
+
+      let state =
+        readConversationBaseline(
+          session.user.id
+        );
+
+
+      if (!state) {
+
+        await initializeAutoConversationBaseline();
+
+
+        state =
+          readConversationBaseline(
+            session.user.id
+          );
+
+
+        lastAutoConversationResult = {
+          ...result,
+
+          reason:
+            "baseline-created"
+        };
+
+
+        return lastAutoConversationResult;
+
+      }
+
+
+      const {
+        owners,
+        rows: localRows
+      } =
+        await collectLocalConversationSnapshot();
+
+
+      const cloudRows =
+        (
+          await window
+            .ChatiConversations
+            .getAll({
+              includeDeleted:
+                false
+            })
+        )
+          .filter(
+            isNormalCloudConversation
+          );
+
+
+      const localMap =
+        new Map();
+
+
+      for (
+        const row
+        of localRows
+      ) {
+
+        const key =
+          makeConversationSyncKey(
+            row.ownerType,
+            row.ownerLocalId,
+            row.chatId
+          );
+
+
+        localMap.set(
+          key,
+          row
+        );
+
+      }
+
+
+      const cloudMap =
+        new Map();
+
+
+      for (
+        const row
+        of cloudRows
+      ) {
+
+        const key =
+          makeConversationSyncKey(
+            row.owner_type,
+            row.owner_local_id,
+            row.local_id
+          );
+
+
+        cloudMap.set(
+          key,
+          row
+        );
+
+      }
+
+
+      // --------------------------------------------------------
+      // NEW LOCAL -> CLOUD
+      // --------------------------------------------------------
+
+      for (
+        const row
+        of localRows
+      ) {
+
+        const key =
+          makeConversationSyncKey(
+            row.ownerType,
+            row.ownerLocalId,
+            row.chatId
+          );
+
+
+        if (
+          cloudMap.has(
+            key
+          )
+        ) {
+
+          state.knownLocal[
+            key
+          ] = true;
+
+          state.knownCloud[
+            key
+          ] = true;
+
+          continue;
+
+        }
+
+
+        if (
+          state.knownLocal[
+            key
+          ]
+        ) {
+
+          continue;
+
+        }
+
+
+        if (
+          row.messageCount < 1
+        ) {
+
+          result.skippedEmpty +=
+            1;
+
+          continue;
+
+        }
+
+
+        try {
+
+          const backup =
+            await backupOne(
+              row.ownerLocalId,
+              row.chatId
+            );
+
+
+          if (
+            backup?.ok
+          ) {
+
+            result.uploadedChats +=
+              1;
+
+
+            state.knownLocal[
+              key
+            ] = true;
+
+            state.knownCloud[
+              key
+            ] = true;
+
+
+            console.log(
+              "🔥 V5.0.4A2 NEW LOCAL CHAT AUTO-UPLOADED",
+              {
+                owner:
+                  row.ownerName,
+
+                title:
+                  row.title,
+
+                messages:
+                  row.messageCount
+              }
+            );
+
+          }
+
+        }
+
+        catch (
+          error
+        ) {
+
+          console.error(
+            "[Chati-AI Conversations] Automatic new-chat upload failed:",
+            row,
+            error
+          );
+
+
+          result.errors.push({
+            direction:
+              "upload",
+
+            chatId:
+              row.chatId,
+
+            message:
+              String(
+                error?.message ||
+                error
+              )
+          });
+
+        }
+
+      }
+
+
+      // --------------------------------------------------------
+      // NEW CLOUD -> LOCAL
+      // --------------------------------------------------------
+
+      for (
+        const row
+        of cloudRows
+      ) {
+
+        const key =
+          makeConversationSyncKey(
+            row.owner_type,
+            row.owner_local_id,
+            row.local_id
+          );
+
+
+        if (
+          localMap.has(
+            key
+          )
+        ) {
+
+          state.knownLocal[
+            key
+          ] = true;
+
+          state.knownCloud[
+            key
+          ] = true;
+
+          continue;
+
+        }
+
+
+        if (
+          state.knownCloud[
+            key
+          ]
+        ) {
+
+          continue;
+
+        }
+
+
+        const owner =
+          owners.find(
+            item =>
+              String(
+                item?.id
+              ) ===
+              String(
+                row.owner_local_id
+              )
+          );
+
+
+        if (!owner) {
+
+          continue;
+
+        }
+
+
+        const expectedOwnerType =
+          owner.isGroup
+            ? "group"
+            : "character";
+
+
+        if (
+          expectedOwnerType !==
+          row.owner_type
+        ) {
+
+          continue;
+
+        }
+
+
+        try {
+
+          const restored =
+            await restoreOne(
+              row.id
+            );
+
+
+          if (
+            restored?.ok
+          ) {
+
+            result.restoredChats +=
+              1;
+
+            result.requiresReload =
+              true;
+
+
+            state.knownLocal[
+              key
+            ] = true;
+
+            state.knownCloud[
+              key
+            ] = true;
+
+
+            localMap.set(
+              key,
+              true
+            );
+
+
+            console.log(
+              "🔥 V5.0.4A2 NEW CLOUD CHAT AUTO-RESTORED",
+              {
+                owner:
+                  restored.ownerName,
+
+                title:
+                  restored.title,
+
+                messages:
+                  restored.restoredMessages
+              }
+            );
+
+          }
+
+        }
+
+        catch (
+          error
+        ) {
+
+          console.error(
+            "[Chati-AI Conversations] Automatic cloud restore failed:",
+            row,
+            error
+          );
+
+
+          result.errors.push({
+            direction:
+              "restore",
+
+            cloudConversationId:
+              row.id,
+
+            message:
+              String(
+                error?.message ||
+                error
+              )
+          });
+
+        }
+
+      }
+
+
+      // ========================================================
+      // V5.0.4A2 — IMPORTANT BASELINE FIX
+      //
+      // DO NOT blanket-mark every currently visible local/cloud
+      // conversation as known here.
+      //
+      // A newly-created empty local chat may be skipped above.
+      // If we marked it known anyway, it would never upload after
+      // the first real message is added.
+      //
+      // Likewise, a cloud chat that could not yet be restored
+      // must remain unknown so another sync cycle can retry it.
+      //
+      // knownLocal / knownCloud are now updated ONLY when:
+      // - the row already exists on both sides,
+      // - upload succeeds,
+      // - restore succeeds,
+      // - or it existed in the initial baseline.
+      // ========================================================
+
+
+      saveConversationBaseline(
+        session.user.id,
+        state
+      );
+
+
+      if (
+        result.requiresReload
+      ) {
+
+        autoConversationReloadPending =
+          true;
+
+        maybeReloadAfterConversationRestore();
+
+      }
+
+
+      lastAutoConversationResult =
+        result;
+
+
+      if (
+        result.uploadedChats ||
+        result.restoredChats ||
+        result.errors.length ||
+        reason === "manual"
+      ) {
+
+        console.log(
+          "[Chati-AI Conversations] V5.0.4A2 automatic sync complete:",
+          result
+        );
+
+      }
+
+
+      return result;
+
+    }
+
+    finally {
+
+      autoConversationBusy =
+        false;
+
+    }
+
+  }
+
+
+  function scheduleAutoConversationSync(
+    reason = "scheduled",
+    delay = 500
+  ) {
+
+    if (
+      !autoConversationEnabled
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      autoConversationDelay
+    ) {
+
+      clearTimeout(
+        autoConversationDelay
+      );
+
+    }
+
+
+    autoConversationDelay =
+      setTimeout(
+        () => {
+
+          autoConversationDelay =
+            null;
+
+
+          syncAutomaticNewChats(
+            reason
+          )
+            .catch(
+              error => {
+
+                console.error(
+                  "[Chati-AI Conversations] Automatic conversation sync failed:",
+                  error
+                );
+
+              }
+            );
+
+        },
+        delay
+      );
+
+  }
+
+
+  function startAutoConversationSync() {
+
+    if (
+      autoConversationEnabled
+    ) {
+
+      return {
+        ok:
+          true,
+
+        alreadyRunning:
+          true
+      };
+
+    }
+
+
+    autoConversationEnabled =
+      true;
+
+
+    scheduleAutoConversationSync(
+      "start",
+      900
+    );
+
+
+    autoConversationInterval =
+      setInterval(
+        () => {
+
+          scheduleAutoConversationSync(
+            "interval",
+            0
+          );
+
+        },
+        AUTO_CONVERSATION_SYNC_INTERVAL_MS
+      );
+
+
+    return {
+      ok:
+        true,
+
+      intervalMs:
+        AUTO_CONVERSATION_SYNC_INTERVAL_MS
+    };
+
+  }
+
+
+  function stopAutoConversationSync() {
+
+    autoConversationEnabled =
+      false;
+
+
+    if (
+      autoConversationDelay
+    ) {
+
+      clearTimeout(
+        autoConversationDelay
+      );
+
+      autoConversationDelay =
+        null;
+
+    }
+
+
+    if (
+      autoConversationInterval
+    ) {
+
+      clearInterval(
+        autoConversationInterval
+      );
+
+      autoConversationInterval =
+        null;
+
+    }
+
+
+    return {
+      ok:
+        true
+    };
+
+  }
+
+
+  async function resetAutoConversationBaseline() {
+
+    const session =
+      await getConversationSyncSession();
+
+
+    if (
+      !session?.user?.id
+    ) {
+
+      return {
+        ok:
+          false,
+
+        reason:
+          "signed-out"
+      };
+
+    }
+
+
+    localStorage.removeItem(
+      getConversationBaselineKey(
+        session.user.id
+      )
+    );
+
+
+    return initializeAutoConversationBaseline();
+
+  }
+
+
+  async function autoConversationStatus() {
+
+    const session =
+      await getConversationSyncSession();
+
+
+    if (
+      !session?.user?.id
+    ) {
+
+      return {
+        signedIn:
+          false,
+
+        enabled:
+          autoConversationEnabled,
+
+        busy:
+          autoConversationBusy,
+
+        baseline:
+          null,
+
+        lastResult:
+          lastAutoConversationResult
+      };
+
+    }
+
+
+    const state =
+      readConversationBaseline(
+        session.user.id
+      );
+
+
+    return {
+      signedIn:
+        true,
+
+      userId:
+        session.user.id,
+
+      enabled:
+        autoConversationEnabled,
+
+      busy:
+        autoConversationBusy,
+
+      intervalMs:
+        AUTO_CONVERSATION_SYNC_INTERVAL_MS,
+
+      baseline:
+        state
+          ? {
+              initializedAt:
+                state.initializedAt,
+
+              localKnown:
+                Object.keys(
+                  state.knownLocal
+                ).length,
+
+              cloudKnown:
+                Object.keys(
+                  state.knownCloud
+                ).length
+            }
+          : null,
+
+      reloadPending:
+        autoConversationReloadPending,
+
+      lastResult:
+        lastAutoConversationResult
+    };
+
+  }
+
+
+  window.addEventListener(
+    "online",
+    () => {
+
+      scheduleAutoConversationSync(
+        "online",
+        300
+      );
+
+    }
+  );
+
+
+  window.addEventListener(
+    "chati:authchange",
+    () => {
+
+      scheduleAutoConversationSync(
+        "auth-change",
+        500
+      );
+
+    }
+  );
+
+
+  window.addEventListener(
+    "chati:characterschange",
+    () => {
+
+      scheduleAutoConversationSync(
+        "characters-change",
+        700
+      );
+
+    }
+  );
+
+
+  document.addEventListener(
+    "visibilitychange",
+    () => {
+
+      if (
+        document.visibilityState ===
+          "visible"
+      ) {
+
+        if (
+          maybeReloadAfterConversationRestore()
+        ) {
+
+          return;
+
+        }
+
+
+        scheduleAutoConversationSync(
+          "visible",
+          250
+        );
+
+      }
+
+    }
+  );
+
+
+  startAutoConversationSync();
+
+
+  // ============================================================
   // STATUS
   // ============================================================
 
@@ -1877,12 +3374,18 @@
       findLocalChat,
       backupOne,
       restoreOne,
+      initializeAutoConversationBaseline,
+      syncAutomaticNewChats,
+      startAutoConversationSync,
+      stopAutoConversationSync,
+      resetAutoConversationBaseline,
+      autoConversationStatus,
       status
     });
 
 
   console.log(
-    "[Chati-AI Conversations] V5.0.3A safe cross-device chat restore ready."
+    "[Chati-AI Conversations] V5.0.4A2 automatic new-chat sync ready."
   );
 
 })();
