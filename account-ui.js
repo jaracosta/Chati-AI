@@ -1,5 +1,5 @@
 // ============================================================
-// CHATI-AI V4.0.1 — ACCOUNT UI
+// CHATI-AI V4.0.7.3 — ACCOUNT RECOVERY + PASSWORD RESET
 // Uses window.ChatiAuth from supabase-auth.js.
 // Does not sync chats or local data.
 // ============================================================
@@ -31,8 +31,26 @@
   const emailInput =
     document.getElementById("accountEmailInput");
 
+  const emailField =
+    document.getElementById("accountEmailField");
+
   const passwordInput =
     document.getElementById("accountPasswordInput");
+
+  const passwordField =
+    document.getElementById("accountPasswordField");
+
+  const confirmPasswordField =
+    document.getElementById("accountConfirmPasswordField");
+
+  const confirmPasswordInput =
+    document.getElementById("accountConfirmPasswordInput");
+
+  const forgotPasswordBtn =
+    document.getElementById("accountForgotPasswordBtn");
+
+  const backToSignInBtn =
+    document.getElementById("accountBackToSignInBtn");
 
   const formKicker =
     document.getElementById("accountFormKicker");
@@ -128,7 +146,9 @@
       signInBtn,
       createBtn,
       signOutBtn,
-      submitBtn
+      submitBtn,
+      forgotPasswordBtn,
+      backToSignInBtn
     ]
       .filter(Boolean)
       .forEach(
@@ -147,26 +167,117 @@
 
     passwordInput.value =
       "";
+
+    if (
+      confirmPasswordInput
+    ) {
+
+      confirmPasswordInput.value =
+        "";
+
+    }
+
   }
 
 
   function showForm(
     nextMode
   ) {
-    mode =
+
+    if (
       nextMode === "signup"
-        ? "signup"
-        : "signin";
+    ) {
+
+      mode =
+        "signup";
+
+    }
+
+    else if (
+      nextMode === "recover"
+    ) {
+
+      mode =
+        "recover";
+
+    }
+
+    else if (
+      nextMode === "reset"
+    ) {
+
+      mode =
+        "reset";
+
+    }
+
+    else {
+
+      mode =
+        "signin";
+
+    }
+
 
     setMessage("");
+
 
     authForm.classList.remove(
       "hidden"
     );
 
+
+    // Always reset these before configuring the mode.
+
+    emailField?.classList.remove(
+      "hidden"
+    );
+
+    passwordField?.classList.remove(
+      "hidden"
+    );
+
+    confirmPasswordField?.classList.add(
+      "hidden"
+    );
+
+    forgotPasswordBtn?.classList.add(
+      "hidden"
+    );
+
+    backToSignInBtn?.classList.add(
+      "hidden"
+    );
+
+    passwordHint.classList.add(
+      "hidden"
+    );
+
+
+    emailInput.required =
+      true;
+
+    passwordInput.required =
+      true;
+
+    if (
+      confirmPasswordInput
+    ) {
+
+      confirmPasswordInput.required =
+        false;
+
+    }
+
+
+    // --------------------------------------------------------
+    // CREATE ACCOUNT
+    // --------------------------------------------------------
+
     if (
       mode === "signup"
     ) {
+
       formKicker.textContent =
         "New account";
 
@@ -182,9 +293,119 @@
       passwordHint.classList.remove(
         "hidden"
       );
+
     }
 
+
+    // --------------------------------------------------------
+    // SEND PASSWORD RESET EMAIL
+    // --------------------------------------------------------
+
+    else if (
+      mode === "recover"
+    ) {
+
+      formKicker.textContent =
+        "Account recovery";
+
+      formTitle.textContent =
+        "Reset Password";
+
+      submitBtn.textContent =
+        "Send Reset Link";
+
+      passwordInput.value =
+        "";
+
+      passwordInput.required =
+        false;
+
+      passwordField?.classList.add(
+        "hidden"
+      );
+
+      backToSignInBtn?.classList.remove(
+        "hidden"
+      );
+
+    }
+
+
+    // --------------------------------------------------------
+    // CHOOSE NEW PASSWORD
+    // --------------------------------------------------------
+
+    else if (
+      mode === "reset"
+    ) {
+
+      formKicker.textContent =
+        "Account recovery";
+
+      formTitle.textContent =
+        "Choose a New Password";
+
+      submitBtn.textContent =
+        "Update Password";
+
+      emailInput.required =
+        false;
+
+      emailField?.classList.add(
+        "hidden"
+      );
+
+      passwordInput.value =
+        "";
+
+      passwordInput.autocomplete =
+        "new-password";
+
+      passwordInput.placeholder =
+        "At least 8 characters";
+
+      confirmPasswordField?.classList.remove(
+        "hidden"
+      );
+
+      if (
+        confirmPasswordInput
+      ) {
+
+        confirmPasswordInput.value =
+          "";
+
+        confirmPasswordInput.required =
+          true;
+
+      }
+
+
+      passwordHint.classList.remove(
+        "hidden"
+      );
+
+
+      // A recovery session is technically authenticated,
+      // but the password form should take visual priority.
+
+      signedOutView.classList.add(
+        "hidden"
+      );
+
+      signedInView.classList.add(
+        "hidden"
+      );
+
+    }
+
+
+    // --------------------------------------------------------
+    // SIGN IN
+    // --------------------------------------------------------
+
     else {
+
       formKicker.textContent =
         "Welcome back";
 
@@ -197,16 +418,36 @@
       passwordInput.autocomplete =
         "current-password";
 
-      passwordHint.classList.add(
+      passwordInput.placeholder =
+        "At least 8 characters";
+
+      forgotPasswordBtn?.classList.remove(
         "hidden"
       );
+
     }
+
 
     requestAnimationFrame(
       () => {
-        emailInput.focus();
+
+        if (
+          mode === "reset"
+        ) {
+
+          passwordInput.focus();
+
+        }
+
+        else {
+
+          emailInput.focus();
+
+        }
+
       }
     );
+
   }
 
 
@@ -315,10 +556,28 @@
         throw error;
       }
 
-      renderUser(
-        data?.session?.user ??
-          null
-      );
+      if (
+        typeof window.ChatiAuth
+          ?.isPasswordRecovery ===
+          "function" &&
+        window.ChatiAuth
+          .isPasswordRecovery()
+      ) {
+
+        showForm(
+          "reset"
+        );
+
+      }
+
+      else {
+
+        renderUser(
+          data?.session?.user ??
+            null
+        );
+
+      }
     }
 
     catch (error) {
@@ -348,6 +607,40 @@
       showForm(
         "signup"
       );
+    }
+  );
+
+
+  forgotPasswordBtn?.addEventListener(
+    "click",
+    () => {
+
+      if (busy) {
+        return;
+      }
+
+
+      showForm(
+        "recover"
+      );
+
+    }
+  );
+
+
+  backToSignInBtn?.addEventListener(
+    "click",
+    () => {
+
+      if (busy) {
+        return;
+      }
+
+
+      showForm(
+        "signin"
+      );
+
     }
   );
 
@@ -395,6 +688,7 @@
       }
 
       if (
+        mode !== "recover" &&
         password.length < 8
       ) {
         setMessage(
@@ -406,11 +700,147 @@
         return;
       }
 
+
+      if (
+        mode === "reset"
+      ) {
+
+        const confirmation =
+          confirmPasswordInput
+            ?.value ??
+          "";
+
+
+        if (
+          password !==
+          confirmation
+        ) {
+
+          setMessage(
+            "The passwords do not match.",
+            "error"
+          );
+
+          confirmPasswordInput
+            ?.focus();
+
+          return;
+
+        }
+
+      }
+
       setBusy(true);
       setMessage("");
 
       try {
+
+        // ----------------------------------------------------
+        // PASSWORD RESET EMAIL
+        // ----------------------------------------------------
+
         if (
+          mode === "reset"
+        ) {
+
+          if (
+            typeof window.ChatiAuth
+              .updatePassword !==
+              "function"
+          ) {
+
+            throw new Error(
+              "Password update is unavailable."
+            );
+
+          }
+
+
+          const {
+            data,
+            error
+          } =
+            await window.ChatiAuth
+              .updatePassword(
+                password
+              );
+
+
+          if (error) {
+            throw error;
+          }
+
+
+          const user =
+            data?.user ??
+            (
+              await window.ChatiAuth
+                .getUser()
+            )
+              ?.data
+              ?.user ??
+            null;
+
+
+          hideForm();
+
+          renderUser(
+            user
+          );
+
+
+          setMessage(
+            "Password updated successfully. Your account is ready.",
+            "success"
+          );
+
+        }
+
+
+        else if (
+          mode === "recover"
+        ) {
+
+          if (
+            typeof window.ChatiAuth
+              .sendPasswordReset !==
+              "function"
+          ) {
+
+            throw new Error(
+              "Password recovery is unavailable."
+            );
+
+          }
+
+
+          const {
+            error
+          } =
+            await window.ChatiAuth
+              .sendPasswordReset(
+                email
+              );
+
+
+          if (error) {
+            throw error;
+          }
+
+
+          setMessage(
+            "If an account exists for that email, a password reset link has been sent. Check your inbox and spam folder.",
+            "success"
+          );
+
+        }
+
+
+        // ----------------------------------------------------
+        // CREATE ACCOUNT
+        // ----------------------------------------------------
+
+        else if (
           mode === "signup"
         ) {
           const {
@@ -551,12 +981,44 @@
 
 
   window.addEventListener(
+    "chati:passwordrecovery",
+
+    () => {
+
+      showForm(
+        "reset"
+      );
+
+    }
+  );
+
+
+  window.addEventListener(
     "chati:authchange",
     event => {
+
+      if (
+        typeof window.ChatiAuth
+          ?.isPasswordRecovery ===
+          "function" &&
+        window.ChatiAuth
+          .isPasswordRecovery()
+      ) {
+
+        showForm(
+          "reset"
+        );
+
+        return;
+
+      }
+
+
       renderUser(
         event.detail?.user ??
           null
       );
+
     }
   );
 

@@ -67,6 +67,21 @@
 
 
   // =========================
+  // PASSWORD RECOVERY STATE
+  // =========================
+
+  let passwordRecoveryActive =
+    false;
+
+
+  function isPasswordRecovery() {
+
+    return passwordRecoveryActive;
+
+  }
+
+
+  // =========================
   // AUTH METHODS
   // =========================
 
@@ -104,6 +119,97 @@
   }
 
 
+  // =========================
+  // PASSWORD RECOVERY
+  // =========================
+
+  async function sendPasswordReset(
+    email
+  ) {
+
+    const cleanEmail =
+      String(
+        email ?? ""
+      )
+        .trim();
+
+
+    if (!cleanEmail) {
+
+      return {
+        data:
+          null,
+
+        error:
+          new Error(
+            "Email address is required."
+          )
+      };
+
+    }
+
+
+    return client.auth
+      .resetPasswordForEmail(
+        cleanEmail,
+        {
+          redirectTo:
+            EMAIL_REDIRECT_URL
+        }
+      );
+
+  }
+
+
+  async function updatePassword(
+    newPassword
+  ) {
+
+    const password =
+      String(
+        newPassword ?? ""
+      );
+
+
+    if (
+      password.length < 8
+    ) {
+
+      return {
+        data:
+          null,
+
+        error:
+          new Error(
+            "Your password must be at least 8 characters."
+          )
+      };
+
+    }
+
+
+    const result =
+      await client.auth
+        .updateUser({
+          password
+        });
+
+
+    if (
+      !result.error
+    ) {
+
+      passwordRecoveryActive =
+        false;
+
+    }
+
+
+    return result;
+
+  }
+
+
   async function getSession() {
     return client.auth.getSession();
   }
@@ -137,6 +243,9 @@
       signUp,
       signIn,
       signOut,
+      sendPasswordReset,
+      updatePassword,
+      isPasswordRecovery,
       getSession,
       getUser,
       getClient,
@@ -144,7 +253,7 @@
     });
 
   console.log(
-    "[Chati-AI Auth] ChatiAuth created."
+    "[Chati-AI Auth] V4.0.7.1 recovery auth ready."
   );
 
 
@@ -157,6 +266,18 @@
       event,
       session
     ) => {
+
+      if (
+        event ===
+        "PASSWORD_RECOVERY"
+      ) {
+
+        passwordRecoveryActive =
+          true;
+
+      }
+
+
       const user =
         session?.user ?? null;
 
@@ -171,6 +292,29 @@
           }
         )
       );
+
+      if (
+        event ===
+        "PASSWORD_RECOVERY"
+      ) {
+
+        window.dispatchEvent(
+          new CustomEvent(
+            "chati:passwordrecovery",
+            {
+              detail: {
+                user
+              }
+            }
+          )
+        );
+
+        console.log(
+          "[Chati-AI Auth] Password recovery session detected."
+        );
+
+      }
+
 
       console.log(
         "[Chati-AI Auth]",

@@ -249,6 +249,40 @@
   font-size: 0.71rem;
 }
 
+.account-form-helper-row {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: -5px;
+}
+
+.account-text-btn {
+  padding: 2px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 760;
+  cursor: pointer;
+  transition:
+    color 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.account-text-btn:hover {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.account-text-btn:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
+
 .account-submit-btn {
   width: 100%;
   margin-top: 2px;
