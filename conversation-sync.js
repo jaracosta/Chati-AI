@@ -2965,6 +2965,21 @@
       }
 
 
+      const messageSyncResult =
+        await syncAutomaticMessages(
+          reason
+        );
+
+      result.uploadedMessages =
+        messageSyncResult.uploadedMessages;
+
+      result.downloadedMessages =
+        messageSyncResult.downloadedMessages;
+
+      result.messageSyncErrors =
+        messageSyncResult.errors;
+
+
       lastAutoConversationResult =
         result;
 
@@ -3330,6 +3345,551 @@
   startAutoConversationSync();
 
 
+
+  // ============================================================
+  // V5.0.4B — AUTOMATIC NEW MESSAGE SYNC
+  //
+  // APPEND-ONLY SAFE MODE
+  //
+  // - Existing normal cloud conversations only.
+  // - Uploads messages missing from cloud.
+  // - Downloads messages missing locally.
+  // - Does not edit/delete existing messages yet.
+  // - Private chats remain excluded.
+  // ============================================================
+
+  function getLocalMessageSyncId(
+    message,
+    chatId,
+    index
+  ) {
+
+    return getMessageLocalId(
+      message,
+      chatId,
+      index
+    );
+
+  }
+
+
+  async function syncMessagesForConversation(
+    localRow,
+    cloudConversation
+  ) {
+
+    const result = {
+      uploadedMessages: 0,
+      downloadedMessages: 0,
+      changedLocal: false
+    };
+
+
+    if (
+      !localRow ||
+      !cloudConversation
+    ) {
+      return result;
+    }
+
+
+    const found =
+      await findLocalChat(
+        localRow.ownerLocalId,
+        localRow.chatId
+      );
+
+
+    const chat =
+      found.chat;
+
+
+    if (
+      !chat ||
+      chat.isPrivate
+    ) {
+      return result;
+    }
+
+
+    const localMessages =
+      Array.isArray(
+        chat.messages
+      )
+        ? chat.messages
+        : [];
+
+
+    const cloudMessages =
+      await window
+        .ChatiMessages
+        .getAll(
+          cloudConversation.id,
+          {
+            includeDeleted:
+              false
+          }
+        );
+
+
+    const localMap =
+      new Map();
+
+
+    for (
+      let index = 0;
+      index < localMessages.length;
+      index += 1
+    ) {
+
+      const message =
+        localMessages[index];
+
+      const localId =
+        getLocalMessageSyncId(
+          message,
+          localRow.chatId,
+          index
+        );
+
+
+      localMap.set(
+        localId,
+        {
+          message,
+          index
+        }
+      );
+
+    }
+
+
+    const cloudMap =
+      new Map();
+
+
+    for (
+      const message
+      of cloudMessages
+    ) {
+
+      cloudMap.set(
+        String(
+          message.local_id
+        ),
+        message
+      );
+
+    }
+
+
+    // --------------------------------------------------------
+    // LOCAL -> CLOUD
+    // --------------------------------------------------------
+
+    for (
+      let index = 0;
+      index < localMessages.length;
+      index += 1
+    ) {
+
+      const message =
+        localMessages[index];
+
+      const localId =
+        getLocalMessageSyncId(
+          message,
+          localRow.chatId,
+          index
+        );
+
+
+      if (
+        cloudMap.has(
+          localId
+        )
+      ) {
+        continue;
+      }
+
+
+      await window
+        .ChatiMessages
+        .create({
+          conversationId:
+            cloudConversation.id,
+
+          localId,
+
+          sender:
+            normalizeSender(
+              message?.sender
+            ),
+
+          sortIndex:
+            index,
+
+          messageTime:
+            message?.time ??
+            Date.now(),
+
+          payload:
+            prepareMessagePayload(
+              message
+            )
+        });
+
+
+      result.uploadedMessages +=
+        1;
+
+    }
+
+
+    // --------------------------------------------------------
+    // CLOUD -> LOCAL
+    // --------------------------------------------------------
+
+    const missingCloudMessages =
+      cloudMessages
+        .filter(
+          message =>
+            !localMap.has(
+              String(
+                message.local_id
+              )
+            )
+        )
+        .sort(
+          (
+            a,
+            b
+          ) =>
+            Number(
+              a.sort_index ?? 0
+            ) -
+            Number(
+              b.sort_index ?? 0
+            )
+        );
+
+
+    if (
+      missingCloudMessages.length
+    ) {
+
+      for (
+        const cloudMessage
+        of missingCloudMessages
+      ) {
+
+        const payload =
+          clone(
+            cloudMessage.payload ||
+            {}
+          );
+
+
+        const restoredMessage = {
+          ...payload,
+
+          id:
+            String(
+              cloudMessage.local_id
+            ),
+
+          sender:
+            normalizeSender(
+              cloudMessage.sender
+            ),
+
+          time:
+            timestampFromCloud(
+              cloudMessage.message_time,
+              Date.now()
+            )
+        };
+
+
+        if (
+          restoredMessage
+            .attachmentDeferred &&
+          !restoredMessage
+            .attachment
+        ) {
+
+          restoredMessage.attachment =
+            null;
+
+        }
+
+
+        localMessages.push(
+          restoredMessage
+        );
+
+
+        result.downloadedMessages +=
+          1;
+
+      }
+
+
+      localMessages.sort(
+        (
+          a,
+          b
+        ) =>
+          Number(
+            a?.time || 0
+          ) -
+          Number(
+            b?.time || 0
+          )
+      );
+
+
+      chat.messages =
+        localMessages;
+
+
+      chat.updatedAt =
+        Date.now();
+
+
+      const chats =
+        await getOwnerChats(
+          localRow.ownerLocalId
+        );
+
+
+      const chatIndex =
+        chats.findIndex(
+          item =>
+            String(
+              item?.id
+            ) ===
+            String(
+              localRow.chatId
+            )
+        );
+
+
+      if (
+        chatIndex >= 0
+      ) {
+
+        chats[
+          chatIndex
+        ] =
+          chat;
+
+
+        await writeAppData(
+          `${CHATS_PREFIX}${String(
+            localRow.ownerLocalId
+          )}`,
+          chats
+        );
+
+
+        result.changedLocal =
+          true;
+
+      }
+
+    }
+
+
+    return result;
+
+  }
+
+
+  async function syncAutomaticMessages(
+    reason = "manual"
+  ) {
+
+    const result = {
+      ok: true,
+      reason,
+      uploadedMessages: 0,
+      downloadedMessages: 0,
+      changedLocalChats: 0,
+      errors: []
+    };
+
+
+    const session =
+      await getConversationSyncSession();
+
+
+    if (
+      !session?.user?.id
+    ) {
+
+      return {
+        ...result,
+        ok: false,
+        reason: "signed-out"
+      };
+
+    }
+
+
+    const {
+      rows: localRows
+    } =
+      await collectLocalConversationSnapshot();
+
+
+    const cloudRows =
+      (
+        await window
+          .ChatiConversations
+          .getAll({
+            includeDeleted:
+              false
+          })
+      )
+        .filter(
+          isNormalCloudConversation
+        );
+
+
+    const cloudMap =
+      new Map();
+
+
+    for (
+      const row
+      of cloudRows
+    ) {
+
+      cloudMap.set(
+        makeConversationSyncKey(
+          row.owner_type,
+          row.owner_local_id,
+          row.local_id
+        ),
+        row
+      );
+
+    }
+
+
+    for (
+      const localRow
+      of localRows
+    ) {
+
+      const key =
+        makeConversationSyncKey(
+          localRow.ownerType,
+          localRow.ownerLocalId,
+          localRow.chatId
+        );
+
+
+      const cloudConversation =
+        cloudMap.get(
+          key
+        );
+
+
+      if (
+        !cloudConversation
+      ) {
+        continue;
+      }
+
+
+      try {
+
+        const synced =
+          await syncMessagesForConversation(
+            localRow,
+            cloudConversation
+          );
+
+
+        result.uploadedMessages +=
+          synced.uploadedMessages;
+
+        result.downloadedMessages +=
+          synced.downloadedMessages;
+
+
+        if (
+          synced.changedLocal
+        ) {
+
+          result.changedLocalChats +=
+            1;
+
+        }
+
+      }
+
+      catch (
+        error
+      ) {
+
+        console.error(
+          "[Chati-AI Conversations] Message sync failed:",
+          localRow,
+          error
+        );
+
+
+        result.errors.push({
+          chatId:
+            localRow.chatId,
+
+          message:
+            String(
+              error?.message ||
+              error
+            )
+        });
+
+      }
+
+    }
+
+
+    if (
+      result.changedLocalChats
+    ) {
+
+      autoConversationReloadPending =
+        true;
+
+      maybeReloadAfterConversationRestore();
+
+    }
+
+
+    if (
+      result.uploadedMessages ||
+      result.downloadedMessages ||
+      result.errors.length ||
+      reason === "manual"
+    ) {
+
+      console.log(
+        "🔥 V5.0.4B AUTOMATIC MESSAGE SYNC",
+        result
+      );
+
+    }
+
+
+    return result;
+
+  }
+
+
   // ============================================================
   // STATUS
   // ============================================================
@@ -3380,12 +3940,14 @@
       stopAutoConversationSync,
       resetAutoConversationBaseline,
       autoConversationStatus,
+      syncAutomaticMessages,
+      syncMessagesForConversation,
       status
     });
 
 
   console.log(
-    "[Chati-AI Conversations] V5.0.4A2 automatic new-chat sync ready."
+    "[Chati-AI Conversations] V5.0.4B automatic new-chat + message sync ready."
   );
 
 })();
