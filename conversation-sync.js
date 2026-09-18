@@ -2980,6 +2980,40 @@
         messageSyncResult.errors;
 
 
+      const updateSyncResult =
+        await syncAutomaticUpdates(
+          reason
+        );
+
+
+      result.uploadedConversationUpdates =
+        updateSyncResult.uploadedConversationUpdates ||
+        0;
+
+      result.downloadedConversationUpdates =
+        updateSyncResult.downloadedConversationUpdates ||
+        0;
+
+      result.uploadedMessageUpdates =
+        updateSyncResult.uploadedMessageUpdates ||
+        0;
+
+      result.downloadedMessageUpdates =
+        updateSyncResult.downloadedMessageUpdates ||
+        0;
+
+      result.updateConflicts =
+        Array.isArray(
+          updateSyncResult.conflicts
+        )
+          ? updateSyncResult.conflicts.length
+          : 0;
+
+      result.updateSyncErrors =
+        updateSyncResult.errors ||
+        [];
+
+
       lastAutoConversationResult =
         result;
 
@@ -3891,6 +3925,1789 @@
 
 
   // ============================================================
+  // V5.0.4C — CONFLICT-PROTECTED UPDATES
+  //
+  // SAFE UPDATE MODE
+  //
+  // - Detects edits to existing normal conversations.
+  // - Detects edits to existing normal messages.
+  // - Uses cloud row versions for optimistic concurrency.
+  // - Local-only change -> upload.
+  // - Cloud-only change -> download.
+  // - Both changed -> conflict; NOTHING is overwritten.
+  // - Private Chat / Private Group remain excluded.
+  // - Deletes are intentionally deferred to V5.0.4D.
+  // ============================================================
+
+
+  let autoUpdateBusy =
+    false;
+
+  let lastUpdateConflicts =
+    [];
+
+  let lastUpdateResult =
+    null;
+
+
+  function getUpdateBaselineKey(
+    userId
+  ) {
+
+    return (
+      `chatiConversationUpdateBaselineV504C_${String(
+        userId
+      )}`
+    );
+
+  }
+
+
+  function createEmptyUpdateBaseline() {
+
+    return {
+      initializedAt:
+        Date.now(),
+
+      conversations:
+        {},
+
+      messages:
+        {}
+    };
+
+  }
+
+
+  function readUpdateBaseline(
+    userId
+  ) {
+
+    try {
+
+      const raw =
+        localStorage.getItem(
+          getUpdateBaselineKey(
+            userId
+          )
+        );
+
+
+      if (!raw) {
+        return createEmptyUpdateBaseline();
+      }
+
+
+      const parsed =
+        JSON.parse(
+          raw
+        );
+
+
+      if (
+        !parsed ||
+        typeof parsed !==
+          "object"
+      ) {
+
+        return createEmptyUpdateBaseline();
+
+      }
+
+
+      return {
+        initializedAt:
+          Number(
+            parsed.initializedAt ||
+            Date.now()
+          ),
+
+        conversations:
+          (
+            parsed.conversations &&
+            typeof parsed.conversations ===
+              "object"
+          )
+            ? parsed.conversations
+            : {},
+
+        messages:
+          (
+            parsed.messages &&
+            typeof parsed.messages ===
+              "object"
+          )
+            ? parsed.messages
+            : {}
+      };
+
+    }
+
+    catch (
+      error
+    ) {
+
+      console.warn(
+        "[Chati-AI Conversations] Could not read V5.0.4C update baseline.",
+        error
+      );
+
+
+      return createEmptyUpdateBaseline();
+
+    }
+
+  }
+
+
+  function saveUpdateBaseline(
+    userId,
+    state
+  ) {
+
+    localStorage.setItem(
+      getUpdateBaselineKey(
+        userId
+      ),
+      JSON.stringify(
+        state
+      )
+    );
+
+  }
+
+
+  function stableNormalize(
+    value
+  ) {
+
+    if (
+      value === null ||
+      value === undefined
+    ) {
+
+      return value === undefined
+        ? null
+        : value;
+
+    }
+
+
+    if (
+      typeof value !==
+        "object"
+    ) {
+
+      return value;
+
+    }
+
+
+    if (
+      Array.isArray(
+        value
+      )
+    ) {
+
+      return value.map(
+        stableNormalize
+      );
+
+    }
+
+
+    const output =
+      {};
+
+
+    for (
+      const key
+      of Object.keys(
+        value
+      ).sort()
+    ) {
+
+      if (
+        value[
+          key
+        ] === undefined
+      ) {
+        continue;
+      }
+
+
+      output[
+        key
+      ] =
+        stableNormalize(
+          value[
+            key
+          ]
+        );
+
+    }
+
+
+    return output;
+
+  }
+
+
+  async function fingerprintUpdateValue(
+    value
+  ) {
+
+    const source =
+      JSON.stringify(
+        stableNormalize(
+          value
+        )
+      );
+
+
+    try {
+
+      if (
+        window.crypto?.subtle &&
+        typeof TextEncoder ===
+          "function"
+      ) {
+
+        const bytes =
+          new TextEncoder()
+            .encode(
+              source
+            );
+
+
+        const digest =
+          await window.crypto
+            .subtle
+            .digest(
+              "SHA-256",
+              bytes
+            );
+
+
+        return Array
+          .from(
+            new Uint8Array(
+              digest
+            )
+          )
+          .map(
+            byte =>
+              byte
+                .toString(
+                  16
+                )
+                .padStart(
+                  2,
+                  "0"
+                )
+          )
+          .join(
+            ""
+          );
+
+      }
+
+    }
+
+    catch (
+      error
+    ) {
+
+      console.warn(
+        "[Chati-AI Conversations] SHA-256 fingerprint unavailable; using fallback.",
+        error
+      );
+
+    }
+
+
+    let hash =
+      2166136261;
+
+
+    for (
+      let index = 0;
+      index < source.length;
+      index += 1
+    ) {
+
+      hash ^=
+        source.charCodeAt(
+          index
+        );
+
+      hash =
+        Math.imul(
+          hash,
+          16777619
+        );
+
+    }
+
+
+    return (
+      `fnv1a_${(
+        hash >>> 0
+      ).toString(
+        16
+      )}`
+    );
+
+  }
+
+
+  function getConversationUpdateStateFromLocal(
+    chat
+  ) {
+
+    return {
+      title:
+        String(
+          chat?.title ||
+          "New Chat"
+        ),
+
+      memory:
+        prepareMemory(
+          chat?.memory
+        )
+    };
+
+  }
+
+
+  function getConversationUpdateStateFromCloud(
+    conversation
+  ) {
+
+    return {
+      title:
+        String(
+          conversation?.title ||
+          "New Chat"
+        ),
+
+      memory:
+        prepareMemory(
+          conversation?.memory
+        )
+    };
+
+  }
+
+
+  function getMessageUpdateStateFromLocal(
+    message
+  ) {
+
+    return {
+      payload:
+        prepareMessagePayload(
+          message
+        )
+    };
+
+  }
+
+
+  function getMessageUpdateStateFromCloud(
+    message
+  ) {
+
+    return {
+      payload:
+        clone(
+          (
+            message?.payload &&
+            typeof message.payload ===
+              "object"
+          )
+            ? message.payload
+            : {}
+        )
+    };
+
+  }
+
+
+  function makeMessageUpdateKey(
+    conversationKey,
+    localMessageId
+  ) {
+
+    return (
+      `${conversationKey}::message::${String(
+        localMessageId
+      )}`
+    );
+
+  }
+
+
+  function setUpdateBaselineEntry(
+    container,
+    key,
+    version,
+    fingerprint
+  ) {
+
+    container[
+      key
+    ] = {
+      version:
+        Number(
+          version
+        ) ||
+        1,
+
+      fingerprint:
+        String(
+          fingerprint
+        )
+    };
+
+  }
+
+
+  function addUpdateConflict(
+    result,
+    conflict
+  ) {
+
+    result.conflicts.push(
+      conflict
+    );
+
+  }
+
+
+  async function writeNormalChatPreservingStorage(
+    ownerLocalId,
+    updatedChat
+  ) {
+
+    const ownerId =
+      String(
+        ownerLocalId
+      );
+
+
+    const raw =
+      await readAppData(
+        `${CHATS_PREFIX}${ownerId}`
+      );
+
+
+    const allChats =
+      parseArray(
+        raw
+      );
+
+
+    const index =
+      allChats.findIndex(
+        item =>
+          String(
+            item?.id
+          ) ===
+          String(
+            updatedChat?.id
+          )
+      );
+
+
+    if (
+      index < 0
+    ) {
+
+      throw new Error(
+        `Could not locate local chat for update: ${String(
+          updatedChat?.id
+        )}`
+      );
+
+    }
+
+
+    allChats[
+      index
+    ] =
+      updatedChat;
+
+
+    await writeAppData(
+      `${CHATS_PREFIX}${ownerId}`,
+      allChats
+    );
+
+  }
+
+
+  function mergeCloudMessageUpdateIntoLocal(
+    localMessage,
+    cloudMessage
+  ) {
+
+    const payload =
+      clone(
+        (
+          cloudMessage?.payload &&
+          typeof cloudMessage.payload ===
+            "object"
+        )
+          ? cloudMessage.payload
+          : {}
+      );
+
+
+    const restored = {
+      ...payload,
+
+      id:
+        String(
+          cloudMessage?.local_id ??
+          localMessage?.id ??
+          crypto.randomUUID()
+        ),
+
+      sender:
+        normalizeSender(
+          cloudMessage?.sender
+        ),
+
+      time:
+        timestampFromCloud(
+          cloudMessage?.message_time,
+          localMessage?.time ??
+          Date.now()
+        )
+    };
+
+
+    // Chat attachments are still deferred in V5.
+    // Never destroy a valid local attachment merely because
+    // the cloud payload currently contains deferred metadata.
+
+    if (
+      payload?.attachmentDeferred &&
+      !payload?.attachment &&
+      localMessage?.attachment
+    ) {
+
+      restored.attachment =
+        clone(
+          localMessage.attachment
+        );
+
+    }
+
+
+    return restored;
+
+  }
+
+
+  async function syncUpdatesForConversation(
+    localRow,
+    cloudConversation,
+    state,
+    result
+  ) {
+
+    const {
+      chat
+    } =
+      await findLocalChat(
+        localRow.ownerLocalId,
+        localRow.chatId
+      );
+
+
+    if (
+      !chat ||
+      chat.isPrivate
+    ) {
+
+      return;
+
+    }
+
+
+    const conversationKey =
+      makeConversationSyncKey(
+        localRow.ownerType,
+        localRow.ownerLocalId,
+        localRow.chatId
+      );
+
+
+    let chatDirty =
+      false;
+
+
+    const pendingRemoteBaselines =
+      [];
+
+
+    // ========================================================
+    // CONVERSATION METADATA
+    // ========================================================
+
+    const localConversationFingerprint =
+      await fingerprintUpdateValue(
+        getConversationUpdateStateFromLocal(
+          chat
+        )
+      );
+
+
+    const cloudConversationFingerprint =
+      await fingerprintUpdateValue(
+        getConversationUpdateStateFromCloud(
+          cloudConversation
+        )
+      );
+
+
+    const conversationBaseline =
+      state.conversations[
+        conversationKey
+      ];
+
+
+    if (
+      !conversationBaseline
+    ) {
+
+      if (
+        localConversationFingerprint ===
+        cloudConversationFingerprint
+      ) {
+
+        setUpdateBaselineEntry(
+          state.conversations,
+          conversationKey,
+          cloudConversation.version,
+          cloudConversationFingerprint
+        );
+
+
+        result.createdConversationBaselines +=
+          1;
+
+      }
+
+      else {
+
+        addUpdateConflict(
+          result,
+          {
+            type:
+              "untracked-conversation-divergence",
+
+            ownerType:
+              localRow.ownerType,
+
+            ownerLocalId:
+              localRow.ownerLocalId,
+
+            ownerName:
+              localRow.ownerName,
+
+            chatId:
+              localRow.chatId,
+
+            baselineVersion:
+              null,
+
+            cloudVersion:
+              Number(
+                cloudConversation.version
+              ) ||
+              1
+          }
+        );
+
+      }
+
+    }
+
+    else {
+
+      const localChanged =
+        localConversationFingerprint !==
+        conversationBaseline.fingerprint;
+
+      const cloudChanged =
+        cloudConversationFingerprint !==
+        conversationBaseline.fingerprint;
+
+
+      // Same semantic state, but cloud row version advanced.
+      if (
+        !cloudChanged &&
+        Number(
+          conversationBaseline.version
+        ) !==
+        Number(
+          cloudConversation.version
+        )
+      ) {
+
+        conversationBaseline.version =
+          Number(
+            cloudConversation.version
+          ) ||
+          conversationBaseline.version;
+
+      }
+
+
+      if (
+        !localChanged &&
+        !cloudChanged
+      ) {
+
+        // Nothing to do.
+
+      }
+
+      else if (
+        localChanged &&
+        !cloudChanged
+      ) {
+
+        const saved =
+          await window
+            .ChatiConversations
+            .updateIfVersion(
+              localRow.chatId,
+              localRow.ownerType,
+              localRow.ownerLocalId,
+              conversationBaseline.version,
+              {
+                title:
+                  String(
+                    chat.title ||
+                    "New Chat"
+                  ),
+
+                memory:
+                  prepareMemory(
+                    chat.memory
+                  )
+              }
+            );
+
+
+        if (
+          !saved
+        ) {
+
+          addUpdateConflict(
+            result,
+            {
+              type:
+                "stale-conversation-update-blocked",
+
+              ownerType:
+                localRow.ownerType,
+
+              ownerLocalId:
+                localRow.ownerLocalId,
+
+              ownerName:
+                localRow.ownerName,
+
+              chatId:
+                localRow.chatId,
+
+              baselineVersion:
+                conversationBaseline.version,
+
+              cloudVersion:
+                Number(
+                  cloudConversation.version
+                ) ||
+                null
+            }
+          );
+
+        }
+
+        else {
+
+          setUpdateBaselineEntry(
+            state.conversations,
+            conversationKey,
+            saved.version,
+            localConversationFingerprint
+          );
+
+
+          result.uploadedConversationUpdates +=
+            1;
+
+        }
+
+      }
+
+      else if (
+        !localChanged &&
+        cloudChanged
+      ) {
+
+        chat.title =
+          String(
+            cloudConversation.title ||
+            "New Chat"
+          );
+
+
+        chat.memory =
+          prepareMemory(
+            cloudConversation.memory
+          );
+
+
+        chat.updatedAt =
+          timestampFromCloud(
+            cloudConversation.updated_at,
+            Date.now()
+          );
+
+
+        chatDirty =
+          true;
+
+
+        pendingRemoteBaselines.push({
+          type:
+            "conversation",
+
+          key:
+            conversationKey,
+
+          version:
+            cloudConversation.version,
+
+          fingerprint:
+            cloudConversationFingerprint
+        });
+
+
+        result.downloadedConversationUpdates +=
+          1;
+
+      }
+
+      else {
+
+        addUpdateConflict(
+          result,
+          {
+            type:
+              "conversation-both-edited",
+
+            ownerType:
+              localRow.ownerType,
+
+            ownerLocalId:
+              localRow.ownerLocalId,
+
+            ownerName:
+              localRow.ownerName,
+
+            chatId:
+              localRow.chatId,
+
+            baselineVersion:
+              conversationBaseline.version,
+
+            cloudVersion:
+              Number(
+                cloudConversation.version
+              ) ||
+              null
+          }
+        );
+
+      }
+
+    }
+
+
+    // ========================================================
+    // MESSAGE UPDATES
+    // ========================================================
+
+    const localMessages =
+      Array.isArray(
+        chat.messages
+      )
+        ? chat.messages
+        : [];
+
+
+    const cloudMessages =
+      await window
+        .ChatiMessages
+        .getAll(
+          cloudConversation.id,
+          {
+            includeDeleted:
+              false
+          }
+        );
+
+
+    const cloudMessageMap =
+      new Map();
+
+
+    for (
+      const cloudMessage
+      of cloudMessages
+    ) {
+
+      cloudMessageMap.set(
+        String(
+          cloudMessage.local_id
+        ),
+        cloudMessage
+      );
+
+    }
+
+
+    for (
+      let index = 0;
+      index < localMessages.length;
+      index += 1
+    ) {
+
+      const localMessage =
+        localMessages[
+          index
+        ];
+
+
+      const localMessageId =
+        getLocalMessageSyncId(
+          localMessage,
+          localRow.chatId,
+          index
+        );
+
+
+      const cloudMessage =
+        cloudMessageMap.get(
+          String(
+            localMessageId
+          )
+        );
+
+
+      // New/missing messages are handled by V5.0.4B.
+      if (
+        !cloudMessage
+      ) {
+        continue;
+      }
+
+
+      const messageKey =
+        makeMessageUpdateKey(
+          conversationKey,
+          localMessageId
+        );
+
+
+      const localFingerprint =
+        await fingerprintUpdateValue(
+          getMessageUpdateStateFromLocal(
+            localMessage
+          )
+        );
+
+
+      const cloudFingerprint =
+        await fingerprintUpdateValue(
+          getMessageUpdateStateFromCloud(
+            cloudMessage
+          )
+        );
+
+
+      const baseline =
+        state.messages[
+          messageKey
+        ];
+
+
+      if (!baseline) {
+
+        if (
+          localFingerprint ===
+          cloudFingerprint
+        ) {
+
+          setUpdateBaselineEntry(
+            state.messages,
+            messageKey,
+            cloudMessage.version,
+            cloudFingerprint
+          );
+
+
+          result.createdMessageBaselines +=
+            1;
+
+        }
+
+        else {
+
+          addUpdateConflict(
+            result,
+            {
+              type:
+                "untracked-message-divergence",
+
+              ownerType:
+                localRow.ownerType,
+
+              ownerLocalId:
+                localRow.ownerLocalId,
+
+              ownerName:
+                localRow.ownerName,
+
+              chatId:
+                localRow.chatId,
+
+              messageId:
+                String(
+                  localMessageId
+                ),
+
+              baselineVersion:
+                null,
+
+              cloudVersion:
+                Number(
+                  cloudMessage.version
+                ) ||
+                1
+            }
+          );
+
+        }
+
+
+        continue;
+
+      }
+
+
+      const localChanged =
+        localFingerprint !==
+        baseline.fingerprint;
+
+      const cloudChanged =
+        cloudFingerprint !==
+        baseline.fingerprint;
+
+
+      // Refresh version if the semantic state is identical.
+      if (
+        !cloudChanged &&
+        Number(
+          baseline.version
+        ) !==
+        Number(
+          cloudMessage.version
+        )
+      ) {
+
+        baseline.version =
+          Number(
+            cloudMessage.version
+          ) ||
+          baseline.version;
+
+      }
+
+
+      if (
+        !localChanged &&
+        !cloudChanged
+      ) {
+
+        continue;
+
+      }
+
+
+      if (
+        localChanged &&
+        !cloudChanged
+      ) {
+
+        const saved =
+          await window
+            .ChatiMessages
+            .updateIfVersion(
+              cloudConversation.id,
+              String(
+                localMessageId
+              ),
+              baseline.version,
+              {
+                payload:
+                  prepareMessagePayload(
+                    localMessage
+                  ),
+
+                sortIndex:
+                  index
+              }
+            );
+
+
+        if (
+          !saved
+        ) {
+
+          addUpdateConflict(
+            result,
+            {
+              type:
+                "stale-message-update-blocked",
+
+              ownerType:
+                localRow.ownerType,
+
+              ownerLocalId:
+                localRow.ownerLocalId,
+
+              ownerName:
+                localRow.ownerName,
+
+              chatId:
+                localRow.chatId,
+
+              messageId:
+                String(
+                  localMessageId
+                ),
+
+              baselineVersion:
+                baseline.version,
+
+              cloudVersion:
+                Number(
+                  cloudMessage.version
+                ) ||
+                null
+            }
+          );
+
+        }
+
+        else {
+
+          setUpdateBaselineEntry(
+            state.messages,
+            messageKey,
+            saved.version,
+            localFingerprint
+          );
+
+
+          result.uploadedMessageUpdates +=
+            1;
+
+        }
+
+
+        continue;
+
+      }
+
+
+      if (
+        !localChanged &&
+        cloudChanged
+      ) {
+
+        localMessages[
+          index
+        ] =
+          mergeCloudMessageUpdateIntoLocal(
+            localMessage,
+            cloudMessage
+          );
+
+
+        chat.messages =
+          localMessages;
+
+
+        chat.updatedAt =
+          Date.now();
+
+
+        chatDirty =
+          true;
+
+
+        pendingRemoteBaselines.push({
+          type:
+            "message",
+
+          key:
+            messageKey,
+
+          version:
+            cloudMessage.version,
+
+          fingerprint:
+            cloudFingerprint
+        });
+
+
+        result.downloadedMessageUpdates +=
+          1;
+
+
+        continue;
+
+      }
+
+
+      addUpdateConflict(
+        result,
+        {
+          type:
+            "message-both-edited",
+
+          ownerType:
+            localRow.ownerType,
+
+          ownerLocalId:
+            localRow.ownerLocalId,
+
+          ownerName:
+            localRow.ownerName,
+
+          chatId:
+            localRow.chatId,
+
+          messageId:
+            String(
+              localMessageId
+            ),
+
+          baselineVersion:
+            baseline.version,
+
+          cloudVersion:
+            Number(
+              cloudMessage.version
+            ) ||
+            null
+        }
+      );
+
+    }
+
+
+    // ========================================================
+    // SAVE REMOTE CHANGES LOCALLY
+    // ========================================================
+
+    if (
+      chatDirty
+    ) {
+
+      await writeNormalChatPreservingStorage(
+        localRow.ownerLocalId,
+        chat
+      );
+
+
+      result.changedLocalChats +=
+        1;
+
+
+      // Only advance cloud->local baselines AFTER the local
+      // IndexedDB write succeeds.
+
+      for (
+        const pending
+        of pendingRemoteBaselines
+      ) {
+
+        if (
+          pending.type ===
+            "conversation"
+        ) {
+
+          setUpdateBaselineEntry(
+            state.conversations,
+            pending.key,
+            pending.version,
+            pending.fingerprint
+          );
+
+        }
+
+        else {
+
+          setUpdateBaselineEntry(
+            state.messages,
+            pending.key,
+            pending.version,
+            pending.fingerprint
+          );
+
+        }
+
+      }
+
+    }
+
+  }
+
+
+  async function syncAutomaticUpdates(
+    reason = "manual"
+  ) {
+
+    if (
+      autoUpdateBusy
+    ) {
+
+      return {
+        ok:
+          false,
+
+        reason:
+          "busy",
+
+        conflicts:
+          clone(
+            lastUpdateConflicts
+          )
+      };
+
+    }
+
+
+    autoUpdateBusy =
+      true;
+
+
+    const result = {
+      ok:
+        true,
+
+      reason,
+
+      createdConversationBaselines:
+        0,
+
+      createdMessageBaselines:
+        0,
+
+      uploadedConversationUpdates:
+        0,
+
+      downloadedConversationUpdates:
+        0,
+
+      uploadedMessageUpdates:
+        0,
+
+      downloadedMessageUpdates:
+        0,
+
+      changedLocalChats:
+        0,
+
+      conflicts:
+        [],
+
+      errors:
+        []
+    };
+
+
+    try {
+
+      const session =
+        await getConversationSyncSession();
+
+
+      if (
+        !session?.user?.id
+      ) {
+
+        return {
+          ...result,
+          ok:
+            false,
+          reason:
+            "signed-out"
+        };
+
+      }
+
+
+      const state =
+        readUpdateBaseline(
+          session.user.id
+        );
+
+
+      const {
+        rows:
+          localRows
+      } =
+        await collectLocalConversationSnapshot();
+
+
+      const cloudRows =
+        (
+          await window
+            .ChatiConversations
+            .getAll({
+              includeDeleted:
+                false
+            })
+        )
+          .filter(
+            isNormalCloudConversation
+          );
+
+
+      const cloudMap =
+        new Map();
+
+
+      for (
+        const cloudConversation
+        of cloudRows
+      ) {
+
+        cloudMap.set(
+          makeConversationSyncKey(
+            cloudConversation.owner_type,
+            cloudConversation.owner_local_id,
+            cloudConversation.local_id
+          ),
+          cloudConversation
+        );
+
+      }
+
+
+      for (
+        const localRow
+        of localRows
+      ) {
+
+        const key =
+          makeConversationSyncKey(
+            localRow.ownerType,
+            localRow.ownerLocalId,
+            localRow.chatId
+          );
+
+
+        const cloudConversation =
+          cloudMap.get(
+            key
+          );
+
+
+        // New chats are still handled by V5.0.4A/B.
+        if (
+          !cloudConversation
+        ) {
+          continue;
+        }
+
+
+        try {
+
+          await syncUpdatesForConversation(
+            localRow,
+            cloudConversation,
+            state,
+            result
+          );
+
+        }
+
+        catch (
+          error
+        ) {
+
+          console.error(
+            "[Chati-AI Conversations] V5.0.4C update sync failed:",
+            localRow,
+            error
+          );
+
+
+          result.errors.push({
+            ownerType:
+              localRow.ownerType,
+
+            ownerLocalId:
+              localRow.ownerLocalId,
+
+            chatId:
+              localRow.chatId,
+
+            message:
+              String(
+                error?.message ||
+                error
+              )
+          });
+
+        }
+
+      }
+
+
+      saveUpdateBaseline(
+        session.user.id,
+        state
+      );
+
+
+      lastUpdateConflicts =
+        clone(
+          result.conflicts
+        );
+
+
+      lastUpdateResult =
+        clone(
+          result
+        );
+
+
+      if (
+        result.changedLocalChats
+      ) {
+
+        autoConversationReloadPending =
+          true;
+
+
+        maybeReloadAfterConversationRestore();
+
+      }
+
+
+      if (
+        result.uploadedConversationUpdates ||
+        result.downloadedConversationUpdates ||
+        result.uploadedMessageUpdates ||
+        result.downloadedMessageUpdates ||
+        result.conflicts.length ||
+        result.errors.length ||
+        reason ===
+          "manual"
+      ) {
+
+        console.log(
+          "🔥 V5.0.4C CONFLICT-PROTECTED UPDATE SYNC",
+          result
+        );
+
+      }
+
+
+      if (
+        result.conflicts.length
+      ) {
+
+        console.warn(
+          `[Chati-AI Conversations] ${result.conflicts.length} update conflict(s) protected. Nothing conflicting was overwritten.`,
+          result.conflicts
+        );
+
+
+        window.dispatchEvent(
+          new CustomEvent(
+            "chati:conversationupdateconflict",
+            {
+              detail:
+                clone(
+                  result.conflicts
+                )
+            }
+          )
+        );
+
+      }
+
+
+      return result;
+
+    }
+
+    finally {
+
+      autoUpdateBusy =
+        false;
+
+    }
+
+  }
+
+
+  function getUpdateConflicts() {
+
+    return clone(
+      lastUpdateConflicts
+    );
+
+  }
+
+
+  async function updateSyncStatus() {
+
+    const session =
+      await getConversationSyncSession();
+
+
+    if (
+      !session?.user?.id
+    ) {
+
+      return {
+        signedIn:
+          false,
+
+        busy:
+          autoUpdateBusy,
+
+        baseline:
+          null,
+
+        conflicts:
+          clone(
+            lastUpdateConflicts
+          ),
+
+        lastResult:
+          clone(
+            lastUpdateResult
+          )
+      };
+
+    }
+
+
+    const state =
+      readUpdateBaseline(
+        session.user.id
+      );
+
+
+    return {
+      signedIn:
+        true,
+
+      userId:
+        session.user.id,
+
+      busy:
+        autoUpdateBusy,
+
+      baseline: {
+        initializedAt:
+          state.initializedAt,
+
+        conversations:
+          Object.keys(
+            state.conversations
+          ).length,
+
+        messages:
+          Object.keys(
+            state.messages
+          ).length
+      },
+
+      conflicts:
+        clone(
+          lastUpdateConflicts
+        ),
+
+      lastResult:
+        clone(
+          lastUpdateResult
+        )
+    };
+
+  }
+
+
+  async function resetUpdateBaseline() {
+
+    const session =
+      await getConversationSyncSession();
+
+
+    if (
+      !session?.user?.id
+    ) {
+
+      return {
+        ok:
+          false,
+
+        reason:
+          "signed-out"
+      };
+
+    }
+
+
+    localStorage.removeItem(
+      getUpdateBaselineKey(
+        session.user.id
+      )
+    );
+
+
+    lastUpdateConflicts =
+      [];
+
+    lastUpdateResult =
+      null;
+
+
+    return syncAutomaticUpdates(
+      "baseline-reset"
+    );
+
+  }
+
+
+  // ============================================================
   // STATUS
   // ============================================================
 
@@ -3942,12 +5759,16 @@
       autoConversationStatus,
       syncAutomaticMessages,
       syncMessagesForConversation,
+      syncAutomaticUpdates,
+      getUpdateConflicts,
+      updateSyncStatus,
+      resetUpdateBaseline,
       status
     });
 
 
   console.log(
-    "[Chati-AI Conversations] V5.0.4B automatic new-chat + message sync ready."
+    "[Chati-AI Conversations] V5.0.4C conflict-protected chat update sync ready."
   );
 
 })();
