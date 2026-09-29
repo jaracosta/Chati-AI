@@ -14356,6 +14356,180 @@ function createMessageRow(
 
     );
 
+
+    /*
+       Mobile does not have a desktop right-click.
+       A deliberate long-press opens the exact same message menu,
+       while normal taps and vertical scrolling keep working normally.
+    */
+    let longPressTimer =
+      null;
+
+    let longPressStartX =
+      0;
+
+    let longPressStartY =
+      0;
+
+
+    const cancelMessageLongPress =
+      () => {
+
+        if (
+          longPressTimer !==
+          null
+        ) {
+
+          window.clearTimeout(
+            longPressTimer
+          );
+
+
+          longPressTimer =
+            null;
+
+        }
+
+      };
+
+
+    bubble.addEventListener(
+
+      "pointerdown",
+
+      event => {
+
+        if (
+          event.pointerType !==
+            "touch" ||
+          isSending
+        ) {
+
+          return;
+
+        }
+
+
+        cancelMessageLongPress();
+
+
+        longPressStartX =
+          event.clientX;
+
+        longPressStartY =
+          event.clientY;
+
+
+        longPressTimer =
+          window.setTimeout(
+
+            () => {
+
+              longPressTimer =
+                null;
+
+
+              openMessageContextMenu(
+
+                {
+                  preventDefault() {},
+                  clientX:
+                    longPressStartX,
+                  clientY:
+                    longPressStartY
+                },
+
+                normalized.id
+
+              );
+
+            },
+
+            480
+
+          );
+
+      },
+
+      {
+        passive: true
+      }
+
+    );
+
+
+    bubble.addEventListener(
+
+      "pointermove",
+
+      event => {
+
+        if (
+          longPressTimer ===
+            null ||
+          event.pointerType !==
+            "touch"
+        ) {
+
+          return;
+
+        }
+
+
+        const movedX =
+          Math.abs(
+            event.clientX -
+            longPressStartX
+          );
+
+        const movedY =
+          Math.abs(
+            event.clientY -
+            longPressStartY
+          );
+
+
+        if (
+          movedX > 12 ||
+          movedY > 12
+        ) {
+
+          cancelMessageLongPress();
+
+        }
+
+      },
+
+      {
+        passive: true
+      }
+
+    );
+
+
+    [
+      "pointerup",
+      "pointercancel",
+      "pointerleave"
+    ]
+      .forEach(
+        eventName => {
+
+          bubble.addEventListener(
+
+            eventName,
+
+            cancelMessageLongPress,
+
+            {
+              passive: true
+            }
+
+          );
+
+        }
+      );
+
   }
 
 

@@ -9239,11 +9239,19 @@ body.splash-active .app {
 
   /*
      PHONE BACKGROUND:
-     show the full artwork instead of heavily cropping it.
+     fill the entire phone chat viewport. The previous "contain"
+     behavior preserved the desktop artwork ratio but exposed dark
+     bars on tall screens.
   */
   .chat-background {
+    width:
+      100% !important;
+
+    height:
+      100% !important;
+
     background-size:
-      contain !important;
+      cover !important;
 
     background-position:
       center center !important;
@@ -9253,6 +9261,19 @@ body.splash-active .app {
 
     background-color:
       #08080d !important;
+  }
+
+
+  /*
+     Long-press belongs to Chati-AI's own message menu on touch devices,
+     not the browser's native text/image callout.
+  */
+  .message {
+    -webkit-touch-callout:
+      none;
+
+    touch-action:
+      pan-y;
   }
 
 
