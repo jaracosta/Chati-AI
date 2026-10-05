@@ -1,6 +1,6 @@
 // ============================================================
 // CHATI-AI V4.0.6.1 — CLOUD MEDIA
-// Private Supabase Storage client
+// Private Supabase Storage client — images + short videos
 // Bucket: character-media
 // ============================================================
 
@@ -8,20 +8,26 @@
   "use strict";
 
   const BUCKET = "character-media";
-  const MAX_FILE_SIZE = 20 * 1024 * 1024;
+  const MAX_FILE_SIZE = 30 * 1024 * 1024;
 
   const ALLOWED_TYPES = new Set([
     "image/jpeg",
     "image/png",
     "image/webp",
-    "image/gif"
+    "image/gif",
+    "video/mp4",
+    "video/webm",
+    "video/quicktime"
   ]);
 
   const EXTENSIONS = {
     "image/jpeg": "jpg",
     "image/png": "png",
     "image/webp": "webp",
-    "image/gif": "gif"
+    "image/gif": "gif",
+    "video/mp4": "mp4",
+    "video/webm": "webm",
+    "video/quicktime": "mov"
   };
 
 
@@ -157,7 +163,7 @@
 
     if (!extension) {
       throw new Error(
-        `Unsupported image type: ${
+        `Unsupported media type: ${
           mimeType || "unknown"
         }`
       );
@@ -220,7 +226,7 @@
 
       if (!response.ok) {
         throw new Error(
-          "Could not read local image data."
+          "Could not read local media data."
         );
       }
 
@@ -230,7 +236,7 @@
 
     else {
       throw new Error(
-        "Expected a File, Blob, data URL, or blob URL."
+        "Expected a media File, Blob, data URL, or blob URL."
       );
     }
 
@@ -245,7 +251,7 @@
       )
     ) {
       throw new Error(
-        `Unsupported image type: ${
+        `Unsupported media type: ${
           mimeType || "unknown"
         }`
       );
@@ -256,7 +262,7 @@
       MAX_FILE_SIZE
     ) {
       throw new Error(
-        "Image exceeds the 20 MB limit."
+        "Media exceeds the 30 MB limit."
       );
     }
 
@@ -561,7 +567,7 @@
     if (!extension) {
 
       throw new Error(
-        `Unsupported image type: ${blob.type || "unknown"}`
+        `Unsupported media type: ${blob.type || "unknown"}`
       );
 
     }
