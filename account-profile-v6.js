@@ -972,10 +972,10 @@
       document.body.classList.remove("v6-auth-flow");
     }
 
-    signedOutShell?.classList.toggle(
-      "hidden",
-      !signedOut || document.body.classList.contains("v6-auth-flow")
-    );
+    // Guest/local mode stays usable while signed out. The profile button opens
+    // Sign In / Create Account, but anonymous characters and chats remain in
+    // their own isolated workspace.
+    signedOutShell?.classList.add("hidden");
 
     if (panelOpen) renderPanel();
   }
