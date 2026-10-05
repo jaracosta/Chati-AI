@@ -33,3 +33,6 @@ jobs:
           node --check conversation-db.js
           node --check conversation-sync.js
           node --check conversation-sync-v5-final.js
+
+      - name: Validate V6 integration
+        run: node scripts/validate-v6.mjs
