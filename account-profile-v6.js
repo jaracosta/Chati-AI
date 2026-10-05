@@ -1062,7 +1062,7 @@
     document.getElementById("accountFormCloseBtn")?.addEventListener("click", () => {
       if (!currentUser) {
         document.body.classList.remove("v6-auth-flow");
-        signedOutShell?.classList.remove("hidden");
+        signedOutShell?.classList.add("hidden");
       }
     });
 
@@ -1074,7 +1074,7 @@
       setTimeout(() => {
         refreshAccount()
           .catch(error => {
-            console.warn("[Chati-AI V6.1] Account refresh failed.", error);
+            console.warn("[Chati-AI V6.2] Account refresh failed.", error);
           })
           .finally(() => {
             document.body.classList.remove("v6-account-switching");
