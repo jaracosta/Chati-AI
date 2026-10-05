@@ -637,7 +637,7 @@
     );
 
     if (accountsTab) {
-      accountsTab.disabled = !currentUser;
+      accountsTab.disabled = false;
     }
 
     if (securityTab) {
@@ -692,21 +692,46 @@
 
     list.innerHTML = "";
 
-    if (!currentUser) {
-      const p = document.createElement("p");
+    const signOutButton =
+      $("profileSignOutBtn");
 
-      p.className = "profile-muted";
-      p.textContent =
-        "Sign in to manage multiple accounts.";
-
-      list.appendChild(p);
-
-      return;
-    }
+    signOutButton
+      ?.classList
+      .toggle(
+        "hidden",
+        !currentUser
+      );
 
     const accounts =
       await window.ChatiAuth
         .listAccounts();
+
+    const usableAccounts =
+      accounts.filter(
+        account =>
+          account.signedIn
+      );
+
+    if (
+      !usableAccounts.length
+    ) {
+
+      const p =
+        document.createElement(
+          "p"
+        );
+
+      p.className =
+        "profile-muted";
+
+      p.textContent =
+        "No other signed-in accounts are saved on this device yet.";
+
+      list.appendChild(
+        p
+      );
+
+    }
 
     for (const account of accounts) {
       const row = document.createElement("div");
