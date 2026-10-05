@@ -648,6 +648,37 @@
       return;
     }
 
+    const recoveryMode =
+      Boolean(
+        window.ChatiAuth
+          ?.isPasswordRecovery?.()
+      );
+
+
+    const currentPasswordInput =
+      $("profileCurrentPassword");
+
+
+    currentPasswordInput
+      ?.closest("label")
+      ?.classList
+      .toggle(
+        "hidden",
+        recoveryMode
+      );
+
+
+    if (
+      recoveryMode
+    ) {
+
+      setMessage(
+        "Password recovery verified. Choose a new password in Security.",
+        "success"
+      );
+
+    }
+
     const displayName =
       currentProfile?.display_name ||
       currentUser.email?.split("@")[0] ||
@@ -1606,12 +1637,24 @@
           );
 
           try {
+            const recoveryMode =
+              Boolean(
+                window.ChatiAuth
+                  ?.isPasswordRecovery?.()
+              );
+
+
             const result =
-              await window.ChatiAuth
-                .changePassword(
-                  current,
-                  next
-                );
+              recoveryMode
+                ? await window.ChatiAuth
+                    .updatePassword(
+                      next
+                    )
+                : await window.ChatiAuth
+                    .changePassword(
+                      current,
+                      next
+                    );
 
             if (result.error) {
               throw result.error;
@@ -1620,7 +1663,9 @@
             event.target.reset();
 
             setMessage(
-              "Password changed successfully.",
+              recoveryMode
+                ? "New password saved. Recovery is complete."
+                : "Password changed successfully.",
               "success"
             );
           }
@@ -1695,6 +1740,40 @@
     }
 
     await refreshSession();
+
+    window.addEventListener(
+      "chati:passwordrecovery",
+      async () => {
+
+        try {
+
+          await refreshSession();
+
+          openProfile(
+            "security"
+          );
+
+          setMessage(
+            "Password recovery verified. Enter your new password.",
+            "success"
+          );
+
+        }
+
+        catch (
+          error
+        ) {
+
+          console.warn(
+            "[Chati-AI Profile] Password recovery UI failed.",
+            error
+          );
+
+        }
+
+      }
+    );
+
 
     window.addEventListener(
       "chati:authchange",
