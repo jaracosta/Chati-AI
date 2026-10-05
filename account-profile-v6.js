@@ -232,6 +232,18 @@
 
     if (loaded === next) return false;
 
+    // First V6 run while already signed in:
+    // adopt the existing local workspace instead of clearing it.
+    if (!loaded && next) {
+      try {
+        await snapshotWorkspace(next);
+        localStorage.setItem(ACTIVE_WORKSPACE_KEY, next);
+        return false;
+      } catch (error) {
+        console.warn("[Chati-AI V6] Initial workspace adoption failed.", error);
+      }
+    }
+
     if (loaded && loaded !== next) {
       try { await snapshotWorkspace(loaded); }
       catch (error) { console.warn("[Chati-AI V6] Workspace snapshot failed.", error); }
