@@ -8490,6 +8490,1118 @@
   }
 
 
+
+  // ============================================================
+  // V5.0.5B — DELETE CONFLICT RESOLUTION
+  //
+  // Explicit resolution for delete-vs-edit races.
+  // USE CLOUD: current cloud state wins locally.
+  // KEEP LOCAL: current local state wins in cloud.
+  // Private Chat / Private Group remain excluded.
+  // ============================================================
+
+  const DELETE_CONFLICT_TYPES =
+    new Set([
+      "conversation-local-delete-vs-cloud-edit",
+      "conversation-cloud-delete-vs-local-edit",
+      "stale-conversation-delete-blocked",
+      "message-local-delete-vs-cloud-edit",
+      "message-cloud-delete-vs-local-edit",
+      "stale-message-delete-blocked"
+    ]);
+
+
+  function resolveDeleteConflictReference(
+    reference
+  ) {
+
+    let conflict =
+      null;
+
+
+    if (
+      Number.isInteger(
+        reference
+      )
+    ) {
+
+      conflict =
+        lastDeleteConflicts[
+          reference
+        ] ||
+        null;
+
+    }
+
+    else if (
+      reference &&
+      typeof reference ===
+        "object"
+    ) {
+
+      conflict =
+        clone(
+          reference
+        );
+
+    }
+
+
+    if (
+      !conflict
+    ) {
+
+      throw new Error(
+        "Delete conflict could not be found."
+      );
+
+    }
+
+
+    if (
+      !DELETE_CONFLICT_TYPES.has(
+        String(
+          conflict.type ||
+          ""
+        )
+      )
+    ) {
+
+      throw new Error(
+        "Unsupported delete conflict type."
+      );
+
+    }
+
+
+    return conflict;
+
+  }
+
+
+  function isSameDeleteConflictTarget(
+    left,
+    right
+  ) {
+
+    if (
+      !left ||
+      !right
+    ) {
+      return false;
+    }
+
+
+    return (
+      String(
+        left.ownerType ||
+        ""
+      ) ===
+      String(
+        right.ownerType ||
+        ""
+      ) &&
+
+      String(
+        left.ownerLocalId ||
+        ""
+      ) ===
+      String(
+        right.ownerLocalId ||
+        ""
+      ) &&
+
+      String(
+        left.chatId ||
+        ""
+      ) ===
+      String(
+        right.chatId ||
+        ""
+      ) &&
+
+      String(
+        left.messageId ??
+        ""
+      ) ===
+      String(
+        right.messageId ??
+        ""
+      )
+    );
+
+  }
+
+
+  function clearResolvedDeleteConflict(
+    conflict
+  ) {
+
+    lastDeleteConflicts =
+      lastDeleteConflicts
+        .filter(
+          item =>
+            !isSameDeleteConflictTarget(
+              item,
+              conflict
+            )
+        );
+
+  }
+
+
+  async function getDeleteCloudConversation(
+    conflict
+  ) {
+
+    const rows =
+      await window
+        .ChatiConversations
+        .getAll({
+          includeDeleted:
+            true
+        });
+
+
+    return (
+      rows.find(
+        row =>
+          String(
+            row.owner_type
+          ) ===
+          String(
+            conflict.ownerType
+          ) &&
+
+          String(
+            row.owner_local_id
+          ) ===
+          String(
+            conflict.ownerLocalId
+          ) &&
+
+          String(
+            row.local_id
+          ) ===
+          String(
+            conflict.chatId
+          )
+      ) ||
+      null
+    );
+
+  }
+
+
+  async function appendCloudMessageLocally(
+    ownerLocalId,
+    chatId,
+    cloudMessage
+  ) {
+
+    const found =
+      await findLocalChat(
+        ownerLocalId,
+        chatId
+      );
+
+
+    const chat =
+      found.chat;
+
+
+    if (
+      !chat ||
+      chat.isPrivate
+    ) {
+
+      throw new Error(
+        "Local normal chat is unavailable."
+      );
+
+    }
+
+
+    const messages =
+      Array.isArray(
+        chat.messages
+      )
+        ? chat.messages
+        : [];
+
+
+    if (
+      messages.some(
+        message =>
+          String(
+            message?.id ??
+            ""
+          ) ===
+          String(
+            cloudMessage.local_id
+          )
+      )
+    ) {
+
+      return false;
+
+    }
+
+
+    const payload =
+      clone(
+        cloudMessage.payload ||
+        {}
+      );
+
+
+    const restored = {
+      ...payload,
+
+      id:
+        String(
+          cloudMessage.local_id
+        ),
+
+      sender:
+        normalizeSender(
+          cloudMessage.sender
+        ),
+
+      time:
+        timestampFromCloud(
+          cloudMessage.message_time,
+          Date.now()
+        )
+    };
+
+
+    if (
+      restored.attachmentDeferred &&
+      !restored.attachment
+    ) {
+
+      restored.attachment =
+        null;
+
+    }
+
+
+    messages.push(
+      restored
+    );
+
+
+    messages.sort(
+      (
+        a,
+        b
+      ) =>
+        Number(
+          a?.time ||
+          0
+        ) -
+        Number(
+          b?.time ||
+          0
+        )
+    );
+
+
+    chat.messages =
+      messages;
+
+    chat.updatedAt =
+      Date.now();
+
+
+    await writeNormalChatPreservingStorage(
+      ownerLocalId,
+      chat
+    );
+
+
+    return true;
+
+  }
+
+
+  async function resolveDeleteConflictUseCloud(
+    reference
+  ) {
+
+    const conflict =
+      resolveDeleteConflictReference(
+        reference
+      );
+
+
+    const session =
+      await getConversationSyncSession();
+
+
+    if (
+      !session?.user?.id
+    ) {
+
+      return {
+        ok:
+          false,
+
+        reason:
+          "signed-out"
+      };
+
+    }
+
+
+    const cloudConversation =
+      await getDeleteCloudConversation(
+        conflict
+      );
+
+
+    if (
+      !cloudConversation
+    ) {
+
+      return {
+        ok:
+          false,
+
+        reason:
+          "cloud-conversation-missing"
+      };
+
+    }
+
+
+    const state =
+      readUpdateBaseline(
+        session.user.id
+      );
+
+
+    const conversationKey =
+      makeConversationSyncKey(
+        conflict.ownerType,
+        conflict.ownerLocalId,
+        conflict.chatId
+      );
+
+
+    if (
+      conflict.messageId == null
+    ) {
+
+      if (
+        cloudConversation.deleted_at
+      ) {
+
+        await removeNormalChatPreservingStorage(
+          conflict.ownerLocalId,
+          conflict.chatId
+        );
+
+      }
+
+      else {
+
+        await restoreOne(
+          cloudConversation.id
+        );
+
+      }
+
+
+      const fingerprint =
+        await fingerprintUpdateValue(
+          getConversationUpdateStateFromCloud(
+            cloudConversation
+          )
+        );
+
+
+      setUpdateBaselineEntry(
+        state.conversations,
+        conversationKey,
+        cloudConversation.version,
+        fingerprint
+      );
+
+    }
+
+    else {
+
+      const messageId =
+        String(
+          conflict.messageId
+        );
+
+
+      const cloudMessage =
+        await window
+          .ChatiMessages
+          .get(
+            cloudConversation.id,
+            messageId,
+            {
+              includeDeleted:
+                true
+            }
+          );
+
+
+      if (
+        !cloudMessage
+      ) {
+
+        return {
+          ok:
+            false,
+
+          reason:
+            "cloud-message-missing"
+        };
+
+      }
+
+
+      if (
+        cloudMessage.deleted_at
+      ) {
+
+        await removeNormalMessagePreservingStorage(
+          conflict.ownerLocalId,
+          conflict.chatId,
+          messageId
+        );
+
+      }
+
+      else {
+
+        await appendCloudMessageLocally(
+          conflict.ownerLocalId,
+          conflict.chatId,
+          cloudMessage
+        );
+
+      }
+
+
+      const fingerprint =
+        await fingerprintUpdateValue(
+          getMessageUpdateStateFromCloud(
+            cloudMessage
+          )
+        );
+
+
+      setUpdateBaselineEntry(
+        state.messages,
+        makeMessageUpdateKey(
+          conversationKey,
+          messageId
+        ),
+        cloudMessage.version,
+        fingerprint
+      );
+
+    }
+
+
+    saveUpdateBaseline(
+      session.user.id,
+      state
+    );
+
+
+    clearResolvedDeleteConflict(
+      conflict
+    );
+
+
+    autoConversationReloadPending =
+      true;
+
+
+    maybeReloadAfterConversationRestore();
+
+
+    const result = {
+      ok:
+        true,
+
+      resolution:
+        "cloud",
+
+      action:
+        "apply-cloud-delete-state",
+
+      target:
+        conflict.messageId == null
+          ? "conversation"
+          : "message",
+
+      type:
+        conflict.type,
+
+      chatId:
+        conflict.chatId,
+
+      messageId:
+        conflict.messageId ??
+        null
+    };
+
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "chati:conversationdeleteconflictresolved",
+        {
+          detail:
+            clone(
+              result
+            )
+        }
+      )
+    );
+
+
+    return result;
+
+  }
+
+
+  async function resolveDeleteConflictKeepLocal(
+    reference
+  ) {
+
+    const conflict =
+      resolveDeleteConflictReference(
+        reference
+      );
+
+
+    const session =
+      await getConversationSyncSession();
+
+
+    if (
+      !session?.user?.id
+    ) {
+
+      return {
+        ok:
+          false,
+
+        reason:
+          "signed-out"
+      };
+
+    }
+
+
+    const cloudConversation =
+      await getDeleteCloudConversation(
+        conflict
+      );
+
+
+    if (
+      !cloudConversation
+    ) {
+
+      return {
+        ok:
+          false,
+
+        reason:
+          "cloud-conversation-missing"
+      };
+
+    }
+
+
+    const state =
+      readUpdateBaseline(
+        session.user.id
+      );
+
+
+    const conversationKey =
+      makeConversationSyncKey(
+        conflict.ownerType,
+        conflict.ownerLocalId,
+        conflict.chatId
+      );
+
+
+    let localFound =
+      null;
+
+
+    try {
+
+      localFound =
+        await findLocalChat(
+          conflict.ownerLocalId,
+          conflict.chatId
+        );
+
+    }
+
+    catch (
+      error
+    ) {
+
+      localFound =
+        null;
+
+    }
+
+
+    const localChat =
+      localFound?.chat ||
+      null;
+
+
+    // --------------------------------------------------------
+    // CONVERSATION
+    // --------------------------------------------------------
+
+    if (
+      conflict.messageId == null
+    ) {
+
+      if (
+        localChat
+      ) {
+
+        let activeCloud =
+          cloudConversation;
+
+
+        if (
+          activeCloud.deleted_at
+        ) {
+
+          activeCloud =
+            await window
+              .ChatiConversations
+              .restoreIfVersion(
+                conflict.chatId,
+                conflict.ownerType,
+                conflict.ownerLocalId,
+                activeCloud.version
+              );
+
+
+          if (
+            !activeCloud
+          ) {
+
+            return {
+              ok:
+                false,
+
+              reason:
+                "cloud-changed-again"
+            };
+
+          }
+
+        }
+
+
+        const saved =
+          await window
+            .ChatiConversations
+            .updateIfVersion(
+              conflict.chatId,
+              conflict.ownerType,
+              conflict.ownerLocalId,
+              activeCloud.version,
+              {
+                title:
+                  String(
+                    localChat.title ||
+                    "New Chat"
+                  ),
+
+                memory:
+                  prepareMemory(
+                    localChat.memory
+                  )
+              }
+            );
+
+
+        if (
+          !saved
+        ) {
+
+          return {
+            ok:
+              false,
+
+            reason:
+              "cloud-changed-again"
+          };
+
+        }
+
+
+        const fingerprint =
+          await fingerprintUpdateValue(
+            getConversationUpdateStateFromLocal(
+              localChat
+            )
+          );
+
+
+        setUpdateBaselineEntry(
+          state.conversations,
+          conversationKey,
+          saved.version,
+          fingerprint
+        );
+
+      }
+
+      else {
+
+        if (
+          !cloudConversation.deleted_at
+        ) {
+
+          const saved =
+            await window
+              .ChatiConversations
+              .removeIfVersion(
+                conflict.chatId,
+                conflict.ownerType,
+                conflict.ownerLocalId,
+                cloudConversation.version
+              );
+
+
+          if (
+            !saved
+          ) {
+
+            return {
+              ok:
+                false,
+
+              reason:
+                "cloud-changed-again"
+            };
+
+          }
+
+
+          const oldBaseline =
+            state.conversations[
+              conversationKey
+            ];
+
+
+          if (
+            oldBaseline
+          ) {
+
+            oldBaseline.version =
+              saved.version;
+
+          }
+
+        }
+
+      }
+
+    }
+
+    // --------------------------------------------------------
+    // MESSAGE
+    // --------------------------------------------------------
+
+    else {
+
+      const messageId =
+        String(
+          conflict.messageId
+        );
+
+
+      const cloudMessage =
+        await window
+          .ChatiMessages
+          .get(
+            cloudConversation.id,
+            messageId,
+            {
+              includeDeleted:
+                true
+            }
+          );
+
+
+      if (
+        !cloudMessage
+      ) {
+
+        return {
+          ok:
+            false,
+
+          reason:
+            "cloud-message-missing"
+        };
+
+      }
+
+
+      const localMessages =
+        Array.isArray(
+          localChat?.messages
+        )
+          ? localChat.messages
+          : [];
+
+
+      const localIndex =
+        localMessages.findIndex(
+          message =>
+            String(
+              message?.id ??
+              ""
+            ) ===
+            messageId
+        );
+
+
+      if (
+        localIndex >=
+        0
+      ) {
+
+        let activeCloud =
+          cloudMessage;
+
+
+        if (
+          activeCloud.deleted_at
+        ) {
+
+          activeCloud =
+            await window
+              .ChatiMessages
+              .restoreIfVersion(
+                cloudConversation.id,
+                messageId,
+                activeCloud.version
+              );
+
+
+          if (
+            !activeCloud
+          ) {
+
+            return {
+              ok:
+                false,
+
+              reason:
+                "cloud-changed-again"
+            };
+
+          }
+
+        }
+
+
+        const localMessage =
+          localMessages[
+            localIndex
+          ];
+
+
+        const saved =
+          await window
+            .ChatiMessages
+            .updateIfVersion(
+              cloudConversation.id,
+              messageId,
+              activeCloud.version,
+              {
+                payload:
+                  prepareMessagePayload(
+                    localMessage
+                  ),
+
+                sortIndex:
+                  localIndex,
+
+                messageTime:
+                  localMessage?.time ??
+                  null
+              }
+            );
+
+
+        if (
+          !saved
+        ) {
+
+          return {
+            ok:
+              false,
+
+            reason:
+              "cloud-changed-again"
+          };
+
+        }
+
+
+        const fingerprint =
+          await fingerprintUpdateValue(
+            getMessageUpdateStateFromLocal(
+              localMessage
+            )
+          );
+
+
+        setUpdateBaselineEntry(
+          state.messages,
+          makeMessageUpdateKey(
+            conversationKey,
+            messageId
+          ),
+          saved.version,
+          fingerprint
+        );
+
+      }
+
+      else {
+
+        if (
+          !cloudMessage.deleted_at
+        ) {
+
+          const saved =
+            await window
+              .ChatiMessages
+              .removeIfVersion(
+                cloudConversation.id,
+                messageId,
+                cloudMessage.version
+              );
+
+
+          if (
+            !saved
+          ) {
+
+            return {
+              ok:
+                false,
+
+              reason:
+                "cloud-changed-again"
+            };
+
+          }
+
+
+          const key =
+            makeMessageUpdateKey(
+              conversationKey,
+              messageId
+            );
+
+
+          const oldBaseline =
+            state.messages[
+              key
+            ];
+
+
+          if (
+            oldBaseline
+          ) {
+
+            oldBaseline.version =
+              saved.version;
+
+          }
+
+        }
+
+      }
+
+    }
+
+
+    saveUpdateBaseline(
+      session.user.id,
+      state
+    );
+
+
+    clearResolvedDeleteConflict(
+      conflict
+    );
+
+
+    const result = {
+      ok:
+        true,
+
+      resolution:
+        "local",
+
+      action:
+        "keep-local-delete-state",
+
+      target:
+        conflict.messageId == null
+          ? "conversation"
+          : "message",
+
+      type:
+        conflict.type,
+
+      chatId:
+        conflict.chatId,
+
+      messageId:
+        conflict.messageId ??
+        null
+    };
+
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "chati:conversationdeleteconflictresolved",
+        {
+          detail:
+            clone(
+              result
+            )
+        }
+      )
+    );
+
+
+    return result;
+
+  }
+
+
   // ============================================================
   // STATUS
   // ============================================================
@@ -8551,12 +9663,14 @@
       syncAutomaticDeletes,
       getDeleteConflicts,
       deleteSyncStatus,
+      resolveDeleteConflictUseCloud,
+      resolveDeleteConflictKeepLocal,
       status
     });
 
 
   console.log(
-    "[Chati-AI Conversations] V5.0.5A update conflict resolution ready."
+    "[Chati-AI Conversations] V5.0.5B update + delete conflict resolution ready."
   );
 
 })();
