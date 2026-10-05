@@ -1070,14 +1070,6 @@
       if ((currentProfile?.theme || localStorage.getItem("chatiThemeV6")) === "system") applyTheme("system");
     });
 
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState !== "visible") return;
-
-      document.querySelectorAll("video.v6-loop-video").forEach(video => {
-        if (video.paused) video.play().catch(() => {});
-      });
-    });
-
     refreshAccount().catch(error => {
       console.error("[Chati-AI V6] Profile system failed:", error);
       currentUser = null;
