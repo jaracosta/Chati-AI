@@ -1,0 +1,35 @@
+name: Validate Chati-AI
+
+on:
+  push:
+    branches:
+      - main
+      - v6-profile-mobile-media
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  javascript-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check server.js
+          node --check script.js
+          node --check supabase-auth-v6.js
+          node --check account-data-v6.js
+          node --check profile-ui-v6.js
+          node --check cloud-media.js
+          node --check cloud-sync.js
+          node --check conversation-db.js
+          node --check conversation-sync.js
+          node --check conversation-sync-v5-final.js
