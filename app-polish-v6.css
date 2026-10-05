@@ -571,3 +571,18 @@ html[data-chati-theme="light"] .v6-theme-grid button.active {
     box-shadow: 0 12px 32px rgba(30,34,48,.10) !important;
   }
 }
+
+
+/* Never expose the previous account while auth/session ownership is changing. */
+body.v6-account-switching .app {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.v6-account-switching::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: #09090d;
+}
