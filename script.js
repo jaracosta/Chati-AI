@@ -21,6 +21,7 @@ const createView = $("createView");
 const groupCreateView = $("groupCreateView");
 const chatView = $("chatView");
 const chatBackground = $("chatBackground");
+const chatBackgroundVideo = $("chatBackgroundVideo");
 
 const createBtn = $("createBtn");
 const mainCreateBtn = $("mainCreateBtn");
@@ -102,8 +103,10 @@ const characterAccessories = $("characterAccessories");
 const characterMaintainVisualContinuity = $("characterMaintainVisualContinuity");
 
 const characterAvatarPreview = $("characterAvatarPreview");
+const characterAvatarVideoPreview = $("characterAvatarVideoPreview");
 const characterAvatarPlaceholder = $("characterAvatarPlaceholder");
 const backgroundPreview = $("backgroundPreview");
+const backgroundVideoPreview = $("backgroundVideoPreview");
 const pronounPicker = $("pronounPicker");
 
 const chooseCharacterImageBtn = $("chooseCharacterImageBtn");
@@ -128,6 +131,7 @@ const saveGroupBtn = $("saveGroupBtn");
 const groupName = $("groupName");
 const groupBackground = $("groupBackground");
 const groupBackgroundPreview = $("groupBackgroundPreview");
+const groupBackgroundVideoPreview = $("groupBackgroundVideoPreview");
 const chooseGroupBackgroundBtn = $("chooseGroupBackgroundBtn");
 const removeGroupBackgroundBtn = $("removeGroupBackgroundBtn");
 const groupBackgroundFile = $("groupBackgroundFile");
@@ -148,6 +152,7 @@ const chatHistoryList = $("chatHistoryList");
 
 const chatBackBtn = $("chatBackBtn");
 const chatCharacterImage = $("chatCharacterImage");
+const chatCharacterVideo = $("chatCharacterVideo");
 const chatGroupAvatar = $("chatGroupAvatar");
 const chatCharacterName = $("chatCharacterName");
 const chatCharacterDescription = $("chatCharacterDescription");
@@ -3802,6 +3807,303 @@ function getInitials(
 }
 
 
+function isVideoVisualSource(
+  source
+) {
+
+  const value =
+    String(
+      source ||
+      ""
+    )
+      .trim()
+      .toLowerCase();
+
+
+  if (!value) {
+    return false;
+  }
+
+
+  if (
+    value.startsWith(
+      "data:video/"
+    )
+  ) {
+    return true;
+  }
+
+
+  const clean =
+    value
+      .split(
+        "#"
+      )[0]
+      .split(
+        "?"
+      )[0];
+
+
+  return /\.(mp4|webm|mov|m4v)$/i
+    .test(
+      clean
+    );
+
+}
+
+
+function createVisualMediaElement(
+  source,
+  {
+    className = "",
+    alt = ""
+  } = {}
+) {
+
+  const value =
+    String(
+      source ||
+      ""
+    );
+
+
+  if (
+    isVideoVisualSource(
+      value
+    )
+  ) {
+
+    const video =
+      document.createElement(
+        "video"
+      );
+
+
+    video.src =
+      value;
+
+    video.className =
+      className;
+
+    video.autoplay =
+      true;
+
+    video.loop =
+      true;
+
+    video.muted =
+      true;
+
+    video.playsInline =
+      true;
+
+    video.preload =
+      "metadata";
+
+    video.setAttribute(
+      "aria-label",
+      alt ||
+      "Video"
+    );
+
+
+    video.play()
+      .catch(
+        () => {}
+      );
+
+
+    return video;
+
+  }
+
+
+  const image =
+    document.createElement(
+      "img"
+    );
+
+
+  image.src =
+    value;
+
+  image.alt =
+    alt;
+
+  image.className =
+    className;
+
+
+  return image;
+
+}
+
+
+function appendVisualMedia(
+  container,
+  source,
+  options = {}
+) {
+
+  const media =
+    createVisualMediaElement(
+      source,
+      options
+    );
+
+
+  container.appendChild(
+    media
+  );
+
+
+  return media;
+
+}
+
+
+async function applyLocalVisualSelection(
+  fileInput,
+  targetInput,
+  previewUpdater,
+  imageOptions
+) {
+
+  const file =
+    fileInput
+      ?.files?.[0];
+
+
+  if (!file) {
+    return;
+  }
+
+
+  const type =
+    String(
+      file.type ||
+      ""
+    )
+      .toLowerCase();
+
+
+  if (
+    type.startsWith(
+      "video/"
+    )
+  ) {
+
+    const allowed =
+      [
+        "video/mp4",
+        "video/webm",
+        "video/quicktime"
+      ];
+
+
+    if (
+      !allowed.includes(
+        type
+      )
+    ) {
+
+      alert(
+        "Use an MP4, WebM, or MOV video."
+      );
+
+      fileInput.value =
+        "";
+
+      return;
+
+    }
+
+
+    if (
+      file.size >
+      20 *
+      1024 *
+      1024
+    ) {
+
+      alert(
+        "Character videos must be 20 MB or smaller."
+      );
+
+      fileInput.value =
+        "";
+
+      return;
+
+    }
+
+
+    document.body
+      .classList
+      .add(
+        "image-processing"
+      );
+
+
+    try {
+
+      targetInput.value =
+        await readFileAsDataUrl(
+          file
+        );
+
+
+      previewUpdater();
+
+    }
+
+    catch (
+      error
+    ) {
+
+      console.error(
+        "Could not use local video:",
+        error
+      );
+
+
+      alert(
+        error?.message ||
+        "Could not use that video."
+      );
+
+    }
+
+    finally {
+
+      fileInput.value =
+        "";
+
+
+      document.body
+        .classList
+        .remove(
+          "image-processing"
+        );
+
+    }
+
+
+    return;
+
+  }
+
+
+  await applyLocalImageSelection(
+    fileInput,
+    targetInput,
+    previewUpdater,
+    imageOptions
+  );
+
+}
+
+
 function createAvatarChip(
   character,
   extraClass = ""
@@ -3820,21 +4122,14 @@ function createAvatarChip(
 
   if (character?.image) {
 
-    const image =
-      document.createElement(
-        "img"
-      );
-
-
-    image.src =
-      character.image;
-
-
-    image.alt = "";
-
-
-    chip.appendChild(
-      image
+    appendVisualMedia(
+      chip,
+      character.image,
+      {
+        alt:
+          character?.name ||
+          "Character"
+      }
     );
 
   }
@@ -6507,49 +6802,114 @@ function updateAvatarPreview() {
       .trim();
 
 
-  if (url) {
+  const isVideo =
+    isVideoVisualSource(
+      url
+    );
+
+
+  characterAvatarPreview
+    ?.classList
+    .toggle(
+      "hidden",
+      !url ||
+      isVideo
+    );
+
+
+  characterAvatarVideoPreview
+    ?.classList
+    .toggle(
+      "hidden",
+      !url ||
+      !isVideo
+    );
+
+
+  if (
+    url &&
+    isVideo
+  ) {
+
+    characterAvatarPreview
+      ?.removeAttribute(
+        "src"
+      );
+
+
+    if (
+      characterAvatarVideoPreview
+    ) {
+
+      characterAvatarVideoPreview.src =
+        url;
+
+
+      characterAvatarVideoPreview
+        .play()
+        .catch(
+          () => {}
+        );
+
+    }
+
+  }
+
+  else if (
+    url
+  ) {
+
+    if (
+      characterAvatarVideoPreview
+    ) {
+
+      characterAvatarVideoPreview.pause();
+
+      characterAvatarVideoPreview
+        .removeAttribute(
+          "src"
+        );
+
+    }
+
 
     characterAvatarPreview.src =
       url;
-
-
-    characterAvatarPreview
-      .classList
-      .remove(
-        "hidden"
-      );
-
-
-    characterAvatarPlaceholder
-      .classList
-      .add(
-        "hidden"
-      );
 
   }
 
   else {
 
     characterAvatarPreview
-      .removeAttribute(
+      ?.removeAttribute(
         "src"
       );
 
 
-    characterAvatarPreview
-      .classList
-      .add(
-        "hidden"
-      );
+    if (
+      characterAvatarVideoPreview
+    ) {
 
+      characterAvatarVideoPreview.pause();
 
-    characterAvatarPlaceholder
-      .classList
-      .remove(
-        "hidden"
-      );
+      characterAvatarVideoPreview
+        .removeAttribute(
+          "src"
+        );
+
+    }
 
   }
+
+
+  characterAvatarPlaceholder
+    ?.classList
+    .toggle(
+      "hidden",
+      Boolean(
+        url
+      )
+    );
 
 }
 
@@ -6562,26 +6922,26 @@ function updateBackgroundPreview() {
       .trim();
 
 
-  if (url) {
-
-    backgroundPreview
-      .style
-      .backgroundImage =
-      `url("${url.replace(
-        /"/g,
-        '\\"'
-      )}")`;
+  const isVideo =
+    isVideoVisualSource(
+      url
+    );
 
 
-    backgroundPreview
-      .classList
-      .add(
-        "has-image"
-      );
+  backgroundPreview
+    .classList
+    .toggle(
+      "has-image",
+      Boolean(
+        url
+      )
+    );
 
-  }
 
-  else {
+  if (
+    url &&
+    isVideo
+  ) {
 
     backgroundPreview
       .style
@@ -6589,11 +6949,62 @@ function updateBackgroundPreview() {
       "none";
 
 
+    if (
+      backgroundVideoPreview
+    ) {
+
+      backgroundVideoPreview.src =
+        url;
+
+      backgroundVideoPreview
+        .classList
+        .remove(
+          "hidden"
+        );
+
+
+      backgroundVideoPreview
+        .play()
+        .catch(
+          () => {}
+        );
+
+    }
+
+  }
+
+  else {
+
+    if (
+      backgroundVideoPreview
+    ) {
+
+      backgroundVideoPreview.pause();
+
+      backgroundVideoPreview
+        .removeAttribute(
+          "src"
+        );
+
+      backgroundVideoPreview
+        .classList
+        .add(
+          "hidden"
+        );
+
+    }
+
+
     backgroundPreview
-      .classList
-      .remove(
-        "has-image"
-      );
+      .style
+      .backgroundImage =
+      url
+        ? "url(" +
+          JSON.stringify(
+            url
+          ) +
+          ")"
+        : "none";
 
   }
 
@@ -7816,31 +8227,89 @@ function updateGroupBackgroundPreview() {
   }
 
 
-  if (url) {
+  const isVideo =
+    isVideoVisualSource(
+      url
+    );
 
-    groupBackgroundPreview.style.backgroundImage =
-      `url("${url.replace(/"/g, '\\"')}")`;
 
+  groupBackgroundPreview
+    .classList
+    .toggle(
+      "has-image",
+      Boolean(
+        url
+      )
+    );
+
+
+  if (
+    url &&
+    isVideo
+  ) {
 
     groupBackgroundPreview
-      .classList
-      .add(
-        "has-image"
-      );
+      .style
+      .backgroundImage =
+      "none";
+
+
+    if (
+      groupBackgroundVideoPreview
+    ) {
+
+      groupBackgroundVideoPreview.src =
+        url;
+
+      groupBackgroundVideoPreview
+        .classList
+        .remove(
+          "hidden"
+        );
+
+
+      groupBackgroundVideoPreview
+        .play()
+        .catch(
+          () => {}
+        );
+
+    }
 
   }
 
   else {
 
-    groupBackgroundPreview.style.backgroundImage =
-      "none";
+    if (
+      groupBackgroundVideoPreview
+    ) {
+
+      groupBackgroundVideoPreview.pause();
+
+      groupBackgroundVideoPreview
+        .removeAttribute(
+          "src"
+        );
+
+      groupBackgroundVideoPreview
+        .classList
+        .add(
+          "hidden"
+        );
+
+    }
 
 
     groupBackgroundPreview
-      .classList
-      .remove(
-        "has-image"
-      );
+      .style
+      .backgroundImage =
+      url
+        ? "url(" +
+          JSON.stringify(
+            url
+          ) +
+          ")"
+        : "none";
 
   }
 
@@ -7933,22 +8402,14 @@ function renderGroupMemberChoices() {
 
       if (character.image) {
 
-        const image =
-          document.createElement(
-            "img"
-          );
-
-
-        image.src =
-          character.image;
-
-
-        image.alt =
-          "";
-
-
-        avatar.appendChild(
-          image
+        appendVisualMedia(
+          avatar,
+          character.image,
+          {
+            alt:
+              character.name ||
+              "Character"
+          }
         );
 
       }
@@ -8348,22 +8809,14 @@ function renderGroupResponderBar() {
 
       if (member.image) {
 
-        const image =
-          document.createElement(
-            "img"
-          );
-
-
-        image.src =
-          member.image;
-
-
-        image.alt =
-          "";
-
-
-        avatar.appendChild(
-          image
+        appendVisualMedia(
+          avatar,
+          member.image,
+          {
+            alt:
+              member.name ||
+              "Character"
+          }
         );
 
       }
@@ -11236,7 +11689,7 @@ characterImageFile?.addEventListener(
 
   async () => {
 
-    await applyLocalImageSelection(
+    await applyLocalVisualSelection(
       characterImageFile,
       characterImage,
       updateAvatarPreview,
@@ -11288,7 +11741,7 @@ characterBackgroundFile?.addEventListener(
 
   async () => {
 
-    await applyLocalImageSelection(
+    await applyLocalVisualSelection(
       characterBackgroundFile,
       characterBackground,
       updateBackgroundPreview,
@@ -11347,7 +11800,7 @@ groupBackgroundFile?.addEventListener(
 
   async () => {
 
-    await applyLocalImageSelection(
+    await applyLocalVisualSelection(
       groupBackgroundFile,
       groupBackground,
       updateGroupBackgroundPreview,
@@ -12485,26 +12938,16 @@ function renderCharacters() {
         character.image
       ) {
 
-        const image =
-          document.createElement(
-            "img"
-          );
+        appendVisualMedia(
+          card,
+          character.image,
+          {
+            className:
+              "character-image",
 
-
-        image.src =
-          character.image;
-
-
-        image.alt =
-          character.name;
-
-
-        image.className =
-          "character-image";
-
-
-        card.appendChild(
-          image
+            alt:
+              character.name
+          }
         );
 
       }
@@ -13014,22 +13457,14 @@ function renderChatHistory() {
 
       else if (character.image) {
 
-        const image =
-          document.createElement(
-            "img"
-          );
-
-
-        image.src =
-          character.image;
-
-
-        image.alt =
-          "";
-
-
-        avatar.appendChild(
-          image
+        appendVisualMedia(
+          avatar,
+          character.image,
+          {
+            alt:
+              character.name ||
+              "Character"
+          }
         );
 
       }
@@ -13163,6 +13598,12 @@ function applyCharacterBackground(
       ?.trim();
 
 
+  const isVideo =
+    isVideoVisualSource(
+      url
+    );
+
+
   if (!url) {
 
     chatBackground
@@ -13174,7 +13615,70 @@ function applyCharacterBackground(
     chatBackground
       .classList
       .remove(
-        "active"
+        "active",
+        "has-video"
+      );
+
+
+    if (
+      chatBackgroundVideo
+    ) {
+
+      chatBackgroundVideo.pause();
+
+      chatBackgroundVideo
+        .removeAttribute(
+          "src"
+        );
+
+      chatBackgroundVideo
+        .classList
+        .add(
+          "hidden"
+        );
+
+    }
+
+
+    return;
+
+  }
+
+
+  if (
+    isVideo &&
+    chatBackgroundVideo
+  ) {
+
+    chatBackground
+      .style
+      .backgroundImage =
+      "none";
+
+
+    chatBackground
+      .classList
+      .add(
+        "active",
+        "has-video"
+      );
+
+
+    chatBackgroundVideo.src =
+      url;
+
+
+    chatBackgroundVideo
+      .classList
+      .remove(
+        "hidden"
+      );
+
+
+    chatBackgroundVideo
+      .play()
+      .catch(
+        () => {}
       );
 
 
@@ -13183,13 +13687,41 @@ function applyCharacterBackground(
   }
 
 
+  if (
+    chatBackgroundVideo
+  ) {
+
+    chatBackgroundVideo.pause();
+
+    chatBackgroundVideo
+      .removeAttribute(
+        "src"
+      );
+
+    chatBackgroundVideo
+      .classList
+      .add(
+        "hidden"
+      );
+
+  }
+
+
+  chatBackground
+    .classList
+    .remove(
+      "has-video"
+    );
+
+
   chatBackground
     .style
     .backgroundImage =
-    `url("${url.replace(
-      /"/g,
-      '\\"'
-    )}")`;
+    "url(" +
+    JSON.stringify(
+      url
+    ) +
+    ")";
 
 
   chatBackground
@@ -13441,6 +13973,36 @@ function openChat(
         );
 
 
+  const characterAvatarIsVideo =
+    !isGroupCharacter(
+      currentCharacter
+    ) &&
+    isVideoVisualSource(
+      currentCharacter.image
+    );
+
+
+  chatCharacterVideo
+    ?.classList
+    .add(
+      "hidden"
+    );
+
+
+  if (
+    chatCharacterVideo
+  ) {
+
+    chatCharacterVideo.pause();
+
+    chatCharacterVideo
+      .removeAttribute(
+        "src"
+      );
+
+  }
+
+
   if (
     isGroupCharacter(
       currentCharacter
@@ -13469,6 +14031,48 @@ function openChat(
       activeGroupMembers,
       3
     );
+
+  }
+
+  else if (
+    currentCharacter.image &&
+    characterAvatarIsVideo &&
+    chatCharacterVideo
+  ) {
+
+    chatGroupAvatar
+      ?.classList
+      .add(
+        "hidden"
+      );
+
+
+    chatCharacterImage
+      .removeAttribute(
+        "src"
+      );
+
+
+    chatCharacterImage.style.display =
+      "none";
+
+
+    chatCharacterVideo.src =
+      currentCharacter.image;
+
+
+    chatCharacterVideo
+      .classList
+      .remove(
+        "hidden"
+      );
+
+
+    chatCharacterVideo
+      .play()
+      .catch(
+        () => {}
+      );
 
   }
 
@@ -14805,26 +15409,16 @@ function renderMessages() {
       currentCharacter.image
     ) {
 
-      const avatar =
-        document.createElement(
-          "img"
-        );
+      appendVisualMedia(
+        empty,
+        currentCharacter.image,
+        {
+          className:
+            "chat-empty-avatar",
 
-
-      avatar.className =
-        "chat-empty-avatar";
-
-
-      avatar.src =
-        currentCharacter.image;
-
-
-      avatar.alt =
-        currentCharacter.name;
-
-
-      empty.appendChild(
-        avatar
+          alt:
+            currentCharacter.name
+        }
       );
 
     }
