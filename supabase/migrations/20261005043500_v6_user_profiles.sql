@@ -3,13 +3,35 @@ create table if not exists public.user_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null default '',
   avatar_url text,
-  avatar_path text,
-  avatar_mime text,
+  avatar_storage_path text,
+  avatar_kind text not null default 'image'
+    check (avatar_kind in ('image','video')),
   theme text not null default 'dark'
     check (theme in ('dark','light','system')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.user_profiles
+  add column if not exists display_name text not null default '';
+
+alter table public.user_profiles
+  add column if not exists avatar_url text;
+
+alter table public.user_profiles
+  add column if not exists avatar_storage_path text;
+
+alter table public.user_profiles
+  add column if not exists avatar_kind text not null default 'image';
+
+alter table public.user_profiles
+  add column if not exists theme text not null default 'dark';
+
+alter table public.user_profiles
+  add column if not exists created_at timestamptz not null default now();
+
+alter table public.user_profiles
+  add column if not exists updated_at timestamptz not null default now();
 
 alter table public.user_profiles enable row level security;
 
@@ -60,3 +82,6 @@ create trigger user_profiles_touch_updated_at
 before update on public.user_profiles
 for each row
 execute function public.chati_profile_touch_updated_at();
+
+create index if not exists user_profiles_updated_idx
+on public.user_profiles (updated_at desc);
