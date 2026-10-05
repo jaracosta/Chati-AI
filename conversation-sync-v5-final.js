@@ -327,7 +327,7 @@
 
     window.addEventListener("online", online);
     window.addEventListener("chati:authchange", authChange);
-    window.addEventListener("chati:characterschange", () => schedule("characters-change", 300, true));
+    window.addEventListener("chati:characterschange", charactersChange);
     document.addEventListener("visibilitychange", visibility);
     document.addEventListener("click", localUiActivity, true);
     document.addEventListener("keydown", keydown, true);
