@@ -58,15 +58,14 @@
     if (!(video instanceof HTMLVideoElement)) return;
     if (video.dataset.v6SmoothLoop === "1") return;
 
-    video.dataset.v6SmoothLoop = "1";
-    video.loop = false;
-
     const parent = video.parentElement;
     if (!parent) {
       video.loop = true;
       return;
     }
 
+    video.dataset.v6SmoothLoop = "1";
+    video.loop = false;
     parent.classList.add("v6-smooth-loop-host");
 
     const twin = video.cloneNode(true);
