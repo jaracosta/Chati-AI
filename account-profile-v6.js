@@ -666,13 +666,21 @@
 
       '<div class="v6-panel-section hidden" data-v6-panel-section="accounts">' +
         '<div class="v6-account-list">' + (accounts || '<p class="v6-muted">No remembered accounts yet.</p>') + '</div>' +
-        '<button class="v6-wide" type="button" data-v6-action="add-account">+ Add another account</button>' +
-        '<div class="v6-add-account hidden" id="v6AddAccountBox">' +
-          '<form data-v6-form="add-account">' +
-            '<label>Email<input name="email" type="email" autocomplete="username" required></label>' +
-            '<label>Password<input name="password" type="password" autocomplete="current-password" minlength="8" required></label>' +
-            '<button class="v6-wide primary" type="submit">Add & Switch</button>' +
-          '</form>' +
+        '<button class="v6-wide" type="button" data-v6-action="add-account">Add another account</button>' +
+        '<div class="v6-add-account hidden" id="v6AddAccountBox" role="dialog" aria-modal="true" aria-label="Add another account">' +
+          '<div class="v6-account-hub-card">' +
+            '<div class="v6-account-hub-head">' +
+              '<button type="button" class="v6-account-hub-back" data-v6-action="close-add-account" aria-label="Back">' +
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"></path></svg>' +
+              '</button>' +
+              '<div><strong>Another account</strong><small>Each account opens its own characters and chats.</small></div>' +
+            '</div>' +
+            '<form data-v6-form="add-account">' +
+              '<label>Email<input name="email" type="email" autocomplete="username" required></label>' +
+              '<label>Password<input name="password" type="password" autocomplete="current-password" minlength="8" required></label>' +
+              '<button class="v6-wide primary" type="submit">Sign in & Switch</button>' +
+            '</form>' +
+          '</div>' +
         '</div>' +
       '</div>' +
 
@@ -682,6 +690,13 @@
           '<label>Confirm password<input name="confirm" type="password" minlength="8" autocomplete="new-password" required></label>' +
           '<button class="v6-wide primary" type="submit">Change Password</button>' +
         '</form>' +
+        '<div class="v6-danger-zone">' +
+          '<div><strong>Delete account</strong><p>Permanently deletes this account, cloud characters, chats, profile, and uploaded media.</p></div>' +
+          '<form data-v6-form="delete-account">' +
+            '<label>Type DELETE to confirm<input name="confirmDelete" autocomplete="off" placeholder="DELETE" required></label>' +
+            '<button class="v6-wide danger" type="submit">Delete Account Permanently</button>' +
+          '</form>' +
+        '</div>' +
       '</div>' +
 
       '<div class="v6-panel-section hidden" data-v6-panel-section="appearance">' +
