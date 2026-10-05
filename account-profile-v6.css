@@ -1,0 +1,520 @@
+/* CHATI-AI V6.0.1 — profile / mobile / light theme */
+
+.v6-profile-button {
+  width: calc(100% - 20px);
+  margin: 8px 10px 4px;
+  min-height: 56px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(120, 120, 145, .22);
+  border-radius: 14px;
+  background: rgba(28, 28, 37, .72);
+  color: #f4f4f7;
+  cursor: pointer;
+  text-align: left;
+}
+
+.v6-profile-button:hover {
+  background: rgba(38, 38, 50, .9);
+  border-color: rgba(145, 138, 190, .34);
+}
+
+.v6-profile-avatar,
+.v6-mini-avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #302d42, #191820);
+  color: #fff;
+  flex: 0 0 auto;
+}
+
+.v6-profile-avatar {
+  width: 38px;
+  height: 38px;
+}
+
+.v6-profile-avatar.large {
+  width: 52px;
+  height: 52px;
+}
+
+.v6-profile-avatar-media,
+.v6-mini-avatar-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.v6-profile-initial {
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.v6-profile-button-copy,
+.v6-panel-identity > span:last-child,
+.v6-account-row > span:nth-child(2) {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.v6-profile-button-copy strong,
+.v6-panel-identity strong,
+.v6-account-row strong {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.v6-profile-button-copy small,
+.v6-panel-identity small,
+.v6-account-row small {
+  color: #8f8f9d;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.v6-profile-chevron {
+  color: #8f8f9d;
+  font-size: 18px;
+}
+
+.v6-profile-panel {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 1500;
+  width: min(390px, calc(100vw - 36px));
+  max-height: min(760px, calc(100vh - 36px));
+  overflow: auto;
+  padding: 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(122, 122, 145, .22);
+  background: rgba(18, 18, 25, .96);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, .42);
+  backdrop-filter: blur(24px) saturate(1.18);
+  -webkit-backdrop-filter: blur(24px) saturate(1.18);
+}
+
+.v6-panel-head,
+.v6-panel-identity,
+.v6-inline-actions,
+.v6-panel-footer {
+  display: flex;
+  align-items: center;
+}
+
+.v6-panel-head {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.v6-panel-head > button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(120,120,145,.2);
+  background: rgba(255,255,255,.04);
+  color: #eee;
+  font-size: 22px;
+}
+
+.v6-panel-identity {
+  gap: 11px;
+  min-width: 0;
+}
+
+.v6-profile-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  margin: 8px 0 14px;
+  padding: 4px;
+  border-radius: 13px;
+  background: rgba(255,255,255,.035);
+}
+
+.v6-profile-tabs button {
+  min-width: 0;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #91919e;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.v6-profile-tabs button.active {
+  background: rgba(111, 95, 184, .2);
+  color: #fff;
+}
+
+.v6-panel-section form {
+  display: grid;
+  gap: 11px;
+}
+
+.v6-panel-section label {
+  display: grid;
+  gap: 6px;
+  color: #bdbdc6;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.v6-panel-section input {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  border: 1px solid rgba(126,126,145,.24);
+  background: #111117;
+  color: #f7f7f9;
+  outline: none;
+}
+
+.v6-panel-section input:focus {
+  border-color: rgba(139, 124, 219, .62);
+  box-shadow: 0 0 0 3px rgba(117, 97, 211, .1);
+}
+
+.v6-wide,
+.v6-file-btn,
+.v6-inline-actions button,
+.v6-panel-footer button,
+.v6-account-row,
+.v6-theme-grid button {
+  border: 1px solid rgba(126,126,145,.2);
+  background: rgba(255,255,255,.045);
+  color: #f4f4f7;
+  cursor: pointer;
+}
+
+.v6-wide {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 11px;
+  font-weight: 800;
+}
+
+.v6-wide.primary,
+.v6-signed-out-actions .primary {
+  background: #f5f5f7;
+  color: #101014;
+  border-color: #fff;
+}
+
+.v6-inline-actions {
+  gap: 8px;
+}
+
+.v6-file-btn,
+.v6-inline-actions button {
+  flex: 1;
+  min-height: 39px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.v6-account-list {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.v6-account-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 38px minmax(0,1fr) auto;
+  gap: 9px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 12px;
+  text-align: left;
+}
+
+.v6-account-row.active {
+  border-color: rgba(136, 119, 222, .45);
+  background: rgba(118, 99, 210, .12);
+}
+
+.v6-account-row em {
+  font-size: 10px;
+  color: #aaa4d8;
+  font-style: normal;
+}
+
+.v6-mini-avatar {
+  width: 38px;
+  height: 38px;
+  font-weight: 800;
+}
+
+.v6-add-account {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+.v6-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.v6-theme-grid button {
+  border-radius: 13px;
+  padding: 9px;
+  display: grid;
+  gap: 7px;
+  text-align: left;
+}
+
+.v6-theme-grid button.active {
+  border-color: rgba(136,119,222,.55);
+  box-shadow: 0 0 0 2px rgba(116,95,210,.08);
+}
+
+.v6-theme-swatch {
+  height: 58px;
+  border-radius: 9px;
+  border: 1px solid rgba(255,255,255,.09);
+}
+
+.v6-theme-swatch.dark {
+  background: linear-gradient(145deg, #09090d 0 50%, #22232d 50%);
+}
+
+.v6-theme-swatch.light {
+  background: linear-gradient(145deg, #fafafa 0 50%, #dddfe8 50%);
+}
+
+.v6-theme-swatch.system {
+  background: linear-gradient(90deg, #101016 0 50%, #f7f7f8 50%);
+}
+
+.v6-panel-footer {
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+.v6-panel-footer .danger {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: #ff9d9d;
+}
+
+.v6-panel-status {
+  min-height: 16px;
+  color: #9fdda6;
+  font-size: 11px;
+  text-align: right;
+}
+
+.v6-panel-status.error {
+  color: #ff9d9d;
+}
+
+.v6-muted {
+  color: #92929f;
+  line-height: 1.5;
+  font-size: 12px;
+}
+
+.v6-signed-out-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(95, 72, 170, .2), transparent 33%),
+    #09090d;
+}
+
+.v6-signed-out-card {
+  width: min(440px, 100%);
+  padding: 32px;
+  border-radius: 28px;
+  border: 1px solid rgba(130,130,155,.2);
+  background: rgba(20,20,28,.92);
+  box-shadow: 0 30px 100px rgba(0,0,0,.38);
+  text-align: center;
+}
+
+.v6-signed-out-mark {
+  width: 74px;
+  height: 74px;
+  margin: 0 auto 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: linear-gradient(145deg,#2e2a46,#17171f);
+  font-weight: 900;
+  font-size: 22px;
+}
+
+.v6-signed-out-card h1 {
+  margin: 0 0 8px;
+  font-size: clamp(28px,6vw,40px);
+}
+
+.v6-signed-out-card p {
+  margin: 0 auto 22px;
+  max-width: 34ch;
+  color: #9a9aa6;
+  line-height: 1.55;
+}
+
+.v6-signed-out-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.v6-signed-out-actions button {
+  min-height: 46px;
+  border-radius: 12px;
+  border: 1px solid rgba(130,130,150,.22);
+  background: rgba(255,255,255,.05);
+  color: #fff;
+  font-weight: 800;
+}
+
+html[data-chati-theme="light"] body,
+html[data-chati-theme="light"] .main-content {
+  background: #f4f5f8 !important;
+  color: #15151b !important;
+}
+
+html[data-chati-theme="light"] .sidebar,
+html[data-chati-theme="light"] .chat-header.chat-layer,
+html[data-chati-theme="light"] .chat-composer,
+html[data-chati-theme="light"] .settings-panel,
+html[data-chati-theme="light"] .creator-card,
+html[data-chati-theme="light"] .character-card,
+html[data-chati-theme="light"] .group-card {
+  background: rgba(255,255,255,.92) !important;
+  color: #17171c !important;
+  border-color: rgba(35,35,55,.1) !important;
+}
+
+html[data-chati-theme="light"] .sidebar-label,
+html[data-chati-theme="light"] .chat-character-info h2,
+html[data-chati-theme="light"] h1,
+html[data-chati-theme="light"] h2,
+html[data-chati-theme="light"] h3,
+html[data-chati-theme="light"] h4 {
+  color: #17171c !important;
+}
+
+html[data-chati-theme="light"] .message.character {
+  background: rgba(255,255,255,.94) !important;
+  color: #1b1b22 !important;
+  border-color: rgba(30,30,50,.11) !important;
+}
+
+html[data-chati-theme="light"] .message.user {
+  background: #17171d !important;
+  color: #fff !important;
+  border-color: #17171d !important;
+}
+
+html[data-chati-theme="light"] input,
+html[data-chati-theme="light"] textarea,
+html[data-chati-theme="light"] select {
+  background: #fff !important;
+  color: #17171c !important;
+  border-color: rgba(30,30,45,.14) !important;
+}
+
+html[data-chati-theme="light"] .v6-profile-button {
+  background: rgba(255,255,255,.85);
+  color: #17171c;
+  border-color: rgba(30,30,45,.12);
+}
+
+html[data-chati-theme="light"] .v6-profile-panel {
+  background: rgba(249,249,252,.97);
+  color: #17171c;
+  border-color: rgba(30,30,45,.12);
+}
+
+html[data-chati-theme="light"] .v6-panel-section input {
+  background: #fff;
+  color: #17171c;
+  border-color: rgba(30,30,45,.14);
+}
+
+html[data-chati-theme="light"] .v6-wide,
+html[data-chati-theme="light"] .v6-file-btn,
+html[data-chati-theme="light"] .v6-inline-actions button,
+html[data-chati-theme="light"] .v6-account-row,
+html[data-chati-theme="light"] .v6-theme-grid button {
+  background: #fff;
+  color: #17171c;
+  border-color: rgba(30,30,45,.12);
+}
+
+@media (max-width: 760px) {
+  .v6-profile-button {
+    width: calc(100% - 14px);
+    margin: 6px 7px 3px;
+    min-height: 52px;
+  }
+
+  .v6-profile-panel {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: min(82dvh, 760px);
+    border-radius: 24px 24px 0 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+  }
+
+  .v6-profile-tabs {
+    grid-template-columns: repeat(4, minmax(0,1fr));
+  }
+
+  .v6-profile-tabs button {
+    font-size: 10px;
+    padding-inline: 3px;
+  }
+
+  .v6-signed-out-shell {
+    padding: 16px;
+  }
+
+  .v6-signed-out-card {
+    padding: 26px 20px;
+    border-radius: 24px;
+  }
+
+  .v6-signed-out-actions {
+    grid-template-columns: 1fr;
+  }
+}
