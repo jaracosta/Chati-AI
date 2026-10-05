@@ -727,7 +727,7 @@
   }
 
   async function switchAccount(userId) {
-    if (busy || !userId || userId === currentUser?.id) return;
+    if (busy || authTransitionInFlight || !userId || userId === currentUser?.id) return;
 
     const entry = readVault()[userId];
     if (!entry?.accessToken || !entry?.refreshToken) {
@@ -736,10 +736,17 @@
     }
 
     busy = true;
+    authTransitionInFlight = true;
+    document.body.classList.add("v6-account-switching");
     setStatus("Switching account…", false);
 
     try {
-      if (currentUser?.id) await snapshotWorkspace(currentUser.id);
+      const loaded =
+        localStorage.getItem(ACTIVE_WORKSPACE_KEY) ||
+        currentUser?.id ||
+        GUEST_WORKSPACE_ID;
+
+      await snapshotWorkspace(loaded);
       try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
       const result = await client().auth.setSession({
@@ -752,6 +759,8 @@
       await restoreWorkspace(userId);
       location.reload();
     } catch (error) {
+      document.body.classList.remove("v6-account-switching");
+      authTransitionInFlight = false;
       setStatus(error?.message || "Could not switch account.", true);
     } finally {
       busy = false;
@@ -759,26 +768,77 @@
   }
 
   async function signOutCurrent() {
-    if (busy) return;
+    if (busy || authTransitionInFlight) return;
+
     busy = true;
+    authTransitionInFlight = true;
+    document.body.classList.add("v6-account-switching");
 
     try {
-      if (currentUser?.id) {
-        await snapshotWorkspace(currentUser.id);
-        const vault = readVault();
-        delete vault[currentUser.id];
-        writeVault(vault);
+      const uid = currentUser?.id;
+
+      if (uid) {
+        await snapshotWorkspace(uid);
       }
 
       try { await window.ChatiV5Sync?.stop?.(); } catch {}
-      await restoreWorkspace(null);
+
+      await restoreWorkspace(GUEST_WORKSPACE_ID);
 
       const result = await auth().signOut();
       if (result?.error) throw result.error;
 
       location.reload();
     } catch (error) {
+      document.body.classList.remove("v6-account-switching");
+      authTransitionInFlight = false;
       setStatus(error?.message || "Could not sign out.", true);
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function deleteCurrentAccount(confirmText) {
+    if (busy || authTransitionInFlight) return;
+    if (!currentUser?.id) throw new Error("Sign in first.");
+
+    if (String(confirmText || "").trim() !== "DELETE") {
+      throw new Error("Type DELETE exactly to confirm.");
+    }
+
+    const uid = currentUser.id;
+    busy = true;
+    authTransitionInFlight = true;
+    document.body.classList.add("v6-account-switching");
+    setStatus("Deleting account…", false);
+
+    try {
+      try { await window.ChatiV5Sync?.stop?.(); } catch {}
+
+      const invoked = await client().functions.invoke("delete-account", {
+        body: { confirm: "DELETE" }
+      });
+
+      if (invoked.error) throw invoked.error;
+      if (invoked.data?.ok === false) {
+        throw new Error(invoked.data?.error || "Account deletion failed.");
+      }
+
+      const vault = readVault();
+      delete vault[uid];
+      writeVault(vault);
+
+      await deleteWorkspaceSnapshot(uid);
+      await restoreWorkspace(GUEST_WORKSPACE_ID);
+
+      try { await client().auth.signOut({ scope: "local" }); } catch {}
+
+      location.reload();
+    } catch (error) {
+      document.body.classList.remove("v6-account-switching");
+      authTransitionInFlight = false;
+      setStatus(error?.message || "Could not delete account.", true);
+      throw error;
     } finally {
       busy = false;
     }
