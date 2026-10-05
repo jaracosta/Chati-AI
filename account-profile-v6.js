@@ -77,11 +77,105 @@
     }
 
     if (isVideo(src, mime)) {
-      return '<video class="' + cls + ' v6-loop-video" src="' + esc(src) +
-        '" autoplay muted loop playsinline preload="auto" disablepictureinpicture></video>';
+      const safe = esc(src);
+      return '<span class="' + cls + ' v6-seamless-video" data-v6-seamless-src="' + safe + '">' +
+        '<video class="v6-seamless-track is-active" src="' + safe + '" autoplay muted playsinline preload="auto" disablepictureinpicture></video>' +
+        '<video class="v6-seamless-track" src="' + safe + '" muted playsinline preload="auto" disablepictureinpicture></video>' +
+      '</span>';
     }
 
     return '<img class="' + cls + '" src="' + esc(src) + '" alt="">';
+  }
+
+  function activateSeamlessLoops(root = document) {
+    root.querySelectorAll?.(".v6-seamless-video:not([data-v6-loop-ready])").forEach(wrapper => {
+      wrapper.dataset.v6LoopReady = "1";
+      const tracks = Array.from(wrapper.querySelectorAll("video"));
+      if (tracks.length < 2) return;
+
+      tracks.forEach(video => {
+        video.muted = true;
+        video.defaultMuted = true;
+        video.loop = false;
+        video.playsInline = true;
+        video.preload = "auto";
+      });
+
+      let active = 0;
+      let transitioning = false;
+      let raf = 0;
+
+      const playTrack = index => {
+        const video = tracks[index];
+        if (video) video.play().catch(() => {});
+      };
+
+      const resetTrack = index => {
+        const video = tracks[index];
+        if (!video) return;
+        try { video.currentTime = 0; } catch {}
+      };
+
+      const swap = () => {
+        if (transitioning || !wrapper.isConnected) return;
+
+        const current = tracks[active];
+        const nextIndex = active === 0 ? 1 : 0;
+        const next = tracks[nextIndex];
+
+        if (!current || !next || !Number.isFinite(current.duration) || current.duration <= 0) return;
+
+        transitioning = true;
+        resetTrack(nextIndex);
+        next.classList.add("is-active");
+        playTrack(nextIndex);
+
+        requestAnimationFrame(() => {
+          current.classList.remove("is-active");
+        });
+
+        window.setTimeout(() => {
+          try { current.pause(); } catch {}
+          resetTrack(active);
+          active = nextIndex;
+          transitioning = false;
+        }, 180);
+      };
+
+      const tick = () => {
+        if (!wrapper.isConnected) {
+          cancelAnimationFrame(raf);
+          return;
+        }
+
+        const current = tracks[active];
+
+        if (
+          current &&
+          Number.isFinite(current.duration) &&
+          current.duration > 0 &&
+          !current.paused
+        ) {
+          const seam = Math.min(0.20, Math.max(0.10, current.duration * 0.08));
+          if (current.duration - current.currentTime <= seam) swap();
+        }
+
+        raf = requestAnimationFrame(tick);
+      };
+
+      tracks.forEach((video, index) => {
+        video.addEventListener("loadedmetadata", () => {
+          if (index === active) playTrack(active);
+        });
+
+        video.addEventListener("ended", () => {
+          if (index === active) swap();
+        });
+      });
+
+      playTrack(0);
+      raf = requestAnimationFrame(tick);
+    });
   }
 
   function openDb() {
