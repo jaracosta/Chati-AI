@@ -16,6 +16,13 @@
 
   let currentUser = null;
   let currentProfile = null;
+
+  let resolveWorkspaceReady = null;
+  if (!window.ChatiWorkspaceReady) {
+    window.ChatiWorkspaceReady = new Promise(resolve => {
+      resolveWorkspaceReady = resolve;
+    });
+  }
   let avatarDisplayUrl = "";
   let panelOpen = false;
   let busy = false;
@@ -726,6 +733,7 @@
 
     try {
       if (currentUser?.id) await snapshotWorkspace(currentUser.id);
+      try { window.ChatiSync?.stopAutoSync?.(); } catch {}
       try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
       const result = await client().auth.setSession({
@@ -756,6 +764,7 @@
         writeVault(vault);
       }
 
+      try { window.ChatiSync?.stopAutoSync?.(); } catch {}
       try { await window.ChatiV5Sync?.stop?.(); } catch {}
       await restoreWorkspace(ANON_WORKSPACE_ID);
 
@@ -901,7 +910,8 @@
         }
 
         setStatus("Deleting account…", false);
-        try { await window.ChatiV5Sync?.stop?.(); } catch {}
+        try { window.ChatiSync?.stopAutoSync?.(); } catch {}
+      try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
         const sessionResult = await auth().getSession();
         const session = sessionResult?.data?.session;
@@ -933,7 +943,8 @@
         const password = String(data.get("password") || "");
 
         if (currentUser?.id) await snapshotWorkspace(currentUser.id);
-        try { await window.ChatiV5Sync?.stop?.(); } catch {}
+        try { window.ChatiSync?.stopAutoSync?.(); } catch {}
+      try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
         const result = await auth().signIn(email, password);
         if (result?.error) throw result.error;
@@ -984,6 +995,7 @@
     if (!currentUser) return;
 
     try {
+      window.ChatiSync?.startAutoSync?.();
       await window.ChatiSync?.syncCharactersProtected?.("account-session");
     } catch (error) {
       console.warn("[Chati-AI V6.2] Character account sync failed.", error);
@@ -1007,7 +1019,7 @@
     const workspaceChanged = await ensureWorkspace(user);
     if (workspaceChanged) {
       location.reload();
-      return;
+      return { reloading: true };
     }
 
     currentUser = user;
@@ -1017,7 +1029,7 @@
       avatarDisplayUrl = "";
       applyTheme(localStorage.getItem("chatiThemeV6") || "dark");
       render();
-      return;
+      return { ready: true, userId: null };
     }
 
     currentProfile = await ensureProfile(user);
@@ -1031,6 +1043,8 @@
         console.warn("[Chati-AI V6.2] Post-login sync failed.", error);
       });
     }, 250);
+
+    return { ready: true, userId: user.id };
   }
 
   async function captureLegacySignOut() {
@@ -1054,6 +1068,8 @@
 
     window.addEventListener("chati:authchange", () => {
       document.body.classList.add("v6-account-switching");
+      try { window.ChatiSync?.stopAutoSync?.(); } catch {}
+      try { window.ChatiV5Sync?.stop?.(); } catch {}
 
       setTimeout(() => {
         refreshAccount()
@@ -1070,13 +1086,25 @@
       if ((currentProfile?.theme || localStorage.getItem("chatiThemeV6")) === "system") applyTheme("system");
     });
 
-    refreshAccount().catch(error => {
-      console.error("[Chati-AI V6] Profile system failed:", error);
-      currentUser = null;
-      render();
-    });
+    refreshAccount()
+      .then(result => {
+        if (!result?.reloading && resolveWorkspaceReady) {
+          resolveWorkspaceReady(result || { ready: true });
+          resolveWorkspaceReady = null;
+        }
+      })
+      .catch(error => {
+        console.error("[Chati-AI V6.2] Profile system failed:", error);
+        currentUser = null;
+        render();
 
-    console.log("[Chati-AI Account] V" + VERSION + " profile + multi-account ready.");
+        if (resolveWorkspaceReady) {
+          resolveWorkspaceReady({ ready: false, error: String(error?.message || error) });
+          resolveWorkspaceReady = null;
+        }
+      });
+
+    console.log("[Chati-AI Account] V" + VERSION + " isolated account spaces ready.");
   }
 
   window.ChatiProfileV6 = Object.freeze({
