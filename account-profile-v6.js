@@ -981,9 +981,17 @@
     });
 
     window.addEventListener("chati:authchange", () => {
-      setTimeout(() => refreshAccount().catch(error => {
-        console.warn("[Chati-AI V6] Account refresh failed.", error);
-      }), 120);
+      document.body.classList.add("v6-account-switching");
+
+      setTimeout(() => {
+        refreshAccount()
+          .catch(error => {
+            console.warn("[Chati-AI V6.1] Account refresh failed.", error);
+          })
+          .finally(() => {
+            document.body.classList.remove("v6-account-switching");
+          });
+      }, 80);
     });
 
     matchMedia("(prefers-color-scheme: light)").addEventListener?.("change", () => {
