@@ -727,7 +727,7 @@
     if (!currentUser) {
       panel.innerHTML =
         '<div class="v6-panel-head"><strong>Account</strong><button type="button" data-v6-action="close">×</button></div>' +
-        '<p class="v6-muted">Sign in to sync your characters, chats, profile, and media.</p>' +
+        '<p class="v6-muted">Guest characters and chats stay only on this browser. Signing in opens that account\'s separate synced workspace without merging guest data.</p>' +
         '<button class="v6-wide primary" type="button" data-v6-action="signin">Sign In</button>' +
         '<button class="v6-wide" type="button" data-v6-action="create">Create Account</button>';
       return;
