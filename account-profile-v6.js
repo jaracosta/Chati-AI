@@ -1173,15 +1173,17 @@
     await rememberCurrentSession();
     render();
 
-    window.setTimeout(() => {
+    window.setTimeout(async () => {
       try {
-        const characterSync = window.ChatiSync?.syncCharactersProtected?.("account-workspace-ready");
-        characterSync?.catch?.(() => {});
+        await window.ChatiSync?.syncCharactersProtected?.(
+          "account-workspace-ready"
+        );
       } catch {}
 
       try {
-        const chatSync = window.ChatiV5Sync?.syncNow?.("account-workspace-ready");
-        chatSync?.catch?.(() => {});
+        await window.ChatiV5Sync?.syncNow?.(
+          "account-workspace-ready"
+        );
       } catch {}
     }, 260);
   }
