@@ -19,6 +19,7 @@
   let avatarDisplayUrl = "";
   let panelOpen = false;
   let busy = false;
+  let authTransitionInFlight = false;
 
   const sidebar = document.querySelector(".sidebar");
   const settingsBtn = document.getElementById("settingsBtn");
