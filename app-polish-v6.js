@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "6.2.2";
+  const VERSION = "6.2.3";
   let dock = null;
 
   function icon(path) {
@@ -37,6 +37,7 @@
       const action = event.target.closest("[data-v6-nav]")?.dataset.v6Nav;
       if (!action) return;
       event.stopPropagation();
+      if (action !== "create") document.getElementById("closeCreateChoiceBtn")?.click();
       if (action !== "profile") window.ChatiProfileV6?.close?.();
 
       if (action === "chats") {
@@ -76,7 +77,7 @@
     if (
       visible("characterCreateView") ||
       visible("groupCreateView") ||
-      visible("createChoiceView")
+      visible("createChoiceModal")
     ) {
       setActive("create");
       return;
@@ -89,7 +90,7 @@
     if (records.some(record =>
       record.type === "attributes" &&
       record.attributeName === "class" &&
-      record.target?.classList?.contains("view")
+      (record.target?.classList?.contains("view") || record.target?.id === "createChoiceModal")
     )) {
       updateActive();
     }
@@ -103,7 +104,7 @@
     buildDock();
     window.addEventListener("chati:profiletoggle", updateActive);
 
-    document.querySelectorAll(".view").forEach(view => {
+    document.querySelectorAll(".view, #createChoiceModal").forEach(view => {
       observer.observe(view, { attributes: true, attributeFilter: ["class"] });
     });
 
