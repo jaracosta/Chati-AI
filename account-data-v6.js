@@ -16,6 +16,12 @@
   const DB_NAME =
     "chatiMediaDB";
 
+  const DB_VERSION =
+    2;
+
+  const MEDIA_STORE =
+    "media";
+
   const APP_STORE =
     "appData";
 
@@ -146,14 +152,47 @@
 
         const request =
           indexedDB.open(
-            DB_NAME
+            DB_NAME,
+            DB_VERSION
           );
 
 
         request.onupgradeneeded =
           () => {
-            // script.js owns the database schema. We intentionally
-            // do not create stores here.
+
+            const database =
+              request.result;
+
+
+            if (
+              !database
+                .objectStoreNames
+                .contains(
+                  MEDIA_STORE
+                )
+            ) {
+
+              database.createObjectStore(
+                MEDIA_STORE
+              );
+
+            }
+
+
+            if (
+              !database
+                .objectStoreNames
+                .contains(
+                  APP_STORE
+                )
+            ) {
+
+              database.createObjectStore(
+                APP_STORE
+              );
+
+            }
+
           };
 
 
