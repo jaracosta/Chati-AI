@@ -1,4 +1,4 @@
-/* CHATI-AI V6.0.2 — video media + mobile background fit */
+/* CHATI-AI V6.1 — single-layer image backgrounds + true looping video */
 
 .v6-video-avatar-host {
   position: relative;
@@ -18,6 +18,7 @@
   object-fit: cover;
   display: block;
   border-radius: inherit;
+  pointer-events: none;
 }
 
 .character-card.v6-video-avatar-host > .v6-avatar-video-proxy,
@@ -59,6 +60,7 @@
   overflow: hidden;
 }
 
+/* Video is a real media layer. Static images stay ONLY on .chat-background. */
 .v6-chat-background-media {
   position: absolute;
   inset: 0;
@@ -66,9 +68,11 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center center;
   pointer-events: none;
 }
 
+.chat-background::before,
 .chat-background::after {
   z-index: 1;
 }
@@ -77,32 +81,27 @@
   background-image: none !important;
 }
 
+video.v6-loop-video {
+  animation: none !important;
+}
+
 @media (max-width: 760px) {
   /*
-   * Desktop keeps the cinematic cover crop.
-   * Mobile shows the full media in front, while the original
-   * background remains as a filled backdrop for images.
+   * One source, one layer.
+   * "contain" keeps the whole artwork visible without the previous
+   * cover + foreground duplicate collision.
    */
   .chat-background:not(.v6-has-video-background) {
-    background-size: cover !important;
+    background-size: contain !important;
     background-position: center center !important;
+    background-repeat: no-repeat !important;
+    background-color: #09090d !important;
   }
 
   .v6-chat-background-media {
     object-fit: contain;
     object-position: center center;
-  }
-
-  .chat-background:not(.v6-has-video-background) .v6-chat-background-media {
-    filter: none;
-  }
-
-  .chat-background.v6-has-video-background::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background: rgba(7,7,10,.82);
+    background: #09090d;
   }
 
   #chatView {
@@ -114,10 +113,6 @@
 
 @media (max-width: 520px) {
   .chat-background.active {
-    opacity: .38;
-  }
-
-  .v6-chat-background-media {
-    object-fit: contain;
+    opacity: .4;
   }
 }
