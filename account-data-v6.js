@@ -1,35 +1,43 @@
 // ============================================================
-// CHATI-AI V6.0.2 — ACCOUNT-SCOPED LOCAL DATA
+// CHATI-AI V6.0.3 — ACCOUNT-SCOPED LOCAL WORKSPACES
 //
-// Chati-AI keeps its existing active IndexedDB keys so V4/V5 sync
-// code remains compatible. When the active account changes, this
-// module archives the current active dataset under that user and
-// restores the target user's dataset.
+// Active Chati-AI data stays in the original chatiMediaDB/appData
+// store so the existing V4/V5 sync engine remains compatible.
 //
-// Signed-out mode intentionally exposes an empty character/chat
-// workspace and does not restore anonymous leftovers. Private Chat / Private Group remain temporary.
+// Per-account archives live in a SEPARATE IndexedDB database. This
+// prevents another account's archived characters/chats from leaking
+// into Backup & Restore snapshots or the normal app-data cache.
+//
+// Signed-out mode always mounts an empty character/chat workspace.
+// Private Chat / Private Group remain page-memory only.
 // ============================================================
 
 (() => {
   "use strict";
 
-  const DB_NAME =
+  const ACTIVE_DB_NAME =
     "chatiMediaDB";
 
-  const DB_VERSION =
+  const ACTIVE_DB_VERSION =
     2;
 
-  const MEDIA_STORE =
+  const ACTIVE_MEDIA_STORE =
     "media";
 
-  const APP_STORE =
+  const ACTIVE_APP_STORE =
     "appData";
+
+  const ARCHIVE_DB_NAME =
+    "chatiAccountDB";
+
+  const ARCHIVE_DB_VERSION =
+    1;
+
+  const ARCHIVE_STORE =
+    "accountData";
 
   const OWNER_KEY =
     "chatiActiveDataOwnerV6";
-
-  const ARCHIVE_PREFIX =
-    "chatiAccountData::";
 
   const LOCAL_ARCHIVE_PREFIX =
     "chatiAccountLocal::";
@@ -48,13 +56,17 @@
     key
   ) {
 
-    return (
-      key ===
-        "chatiCharacters" ||
+    const value =
       String(
         key ||
         ""
-      ).startsWith(
+      );
+
+
+    return (
+      value ===
+        "chatiCharacters" ||
+      value.startsWith(
         "chatiChats_"
       )
     );
@@ -114,12 +126,27 @@
   ) {
 
     return (
-      ARCHIVE_PREFIX +
       safeOwner(
         owner
       ) +
       "::" +
-      key
+      String(
+        key
+      )
+    );
+
+  }
+
+
+  function archivePrefix(
+    owner
+  ) {
+
+    return (
+      safeOwner(
+        owner
+      ) +
+      "::"
     );
 
   }
@@ -136,13 +163,15 @@
         owner
       ) +
       "::" +
-      key
+      String(
+        key
+      )
     );
 
   }
 
 
-  function openDb() {
+  function openActiveDb() {
 
     return new Promise(
       (
@@ -152,8 +181,8 @@
 
         const request =
           indexedDB.open(
-            DB_NAME,
-            DB_VERSION
+            ACTIVE_DB_NAME,
+            ACTIVE_DB_VERSION
           );
 
 
@@ -168,12 +197,12 @@
               !database
                 .objectStoreNames
                 .contains(
-                  MEDIA_STORE
+                  ACTIVE_MEDIA_STORE
                 )
             ) {
 
               database.createObjectStore(
-                MEDIA_STORE
+                ACTIVE_MEDIA_STORE
               );
 
             }
@@ -183,12 +212,12 @@
               !database
                 .objectStoreNames
                 .contains(
-                  APP_STORE
+                  ACTIVE_APP_STORE
                 )
             ) {
 
               database.createObjectStore(
-                APP_STORE
+                ACTIVE_APP_STORE
               );
 
             }
@@ -208,7 +237,7 @@
             reject(
               request.error ||
               new Error(
-                "Could not open local Chati-AI database."
+                "Could not open Chati-AI active storage."
               )
             );
 
@@ -218,166 +247,198 @@
   }
 
 
-  async function readAllAppEntries() {
+  function openArchiveDb() {
 
-    let db;
+    return new Promise(
+      (
+        resolve,
+        reject
+      ) => {
 
-
-    try {
-
-      db =
-        await openDb();
-
-
-      if (
-        !db.objectStoreNames
-          .contains(
-            APP_STORE
-          )
-      ) {
-
-        db.close();
-
-        return [];
-
-      }
+        const request =
+          indexedDB.open(
+            ARCHIVE_DB_NAME,
+            ARCHIVE_DB_VERSION
+          );
 
 
-      return await new Promise(
-        (
-          resolve,
-          reject
-        ) => {
+        request.onupgradeneeded =
+          () => {
 
-          const entries =
-            [];
+            const database =
+              request.result;
 
 
-          const tx =
-            db.transaction(
-              APP_STORE,
-              "readonly"
+            if (
+              !database
+                .objectStoreNames
+                .contains(
+                  ARCHIVE_STORE
+                )
+            ) {
+
+              database.createObjectStore(
+                ARCHIVE_STORE
+              );
+
+            }
+
+          };
+
+
+        request.onsuccess =
+          () =>
+            resolve(
+              request.result
             );
 
 
-          const request =
-            tx
-              .objectStore(
-                APP_STORE
+        request.onerror =
+          () =>
+            reject(
+              request.error ||
+              new Error(
+                "Could not open Chati-AI account archive."
               )
-              .openCursor();
+            );
+
+      }
+    );
+
+  }
 
 
-          request.onsuccess =
-            () => {
+  async function readStoreEntries(
+    openDatabase,
+    storeName
+  ) {
 
-              const cursor =
-                request.result;
-
-
-              if (
-                !cursor
-              ) {
-
-                return;
-
-              }
+    const database =
+      await openDatabase();
 
 
-              entries.push([
-                String(
-                  cursor.key
-                ),
-                cursor.value
-              ]);
-
-
-              cursor.continue();
-
-            };
-
-
-          tx.oncomplete =
-            () => {
-
-              db.close();
-
-              resolve(
-                entries
-              );
-
-            };
-
-
-          tx.onerror =
-            () => {
-
-              db.close();
-
-              reject(
-                tx.error ||
-                new Error(
-                  "Could not read local account data."
-                )
-              );
-
-            };
-
-        }
-      );
-
-    }
-
-    catch (
-      error
+    if (
+      !database
+        .objectStoreNames
+        .contains(
+          storeName
+        )
     ) {
 
-      try {
-        db?.close();
-      }
-      catch {}
-
-
-      console.warn(
-        "[Chati-AI Account Data] IndexedDB read unavailable.",
-        error
-      );
-
+      database.close();
 
       return [];
 
     }
 
+
+    return new Promise(
+      (
+        resolve,
+        reject
+      ) => {
+
+        const entries =
+          [];
+
+
+        const transaction =
+          database.transaction(
+            storeName,
+            "readonly"
+          );
+
+
+        const request =
+          transaction
+            .objectStore(
+              storeName
+            )
+            .openCursor();
+
+
+        request.onsuccess =
+          () => {
+
+            const cursor =
+              request.result;
+
+
+            if (
+              !cursor
+            ) {
+              return;
+            }
+
+
+            entries.push([
+              String(
+                cursor.key
+              ),
+              cursor.value
+            ]);
+
+
+            cursor.continue();
+
+          };
+
+
+        transaction.oncomplete =
+          () => {
+
+            database.close();
+
+            resolve(
+              entries
+            );
+
+          };
+
+
+        transaction.onerror =
+          () => {
+
+            database.close();
+
+            reject(
+              transaction.error ||
+              new Error(
+                "Could not read Chati-AI account storage."
+              )
+            );
+
+          };
+
+      }
+    );
+
   }
 
 
-  async function mutateAppEntries(
-    mutations
-  ) {
+  async function readActiveEntries() {
 
-    if (
-      !mutations.length
-    ) {
-      return;
-    }
+    const entries =
+      await readStoreEntries(
+        openActiveDb,
+        ACTIVE_APP_STORE
+      );
 
 
-    const db =
-      await openDb();
-
-
-    if (
-      !db.objectStoreNames
-        .contains(
-          APP_STORE
+    return entries.filter(
+      entry =>
+        isActiveAppKey(
+          entry[0]
         )
-    ) {
+    );
 
-      db.close();
+  }
 
-      return;
 
-    }
+  async function clearActiveEntries() {
+
+    const database =
+      await openActiveDb();
 
 
     await new Promise(
@@ -386,65 +447,72 @@
         reject
       ) => {
 
-        const tx =
-          db.transaction(
-            APP_STORE,
+        const transaction =
+          database.transaction(
+            ACTIVE_APP_STORE,
             "readwrite"
           );
 
 
         const store =
-          tx.objectStore(
-            APP_STORE
+          transaction.objectStore(
+            ACTIVE_APP_STORE
           );
 
 
-        for (
-          const mutation
-          of mutations
-        ) {
-
-          if (
-            mutation.type ===
-            "delete"
-          ) {
-
-            store.delete(
-              mutation.key
-            );
-
-          }
-
-          else {
-
-            store.put(
-              mutation.value,
-              mutation.key
-            );
-
-          }
-
-        }
+        const request =
+          store.openCursor();
 
 
-        tx.oncomplete =
+        request.onsuccess =
           () => {
 
-            db.close();
+            const cursor =
+              request.result;
+
+
+            if (
+              !cursor
+            ) {
+              return;
+            }
+
+
+            if (
+              isActiveAppKey(
+                cursor.key
+              )
+            ) {
+
+              cursor.delete();
+
+            }
+
+
+            cursor.continue();
+
+          };
+
+
+        transaction.oncomplete =
+          () => {
+
+            database.close();
+
             resolve();
 
           };
 
 
-        tx.onerror =
+        transaction.onerror =
           () => {
 
-            db.close();
+            database.close();
 
             reject(
-              tx.error ||
+              transaction.error ||
               new Error(
-                "Could not switch local account data."
+                "Could not clear active Chati-AI workspace."
               )
             );
 
@@ -456,9 +524,266 @@
   }
 
 
-  function archiveLocalStorage(
+  async function writeActiveEntries(
+    entries
+  ) {
+
+    if (
+      !entries.length
+    ) {
+      return;
+    }
+
+
+    const database =
+      await openActiveDb();
+
+
+    await new Promise(
+      (
+        resolve,
+        reject
+      ) => {
+
+        const transaction =
+          database.transaction(
+            ACTIVE_APP_STORE,
+            "readwrite"
+          );
+
+
+        const store =
+          transaction.objectStore(
+            ACTIVE_APP_STORE
+          );
+
+
+        for (
+          const [
+            key,
+            value
+          ]
+          of entries
+        ) {
+
+          if (
+            isActiveAppKey(
+              key
+            )
+          ) {
+
+            store.put(
+              value,
+              key
+            );
+
+          }
+
+        }
+
+
+        transaction.oncomplete =
+          () => {
+
+            database.close();
+
+            resolve();
+
+          };
+
+
+        transaction.onerror =
+          () => {
+
+            database.close();
+
+            reject(
+              transaction.error ||
+              new Error(
+                "Could not restore active Chati-AI workspace."
+              )
+            );
+
+          };
+
+      }
+    );
+
+  }
+
+
+  async function replaceArchiveSnapshot(
+    owner,
+    entries
+  ) {
+
+    const database =
+      await openArchiveDb();
+
+
+    const prefix =
+      archivePrefix(
+        owner
+      );
+
+
+    await new Promise(
+      (
+        resolve,
+        reject
+      ) => {
+
+        const transaction =
+          database.transaction(
+            ARCHIVE_STORE,
+            "readwrite"
+          );
+
+
+        const store =
+          transaction.objectStore(
+            ARCHIVE_STORE
+          );
+
+
+        const cursorRequest =
+          store.openCursor();
+
+
+        cursorRequest.onsuccess =
+          () => {
+
+            const cursor =
+              cursorRequest.result;
+
+
+            if (
+              !cursor
+            ) {
+              return;
+            }
+
+
+            if (
+              String(
+                cursor.key
+              ).startsWith(
+                prefix
+              )
+            ) {
+
+              cursor.delete();
+
+            }
+
+
+            cursor.continue();
+
+          };
+
+
+        for (
+          const [
+            key,
+            value
+          ]
+          of entries
+        ) {
+
+          if (
+            isActiveAppKey(
+              key
+            )
+          ) {
+
+            store.put(
+              value,
+              archiveKey(
+                owner,
+                key
+              )
+            );
+
+          }
+
+        }
+
+
+        transaction.oncomplete =
+          () => {
+
+            database.close();
+
+            resolve();
+
+          };
+
+
+        transaction.onerror =
+          () => {
+
+            database.close();
+
+            reject(
+              transaction.error ||
+              new Error(
+                "Could not archive Chati-AI workspace."
+              )
+            );
+
+          };
+
+      }
+    );
+
+  }
+
+
+  async function readArchiveSnapshot(
     owner
   ) {
+
+    const entries =
+      await readStoreEntries(
+        openArchiveDb,
+        ARCHIVE_STORE
+      );
+
+
+    const prefix =
+      archivePrefix(
+        owner
+      );
+
+
+    return entries
+      .filter(
+        entry =>
+          entry[0]
+            .startsWith(
+              prefix
+            )
+      )
+      .map(
+        entry => [
+          entry[0]
+            .slice(
+              prefix.length
+            ),
+          entry[1]
+        ]
+      )
+      .filter(
+        entry =>
+          isActiveAppKey(
+            entry[0]
+          )
+      );
+
+  }
+
+
+  function getActiveLocalStorageKeys() {
 
     const keys =
       [];
@@ -492,9 +817,37 @@
     }
 
 
+    return keys;
+
+  }
+
+
+  function archiveLocalStorage(
+    owner
+  ) {
+
+    if (
+      owner ===
+      SIGNED_OUT_OWNER
+    ) {
+
+      getActiveLocalStorageKeys()
+        .forEach(
+          key =>
+            localStorage.removeItem(
+              key
+            )
+        );
+
+
+      return;
+
+    }
+
+
     for (
       const key
-      of keys
+      of getActiveLocalStorageKeys()
     ) {
 
       const value =
@@ -531,6 +884,23 @@
   function restoreLocalStorage(
     owner
   ) {
+
+    getActiveLocalStorageKeys()
+      .forEach(
+        key =>
+          localStorage.removeItem(
+            key
+          )
+      );
+
+
+    if (
+      owner ===
+      SIGNED_OUT_OWNER
+    ) {
+      return;
+    }
+
 
     const prefix =
       LOCAL_ARCHIVE_PREFIX +
@@ -587,7 +957,10 @@
 
       if (
         value !==
-        null
+        null &&
+        isAccountLocalKey(
+          key
+        )
       ) {
 
         localStorage.setItem(
@@ -602,119 +975,94 @@
   }
 
 
+  async function restoreSnapshotForOwner(
+    owner
+  ) {
+
+    if (
+      owner ===
+      SIGNED_OUT_OWNER
+    ) {
+
+      return [];
+
+    }
+
+
+    let target =
+      await readArchiveSnapshot(
+        owner
+      );
+
+
+    if (
+      !target.length &&
+      owner !==
+        LEGACY_OWNER
+    ) {
+
+      const legacy =
+        await readArchiveSnapshot(
+          LEGACY_OWNER
+        );
+
+
+      if (
+        legacy.length
+      ) {
+
+        target =
+          legacy;
+
+
+        await replaceArchiveSnapshot(
+          owner,
+          legacy
+        );
+
+      }
+
+    }
+
+
+    return target;
+
+  }
+
+
   async function swapDataset(
     fromOwner,
     toOwner
   ) {
 
-    const entries =
-      await readAllAppEntries();
-
-
-    const mutations =
-      [];
-
-
-    for (
-      const [
-        key,
-        value
-      ]
-      of entries
-    ) {
-
-      if (
-        isActiveAppKey(
-          key
-        )
-      ) {
-
-        mutations.push({
-          type:
-            "put",
-
-          key:
-            archiveKey(
-              fromOwner,
-              key
-            ),
-
-          value
-        });
-
-
-        mutations.push({
-          type:
-            "delete",
-
-          key
-        });
-
-      }
-
-    }
+    const currentEntries =
+      await readActiveEntries();
 
 
     if (
-      toOwner !==
+      fromOwner !==
       SIGNED_OUT_OWNER
     ) {
 
-      const targetPrefix =
-        ARCHIVE_PREFIX +
-        safeOwner(
-          toOwner
-        ) +
-        "::";
-
-
-      for (
-        const [
-          key,
-          value
-        ]
-        of entries
-      ) {
-
-        if (
-          key.startsWith(
-            targetPrefix
-          )
-        ) {
-
-          const activeKey =
-            key.slice(
-              targetPrefix.length
-            );
-
-
-          if (
-            isActiveAppKey(
-              activeKey
-            )
-          ) {
-
-            mutations.push({
-              type:
-                "put",
-
-              key:
-                activeKey,
-
-              value
-            });
-
-          }
-
-        }
-
-      }
+      await replaceArchiveSnapshot(
+        fromOwner,
+        currentEntries
+      );
 
     }
 
 
-    await mutateAppEntries(
-      mutations
+    await clearActiveEntries();
+
+
+    const targetEntries =
+      await restoreSnapshotForOwner(
+        toOwner
+      );
+
+
+    await writeActiveEntries(
+      targetEntries
     );
 
 
@@ -723,22 +1071,27 @@
     );
 
 
-    if (
-      toOwner !==
-      SIGNED_OUT_OWNER
-    ) {
-
-      restoreLocalStorage(
-        toOwner
-      );
-
-    }
+    restoreLocalStorage(
+      toOwner
+    );
 
 
     localStorage.setItem(
       OWNER_KEY,
       toOwner
     );
+
+
+    return {
+      from:
+        fromOwner,
+
+      owner:
+        toOwner,
+
+      restoredKeys:
+        targetEntries.length
+    };
 
   }
 
@@ -790,7 +1143,7 @@
       await getDesiredOwner();
 
 
-    let currentOwner =
+    const currentOwner =
       localStorage.getItem(
         OWNER_KEY
       );
@@ -805,6 +1158,9 @@
         SIGNED_OUT_OWNER
       ) {
 
+        // Upgrade path: the legacy global active workspace belonged
+        // to the currently signed-in user. Keep it mounted so there
+        // is no first-upgrade data loss.
         localStorage.setItem(
           OWNER_KEY,
           desiredOwner
@@ -825,8 +1181,52 @@
       }
 
 
-      currentOwner =
-        LEGACY_OWNER;
+      const legacyEntries =
+        await readActiveEntries();
+
+
+      if (
+        legacyEntries.length
+      ) {
+
+        await replaceArchiveSnapshot(
+          LEGACY_OWNER,
+          legacyEntries
+        );
+
+      }
+
+
+      await clearActiveEntries();
+
+
+      getActiveLocalStorageKeys()
+        .forEach(
+          key =>
+            localStorage.removeItem(
+              key
+            )
+        );
+
+
+      localStorage.setItem(
+        OWNER_KEY,
+        SIGNED_OUT_OWNER
+      );
+
+
+      return {
+        changed:
+          Boolean(
+            legacyEntries.length
+          ),
+
+        owner:
+          SIGNED_OUT_OWNER,
+
+        archivedLegacy:
+          legacyEntries.length
+      };
 
     }
 
@@ -841,68 +1241,16 @@
         SIGNED_OUT_OWNER
       ) {
 
-        const entries =
-          await readAllAppEntries();
+        await clearActiveEntries();
 
 
-        await mutateAppEntries(
-          entries
-            .filter(
-              entry =>
-                isActiveAppKey(
-                  entry[0]
-                )
-            )
-            .map(
-              entry => ({
-                type:
-                  "delete",
-
-                key:
-                  entry[0]
-              })
-            )
-        );
-
-
-        const localKeys =
-          [];
-
-
-        for (
-          let index = 0;
-          index < localStorage.length;
-          index += 1
-        ) {
-
-          const key =
-            localStorage.key(
-              index
-            );
-
-
-          if (
-            key &&
-            isAccountLocalKey(
-              key
-            )
-          ) {
-
-            localKeys.push(
-              key
-            );
-
-          }
-
-        }
-
-
-        localKeys.forEach(
-          key =>
-            localStorage.removeItem(
-              key
-            )
-        );
+        getActiveLocalStorageKeys()
+          .forEach(
+            key =>
+              localStorage.removeItem(
+                key
+              )
+          );
 
       }
 
@@ -918,21 +1266,18 @@
     }
 
 
-    await swapDataset(
-      currentOwner,
-      desiredOwner
-    );
+    const result =
+      await swapDataset(
+        currentOwner,
+        desiredOwner
+      );
 
 
     return {
       changed:
         true,
 
-      from:
-        currentOwner,
-
-      owner:
-        desiredOwner
+      ...result
     };
 
   }
@@ -976,18 +1321,32 @@
         localStorage.getItem(
           OWNER_KEY
         ) ||
-        (
-          desiredOwner ===
-            SIGNED_OUT_OWNER
-            ? LEGACY_OWNER
-            : desiredOwner
-        );
+        SIGNED_OUT_OWNER;
 
 
       if (
         currentOwner ===
         desiredOwner
       ) {
+
+        if (
+          desiredOwner ===
+          SIGNED_OUT_OWNER
+        ) {
+
+          await clearActiveEntries();
+
+
+          getActiveLocalStorageKeys()
+            .forEach(
+              key =>
+                localStorage.removeItem(
+                  key
+                )
+            );
+
+        }
+
 
         return {
           changed:
@@ -1000,21 +1359,18 @@
       }
 
 
-      await swapDataset(
-        currentOwner,
-        desiredOwner
-      );
+      const result =
+        await swapDataset(
+          currentOwner,
+          desiredOwner
+        );
 
 
-      const result = {
+      const detail = {
         changed:
           true,
 
-        from:
-          currentOwner,
-
-        owner:
-          desiredOwner
+        ...result
       };
 
 
@@ -1022,8 +1378,7 @@
         new CustomEvent(
           "chati:accountdataswitched",
           {
-            detail:
-              result
+            detail
           }
         )
       );
@@ -1042,7 +1397,7 @@
       }
 
 
-      return result;
+      return detail;
 
     }
 
@@ -1085,13 +1440,39 @@
   window.ChatiAccountData =
     Object.freeze({
       ready,
+
       activateUser,
+
       getOwner() {
 
         return localStorage.getItem(
           OWNER_KEY
         ) ||
         null;
+
+      },
+
+      async status() {
+
+        return {
+          owner:
+            localStorage.getItem(
+              OWNER_KEY
+            ) ||
+            null,
+
+          activeKeys:
+            (
+              await readActiveEntries()
+            )
+              .map(
+                entry =>
+                  entry[0]
+              ),
+
+          archiveDatabase:
+            ARCHIVE_DB_NAME
+        };
 
       }
     });
@@ -1104,11 +1485,6 @@
   window.addEventListener(
     "chati:authchange",
     event => {
-
-      const userId =
-        event.detail?.user?.id ||
-        null;
-
 
       const authEvent =
         String(
@@ -1127,6 +1503,11 @@
         return;
 
       }
+
+
+      const userId =
+        event.detail?.user?.id ||
+        null;
 
 
       activateUser(
@@ -1153,7 +1534,7 @@
 
 
   console.log(
-    "[Chati-AI Account Data] V6.0.2 account isolation ready."
+    "[Chati-AI Account Data] V6.0.3 separate account workspace archive ready."
   );
 
 })();
