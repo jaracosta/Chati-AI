@@ -453,7 +453,10 @@
     signedOutShell.addEventListener("click", event => {
       const action = event.target.closest("[data-v6-action]")?.dataset.v6Action;
       if (action === "signin" || action === "create") {
+        document.body.classList.add("v6-auth-flow");
+        signedOutShell?.classList.add("hidden");
         settingsBtn?.click();
+
         setTimeout(() => {
           document.getElementById(action === "signin" ? "accountSignInBtn" : "accountCreateBtn")?.click();
         }, 80);
@@ -803,7 +806,15 @@
 
     const signedOut = !currentUser;
     document.body.classList.toggle("v6-signed-out", signedOut);
-    signedOutShell?.classList.toggle("hidden", !signedOut);
+
+    if (!signedOut) {
+      document.body.classList.remove("v6-auth-flow");
+    }
+
+    signedOutShell?.classList.toggle(
+      "hidden",
+      !signedOut || document.body.classList.contains("v6-auth-flow")
+    );
 
     if (panelOpen) renderPanel();
   }
@@ -849,6 +860,13 @@
   function initialize() {
     buildUi();
     legacySignOut?.addEventListener("click", captureLegacySignOut, true);
+
+    document.getElementById("accountFormCloseBtn")?.addEventListener("click", () => {
+      if (!currentUser) {
+        document.body.classList.remove("v6-auth-flow");
+        signedOutShell?.classList.remove("hidden");
+      }
+    });
 
     window.addEventListener("chati:authchange", () => {
       setTimeout(() => refreshAccount().catch(error => {
