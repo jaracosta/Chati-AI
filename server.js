@@ -3,6 +3,7 @@ import express from "express";
 import dotenv from "dotenv";
 
 import OpenAI, { toFile } from "openai";
+import { createChatProvider } from "./chat-provider.js";
 
 import {
   randomUUID
@@ -27,9 +28,9 @@ const PORT =
   3000;
 
 
-const MODEL =
-  process.env.OPENAI_MODEL ||
-  "gpt-5.6-terra";
+const MODEL = process.env.OPENROUTER_API_KEY
+  ? (process.env.OPENROUTER_MODEL || "openai/gpt-4o")
+  : (process.env.OPENAI_MODEL || "gpt-5.6-terra");
 
 
 const MEMORY_MODEL =
@@ -129,6 +130,8 @@ const openai =
 
   });
 
+
+const chatProvider = createChatProvider(process.env, openai);
 
 const __filename =
   fileURLToPath(
@@ -2650,7 +2653,7 @@ Return only what the character says or does.
 
 
       const stream =
-        await openai
+        await chatProvider
           .responses
           .create({
 
@@ -2941,7 +2944,7 @@ Return only what the character says or does.
 
 
             const fallbackResponse =
-              await openai
+              await chatProvider
                 .responses
                 .create({
 
@@ -3987,7 +3990,7 @@ const server =
     );
 
     console.log(
-      `💬 Chat model: ${MODEL}`
+      `💬 Chat provider: ${process.env.OPENROUTER_API_KEY ? "OpenRouter" : "OpenAI"}; model: ${MODEL}`
     );
 
     console.log(
