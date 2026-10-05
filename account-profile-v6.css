@@ -535,3 +535,216 @@ body.v6-signed-out:not(.v6-auth-flow) .app {
 body.v6-signed-out.v6-auth-flow .app {
   visibility: visible;
 }
+
+
+/* =========================================================
+   V6.2 — GUEST MODE, ACCOUNT HUB, DELETE ACCOUNT, SMOOTH VIDEO
+   ========================================================= */
+
+/* Signed out = guest workspace. The app remains fully usable. */
+body.v6-signed-out:not(.v6-auth-flow) .app,
+body.v6-guest-mode .app {
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.v6-signed-out-shell {
+  display: none !important;
+}
+
+/* Seamless profile video crossfade. Two tracks overlap briefly at the seam. */
+.v6-seamless-video {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #121218;
+}
+
+.v6-seamless-track {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 160ms linear;
+  pointer-events: none;
+}
+
+.v6-seamless-track.is-active {
+  opacity: 1;
+}
+
+.v6-profile-avatar > .v6-seamless-video,
+.v6-mini-avatar > .v6-seamless-video {
+  width: 100%;
+  height: 100%;
+}
+
+/* "Add another account" becomes a separate interface instead of squeezing
+   another login form into the profile panel. */
+.v6-add-account:not(.hidden) {
+  position: fixed;
+  inset: 0;
+  z-index: 30000;
+  display: grid !important;
+  place-items: center;
+  padding: 22px;
+  background: rgba(5,5,8,.72);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.v6-account-hub-card {
+  width: min(460px, 100%);
+  padding: 20px;
+  border: 1px solid rgba(122,122,145,.25);
+  border-radius: 24px;
+  background: rgba(18,18,25,.98);
+  box-shadow:
+    0 30px 90px rgba(0,0,0,.52),
+    inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.v6-account-hub-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.v6-account-hub-head > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.v6-account-hub-head strong {
+  font-size: 18px;
+}
+
+.v6-account-hub-head small {
+  color: #8d8d99;
+  line-height: 1.35;
+}
+
+.v6-account-hub-back {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(125,125,145,.22);
+  border-radius: 12px;
+  background: rgba(255,255,255,.04);
+  color: #ececf3;
+}
+
+.v6-account-hub-back svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.v6-account-hub-card form {
+  display: grid;
+  gap: 12px;
+}
+
+.v6-danger-zone {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(219,77,77,.2);
+}
+
+.v6-danger-zone > div {
+  margin-bottom: 14px;
+}
+
+.v6-danger-zone strong {
+  color: #ef9b9b;
+}
+
+.v6-danger-zone p {
+  margin: 5px 0 0;
+  color: #8f8f9b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.v6-wide.danger,
+.v6-danger-zone .danger {
+  color: #fff;
+  background: #8d2f35;
+  border-color: #aa4148;
+}
+
+.v6-wide.danger:hover,
+.v6-danger-zone .danger:hover {
+  background: #a23840;
+}
+
+html[data-chati-theme="light"] .v6-account-hub-card {
+  background: rgba(255,255,255,.99);
+  border-color: #e0e2e9;
+  color: #23252d;
+}
+
+html[data-chati-theme="light"] .v6-account-hub-head small {
+  color: #777c89;
+}
+
+html[data-chati-theme="light"] .v6-account-hub-back {
+  background: #f7f7fb;
+  border-color: #dfe1e8;
+  color: #333640;
+}
+
+html[data-chati-theme="light"] .v6-danger-zone {
+  border-top-color: rgba(167,55,65,.18);
+}
+
+html[data-chati-theme="light"] .v6-danger-zone strong {
+  color: #9b343d;
+}
+
+@media (max-width: 760px) {
+  .v6-add-account:not(.hidden) {
+    place-items: stretch;
+    padding: 0;
+    background: #0b0b10;
+  }
+
+  .v6-account-hub-card {
+    width: 100%;
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    padding:
+      calc(18px + env(safe-area-inset-top))
+      16px
+      calc(22px + env(safe-area-inset-bottom));
+    box-shadow: none;
+  }
+
+  .v6-account-hub-head {
+    margin-bottom: 24px;
+  }
+
+  .v6-account-hub-card input {
+    min-height: 50px;
+    font-size: 16px !important;
+  }
+
+  html[data-chati-theme="light"] .v6-add-account:not(.hidden) {
+    background: #f5f6f9;
+  }
+}
