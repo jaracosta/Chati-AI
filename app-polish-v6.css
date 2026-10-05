@@ -1,4 +1,4 @@
-/* CHATI-AI V6.1 — app-like polish, mobile creator stability, proper light theme */
+/* CHATI-AI V6.2 — app-like polish, guest mode, mobile creator stability */
 
 :root {
   --v6-accent: #7c6ee6;
@@ -16,7 +16,7 @@
 }
 
 @media (max-width: 760px) {
-  body:not(.mobile-chat-active):not(.v6-signed-out) .v6-mobile-dock {
+  body:not(.mobile-chat-active) .v6-mobile-dock {
     position: fixed;
     left: max(10px, env(safe-area-inset-left));
     right: max(10px, env(safe-area-inset-right));
