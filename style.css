@@ -9318,3 +9318,135 @@ body.splash-active .app {
 
 }
 
+
+
+/* ============================================================
+   V6.2 — VIDEO VISUALS + MOBILE BACKGROUND FIT
+   ============================================================ */
+
+.avatar-preview {
+  object-fit: cover;
+}
+
+video.avatar-preview {
+  display: block;
+  background: #111117;
+}
+
+.background-preview {
+  position: relative;
+  isolation: isolate;
+}
+
+.background-video-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  background: #0a0a0f;
+}
+
+.background-preview > span {
+  position: relative;
+  z-index: 1;
+}
+
+.background-preview.has-image > span {
+  display: none;
+}
+
+.character-image {
+  object-fit: cover;
+}
+
+video.character-image {
+  border: 0;
+  pointer-events: none;
+}
+
+.group-avatar-chip video,
+.group-member-avatar video,
+.group-responder-avatar video,
+.history-avatar video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.chat-avatar {
+  object-fit: cover;
+}
+
+video.chat-avatar {
+  display: block;
+  pointer-events: none;
+}
+
+.chat-empty-avatar {
+  object-fit: cover;
+}
+
+video.chat-empty-avatar {
+  pointer-events: none;
+}
+
+.chat-background {
+  overflow: hidden;
+}
+
+.chat-background-video {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center center;
+  background: #08080d;
+  pointer-events: none;
+}
+
+.chat-background::before,
+.chat-background::after {
+  z-index: 1;
+  pointer-events: none;
+}
+
+/*
+  On phones, preserving the entire artwork is more important than
+  filling every pixel. "cover" was cropping wide desktop backgrounds
+  heavily on tall displays. Contain keeps the full composition visible.
+*/
+@media (max-width: 700px) {
+  .chat-background {
+    background-size: contain !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    background-color: #08080d !important;
+    transform: none !important;
+  }
+
+  .chat-background.active {
+    transform: none !important;
+  }
+
+  .chat-background-video {
+    object-fit: contain !important;
+    object-position: center center !important;
+  }
+
+  .background-video-preview {
+    object-fit: contain;
+  }
+}
+
+html[data-theme="light"] .chat-background,
+html[data-theme="light"] .chat-background-video {
+  background-color: #efeff4 !important;
+}
