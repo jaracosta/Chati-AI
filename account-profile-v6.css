@@ -526,12 +526,116 @@ body:not(.v6-signed-out) .account-settings-section {
 }
 
 
-/* Hide the signed-out user's previous local workspace from sight/access. */
-body.v6-signed-out:not(.v6-auth-flow) .app {
-  visibility: hidden;
-  pointer-events: none;
+/* Signed-out mode is a real anonymous workspace, not a blocked landing page. */
+body.v6-signed-out .app {
+  visibility: visible;
+  pointer-events: auto;
 }
 
-body.v6-signed-out.v6-auth-flow .app {
-  visibility: visible;
+.v6-account-space-head {
+  margin-bottom: 14px;
+  padding: 2px 2px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+
+.v6-account-space-head strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.v6-account-space-head p,
+.v6-danger-zone p {
+  margin: 0;
+  color: #8f8f9b;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.v6-profile-panel.v6-account-space-mode {
+  width: min(560px, calc(100vw - 28px));
+}
+
+.v6-danger-zone {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid rgba(229, 93, 93, .20);
+  border-radius: 14px;
+  background: rgba(143, 35, 35, .055);
+}
+
+.v6-danger-zone > div {
+  margin-bottom: 10px;
+}
+
+.v6-danger-zone > div > strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #ffd0d0;
+  font-size: 13px;
+}
+
+.v6-danger-outline,
+.v6-danger-zone .danger {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 11px;
+  border: 1px solid rgba(232, 101, 101, .34);
+  background: rgba(154, 43, 43, .08);
+  color: #ffabab;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+#v6DeleteAccountConfirm {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(232, 101, 101, .15);
+}
+
+html[data-chati-theme="light"] .v6-account-space-head {
+  border-color: #e6e7ed;
+}
+
+html[data-chati-theme="light"] .v6-account-space-head p,
+html[data-chati-theme="light"] .v6-danger-zone p {
+  color: #777b87;
+}
+
+html[data-chati-theme="light"] .v6-danger-zone {
+  border-color: #f1caca;
+  background: #fff8f8;
+}
+
+html[data-chati-theme="light"] .v6-danger-zone > div > strong {
+  color: #962f2f;
+}
+
+html[data-chati-theme="light"] .v6-danger-outline,
+html[data-chati-theme="light"] .v6-danger-zone .danger {
+  border-color: #e8b4b4;
+  background: #fffafa;
+  color: #a73535;
+}
+
+@media (max-width: 760px) {
+  .v6-profile-panel.v6-account-space-mode {
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: 100dvh !important;
+    height: 100dvh;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding:
+      calc(14px + env(safe-area-inset-top))
+      14px
+      calc(18px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .v6-profile-panel.v6-account-space-mode .v6-panel-section[data-v6-panel-section="accounts"] {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 24px;
+  }
 }
