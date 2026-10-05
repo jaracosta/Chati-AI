@@ -318,6 +318,31 @@
     db.close();
   }
 
+  function clearAccountScopedLocalKeys(userId) {
+    const id = String(userId || "");
+    if (!id) return;
+
+    const remove = [];
+
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+
+      if (
+        key &&
+        key.startsWith("chati") &&
+        key.includes(id)
+      ) {
+        remove.push(key);
+      }
+    }
+
+    remove.forEach(key => localStorage.removeItem(key));
+
+    if (localStorage.getItem(LEGACY_OWNER_KEY) === id) {
+      localStorage.removeItem(LEGACY_OWNER_KEY);
+    }
+  }
+
   async function restoreWorkspace(workspaceId) {
     const target = workspaceId || GUEST_WORKSPACE_ID;
     await clearWorkspace();
@@ -929,6 +954,7 @@
       writeVault(vault);
 
       await deleteWorkspaceSnapshot(uid);
+      clearAccountScopedLocalKeys(uid);
       await restoreWorkspace(GUEST_WORKSPACE_ID);
 
       try { await client().auth.signOut({ scope: "local" }); } catch {}
