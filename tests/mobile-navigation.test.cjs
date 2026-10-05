@@ -24,6 +24,18 @@ w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
  w.document.querySelector('[data-v6-nav="chats"]').click();assert.ok(panel.classList.contains('hidden'));
  profile.click();w.document.querySelector('[data-v6-action="close"]').click();assert.ok(panel.classList.contains('hidden'));
  assert.equal(w.document.querySelector('[data-v6-nav="chats"]').getAttribute('aria-current'),'page');
+ const creator=w.document.createElement('section');
+ creator.id='characterCreateView';creator.className='view hidden';w.document.body.append(creator);
+ // The real app observes these views during initialization.
+ // Reinitialize the shell with the creator view present in the DOM.
+ w.document.getElementById('v6MobileDock').remove();
+ w.eval(fs.readFileSync('app-polish-v6.js','utf8'));
+ creator.classList.remove('hidden');
+ await new Promise(resolve=>w.setTimeout(resolve,0));
+ assert.ok(w.document.body.classList.contains('v6-creator-active'),'Editing must hide persistent navigation');
+ creator.classList.add('hidden');
+ await new Promise(resolve=>w.setTimeout(resolve,0));
+ assert.ok(!w.document.body.classList.contains('v6-creator-active'),'Navigation must return after leaving editor');
  console.log('PASS: guest Profile stays open, Chats closes Profile, close button updates active dock tab.');
  await new Promise(resolve=>w.setTimeout(resolve,0));
  w.close();

@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "6.2.3";
+  const VERSION = "6.2.4";
   let dock = null;
 
   function icon(path) {
@@ -72,6 +72,8 @@
 
   function updateActive() {
     if (!dock) return;
+    const editing = visible("characterCreateView") || visible("groupCreateView");
+    document.body.classList.toggle("v6-creator-active", editing);
     if (document.body.classList.contains("v6-profile-open")) { setActive("profile"); return; }
 
     if (

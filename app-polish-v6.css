@@ -232,8 +232,8 @@
   }
 
   .creator-form-actions {
-    position: sticky;
-    bottom: calc(78px + env(safe-area-inset-bottom));
+    position: static;
+    bottom: auto;
     z-index: 70;
     padding: 10px;
     margin: 4px -4px 0;
@@ -243,6 +243,22 @@
     box-shadow: 0 14px 36px rgba(0,0,0,.28);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
+  }
+}
+
+/* V6.2.4: editing is a focused screen, with no persistent app bars. */
+@media (max-width: 760px) {
+  body.v6-creator-active .v6-mobile-dock { display: none !important; }
+  body.v6-creator-active .main-content { padding-bottom: env(safe-area-inset-bottom) !important; }
+  #characterCreateView .create-header,
+  #groupCreateView .create-header { position: static; }
+  #characterCreateView .creator-form-actions,
+  #groupCreateView .creator-form-actions {
+    position: static !important; inset: auto !important;
+    margin: 12px 0 0; box-shadow: none;
+  }
+  body.v6-creator-active .character-form {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
   }
 }
 
