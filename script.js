@@ -13160,42 +13160,50 @@ function applyCharacterBackground(
   const url =
     character
       ?.background
-      ?.trim();
+      ?.trim() ||
+    "";
 
 
-  if (!url) {
+  if (
+    window.ChatiMediaV6 &&
+    typeof window.ChatiMediaV6.setChatBackground ===
+      "function"
+  ) {
+
+    window.ChatiMediaV6
+      .setChatBackground(
+        url
+      );
+
+  }
+
+  else if (!url) {
 
     chatBackground
       .style
       .backgroundImage =
       "none";
 
+  }
+
+  else {
 
     chatBackground
-      .classList
-      .remove(
-        "active"
-      );
-
-
-    return;
+      .style
+      .backgroundImage =
+      `url("${url.replace(
+        /"/g,
+        '\\"'
+      )}")`;
 
   }
 
 
   chatBackground
-    .style
-    .backgroundImage =
-    `url("${url.replace(
-      /"/g,
-      '\\"'
-    )}")`;
-
-
-  chatBackground
     .classList
-    .add(
-      "active"
+    .toggle(
+      "active",
+      Boolean(url)
     );
 
 }
