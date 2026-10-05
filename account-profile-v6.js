@@ -861,6 +861,10 @@
 
       if (uid) {
         await snapshotWorkspace(uid);
+
+        const vault = readVault();
+        delete vault[uid];
+        writeVault(vault);
       }
 
       try { await window.ChatiV5Sync?.stop?.(); } catch {}
@@ -1017,9 +1021,16 @@
 
     if (requestedKind === "delete-account") {
       const deleteData = new FormData(form);
-      return deleteCurrentAccount(
-        String(deleteData.get("confirmDelete") || "").trim()
-      );
+
+      try {
+        await deleteCurrentAccount(
+          String(deleteData.get("confirmDelete") || "").trim()
+        );
+      } catch (error) {
+        setStatus(error?.message || "Could not delete account.", true);
+      }
+
+      return;
     }
 
     if (busy || authTransitionInFlight) return;
