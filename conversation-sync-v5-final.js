@@ -440,7 +440,7 @@
     })
   });
 
-  Promise.resolve()
+  Promise.resolve(window.ChatiWorkspaceReady)
     .then(start)
     .catch(error => {
       lastError = String((error && error.message) || error);
