@@ -91,6 +91,11 @@ video.v6-loop-video {
    * "contain" keeps the whole artwork visible without the previous
    * cover + foreground duplicate collision.
    */
+  .chat-background,
+  .chat-background.active {
+    transform: none !important;
+  }
+
   .chat-background:not(.v6-has-video-background) {
     background-size: contain !important;
     background-position: center center !important;
