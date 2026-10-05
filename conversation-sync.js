@@ -2472,6 +2472,261 @@
   }
 
 
+  // ============================================================
+  // V6.2 — FULL ACCOUNT CHAT RESTORE
+  //
+  // Unlike the normal "new chat" baseline flow, this intentionally
+  // restores every missing active NORMAL cloud conversation belonging
+  // to the currently loaded authenticated workspace. It is used after
+  // sign-in/account switching so historical chats follow the account.
+  // Guest/private/temporary chats are never touched.
+  // ============================================================
+
+  async function restoreAccountCloudChats() {
+
+    const result = {
+      ok: true,
+      restoredChats: 0,
+      skippedExisting: 0,
+      skippedMissingOwners: 0,
+      skippedOwnerTypeMismatch: 0,
+      errors: [],
+      requiresReload: false
+    };
+
+
+    if (
+      !window.ChatiConversations ||
+      !window.ChatiMessages
+    ) {
+
+      return {
+        ...result,
+        ok: false,
+        reason: "cloud-client-unavailable"
+      };
+
+    }
+
+
+    const session =
+      await getConversationSyncSession();
+
+
+    if (
+      !session?.user?.id
+    ) {
+
+      return {
+        ...result,
+        ok: false,
+        reason: "workspace-not-authenticated"
+      };
+
+    }
+
+
+    const {
+      owners,
+      rows: localRows
+    } =
+      await collectLocalConversationSnapshot();
+
+
+    const localKeys =
+      new Set(
+        localRows.map(
+          row =>
+            makeConversationSyncKey(
+              row.ownerType,
+              row.ownerLocalId,
+              row.chatId
+            )
+        )
+      );
+
+
+    const cloudRows =
+      (
+        await window
+          .ChatiConversations
+          .getAll({
+            includeDeleted: true
+          })
+      )
+        .filter(
+          row =>
+            isNormalCloudConversation(
+              row
+            ) &&
+            !row.deleted_at
+        );
+
+
+    for (
+      const row
+      of cloudRows
+    ) {
+
+      const key =
+        makeConversationSyncKey(
+          row.owner_type,
+          row.owner_local_id,
+          row.local_id
+        );
+
+
+      if (
+        localKeys.has(
+          key
+        )
+      ) {
+
+        result.skippedExisting +=
+          1;
+
+        continue;
+
+      }
+
+
+      const owner =
+        owners.find(
+          item =>
+            String(
+              item?.id
+            ) ===
+            String(
+              row.owner_local_id
+            )
+        );
+
+
+      if (!owner) {
+
+        result.skippedMissingOwners +=
+          1;
+
+        continue;
+
+      }
+
+
+      const expectedOwnerType =
+        owner.isGroup
+          ? "group"
+          : "character";
+
+
+      if (
+        expectedOwnerType !==
+        row.owner_type
+      ) {
+
+        result.skippedOwnerTypeMismatch +=
+          1;
+
+        continue;
+
+      }
+
+
+      try {
+
+        const restored =
+          await restoreOne(
+            row.id
+          );
+
+
+        if (
+          restored?.ok
+        ) {
+
+          result.restoredChats +=
+            1;
+
+          result.requiresReload =
+            true;
+
+          localKeys.add(
+            key
+          );
+
+        }
+
+        else if (
+          restored?.reason ===
+            "already-local"
+        ) {
+
+          result.skippedExisting +=
+            1;
+
+          localKeys.add(
+            key
+          );
+
+        }
+
+      }
+
+      catch (
+        error
+      ) {
+
+        result.errors.push({
+          cloudConversationId:
+            String(
+              row.id
+            ),
+
+          chatId:
+            String(
+              row.local_id
+            ),
+
+          message:
+            String(
+              error?.message ||
+              error
+            )
+        });
+
+      }
+
+    }
+
+
+    // Rebuild only the automatic new-chat baseline AFTER the full restore.
+    // This also repairs browsers whose old baseline incorrectly marked
+    // historical cloud chats as "known" before they had been downloaded.
+    localStorage.removeItem(
+      getConversationBaselineKey(
+        session.user.id
+      )
+    );
+
+
+    await initializeAutoConversationBaseline();
+
+
+    result.ok =
+      result.errors.length ===
+        0;
+
+
+    console.log(
+      "[Chati-AI Conversations] V6.2 full account chat restore:",
+      result
+    );
+
+
+    return result;
+
+  }
+
+
   async function syncAutomaticNewChats(
     reason = "manual"
   ) {
@@ -9677,6 +9932,7 @@
       findLocalChat,
       backupOne,
       restoreOne,
+      restoreAccountCloudChats,
       initializeAutoConversationBaseline,
       syncAutomaticNewChats,
       startAutoConversationSync,
