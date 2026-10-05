@@ -884,7 +884,15 @@
     }
 
     if (action === "add-account") {
-      document.getElementById("v6AddAccountBox")?.classList.toggle("hidden");
+      document.getElementById("v6AddAccountBox")?.classList.remove("hidden");
+      requestAnimationFrame(() => {
+        document.querySelector("#v6AddAccountBox input[name='email']")?.focus();
+      });
+      return;
+    }
+
+    if (action === "close-add-account") {
+      document.getElementById("v6AddAccountBox")?.classList.add("hidden");
       return;
     }
 
