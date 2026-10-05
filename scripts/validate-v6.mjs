@@ -121,8 +121,10 @@ assert(
 
 assert(
   accountData.includes("SIGNED_OUT_OWNER") &&
-  accountData.includes("toOwner !==\n      SIGNED_OUT_OWNER"),
-  "Signed-out workspace isolation is missing."
+  accountData.includes('ARCHIVE_DB_NAME') &&
+  accountData.includes('"chatiAccountDB"') &&
+  accountData.includes("clearActiveEntries"),
+  "Account workspace isolation is missing."
 );
 
 assert(
