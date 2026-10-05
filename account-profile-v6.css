@@ -518,3 +518,9 @@ html[data-chati-theme="light"] .v6-theme-grid button {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Account controls now live in the sidebar profile menu when signed in. */
+body:not(.v6-signed-out) .account-settings-section {
+  display: none !important;
+}
