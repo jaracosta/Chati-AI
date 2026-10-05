@@ -1,17 +1,17 @@
 // ============================================================
 // CHATI-AI V5.0.10 — CROSS-DEVICE SYNC COORDINATOR
 // V5.0.6 Realtime | V5.0.7 Cross-tab | V5.0.8 Recovery
-// V5.0.9 Diagnostics | V5.0.10 Stable coordinator
+// V5.0.9 Diagnostics | V5.0.10 Stable coordinator | V5.0.11 Realtime self-heal
 // Private Chat / Private Group remain local-only.
 // ============================================================
 
 (() => {
   "use strict";
 
-  const VERSION = "5.0.10";
-  const FALLBACK_MS = 4000;
+  const VERSION = "5.0.11";
+  const FALLBACK_MS = 2500;
   const REALTIME_DELAY = 120;
-  const LOCAL_DELAY = 350;
+  const LOCAL_DELAY = 180;
   const MAX_BACKOFF = 30000;
 
   let started = false;
@@ -28,6 +28,7 @@
   let lastError = null;
   let retryMs = 1000;
   let generation = 0;
+  let realtimeReconnectTimer = null;
 
   function syncApi() {
     const api = window.ChatiConversationSync;
@@ -97,7 +98,7 @@
     delayTimer = setTimeout(() => {
       delayTimer = null;
       run(queuedReason).catch(error => {
-        console.error("[Chati-AI V5.0.10] Scheduled sync failed:", error);
+        console.error("[Chati-AI V5.0.11] Scheduled sync failed:", error);
       });
     }, Math.max(0, Number(delay) || 0));
   }
@@ -172,6 +173,11 @@
   }
 
   async function removeRealtime() {
+    if (realtimeReconnectTimer) {
+      clearTimeout(realtimeReconnectTimer);
+      realtimeReconnectTimer = null;
+    }
+
     if (!realtimeChannel) return;
 
     try {
@@ -210,7 +216,41 @@
         if (myGeneration !== generation) return;
         realtimeStatus = String(status || "unknown");
         if (status === "SUBSCRIBED") {
+          if (realtimeReconnectTimer) {
+            clearTimeout(realtimeReconnectTimer);
+            realtimeReconnectTimer = null;
+          }
+          retryMs = 1000;
           schedule("realtime-subscribed", 80, false);
+          return;
+        }
+
+        if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
+          if (realtimeReconnectTimer) clearTimeout(realtimeReconnectTimer);
+
+          realtimeReconnectTimer = setTimeout(() => {
+            realtimeReconnectTimer = null;
+
+            if (
+              started &&
+              navigator.onLine !== false &&
+              lastUserId === userId &&
+              myGeneration === generation
+            ) {
+              setupRealtime(userId)
+                .then(() => schedule("realtime-reconnected", 80, false))
+                .catch(error => {
+                  lastError = String((error && error.message) || error);
+                  console.warn("[Chati-AI V5.0.11] Realtime reconnect failed:", error);
+                });
+            }
+          }, Math.min(Math.max(retryMs, 1000), 8000));
+
+          retryMs = Math.min(retryMs * 2, MAX_BACKOFF);
         }
       });
   }
@@ -262,7 +302,7 @@
         else await removeRealtime();
       }
     } catch (error) {
-      console.warn("[Chati-AI V5.0.10] Auth recovery failed:", error);
+      console.warn("[Chati-AI V5.0.11] Auth recovery failed:", error);
     }
 
     schedule("auth-change", 180, false);
@@ -404,6 +444,6 @@
     .then(start)
     .catch(error => {
       lastError = String((error && error.message) || error);
-      console.error("[Chati-AI V5.0.10] Could not start sync coordinator:", error);
+      console.error("[Chati-AI V5.0.11] Could not start sync coordinator:", error);
     });
 })();

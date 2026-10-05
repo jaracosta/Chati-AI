@@ -1,0 +1,123 @@
+/* CHATI-AI V6.0.2 — video media + mobile background fit */
+
+.v6-video-avatar-host {
+  position: relative;
+  overflow: hidden;
+}
+
+.v6-video-source-hidden {
+  visibility: hidden !important;
+}
+
+.v6-avatar-video-proxy,
+.v6-avatar-editor-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+}
+
+.character-card.v6-video-avatar-host > .v6-avatar-video-proxy,
+.character-card .v6-avatar-video-proxy {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.background-preview,
+.group-background-preview {
+  position: relative;
+  overflow: hidden;
+}
+
+.v6-preview-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.background-preview > span,
+.group-background-preview > span {
+  position: relative;
+  z-index: 1;
+}
+
+.background-preview.has-image > span,
+.group-background-preview.has-image > span {
+  opacity: 0;
+}
+
+.chat-background {
+  overflow: hidden;
+}
+
+.v6-chat-background-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.chat-background::after {
+  z-index: 1;
+}
+
+.chat-background.v6-has-video-background {
+  background-image: none !important;
+}
+
+@media (max-width: 760px) {
+  /*
+   * Desktop keeps the cinematic cover crop.
+   * Mobile shows the full media in front, while the original
+   * background remains as a filled backdrop for images.
+   */
+  .chat-background:not(.v6-has-video-background) {
+    background-size: cover !important;
+    background-position: center center !important;
+  }
+
+  .v6-chat-background-media {
+    object-fit: contain;
+    object-position: center center;
+  }
+
+  .chat-background:not(.v6-has-video-background) .v6-chat-background-media {
+    filter: none;
+  }
+
+  .chat-background.v6-has-video-background::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: rgba(7,7,10,.82);
+  }
+
+  #chatView {
+    min-height: 0;
+    height: calc(var(--chati-vh, 1vh) * 100 - 8px) !important;
+    border-radius: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .chat-background.active {
+    opacity: .38;
+  }
+
+  .v6-chat-background-media {
+    object-fit: contain;
+  }
+}
