@@ -2,12 +2,14 @@
 (() => {
   "use strict";
 
-  const VERSION = "6.0.1";
+  const VERSION = "6.1.0";
   const PROFILE_TABLE = "user_profiles";
   const MEDIA_BUCKET = "character-media";
   const VAULT_KEY = "chatiAccountVaultV6";
   const ACTIVE_WORKSPACE_KEY = "chatiLoadedWorkspaceUidV6";
   const WORKSPACE_PREFIX = "chatiAccountWorkspaceV6_";
+  const LEGACY_OWNER_KEY = "chatiLegacyWorkspaceOwnerV6";
+  const LEGACY_UNCLAIMED = "__legacy_unclaimed__";
   const DB_NAME = "chatiMediaDB";
   const APP_STORE = "appData";
 
@@ -74,8 +76,8 @@
     }
 
     if (isVideo(src, mime)) {
-      return '<video class="' + cls + '" src="' + esc(src) +
-        '" autoplay muted loop playsinline preload="metadata"></video>';
+      return '<video class="' + cls + ' v6-loop-video" src="' + esc(src) +
+        '" autoplay muted loop playsinline preload="auto" disablepictureinpicture></video>';
     }
 
     return '<img class="' + cls + '" src="' + esc(src) + '" alt="">';
@@ -226,29 +228,139 @@
     localStorage.setItem(ACTIVE_WORKSPACE_KEY, userId);
   }
 
+  async function workspaceHasMeaningfulData() {
+    const db = await openDb();
+
+    if (!db.objectStoreNames.contains(APP_STORE)) {
+      db.close();
+      return false;
+    }
+
+    const hasData = await new Promise((resolve, reject) => {
+      const tx = db.transaction(APP_STORE, "readonly");
+      const store = tx.objectStore(APP_STORE);
+      const req = store.openCursor();
+      let found = false;
+
+      req.onsuccess = event => {
+        const cursor = event.target.result;
+
+        if (!cursor || found) {
+          resolve(found);
+          return;
+        }
+
+        if (isWorkspaceDbKey(cursor.key)) {
+          const parsed = parse(cursor.value, null);
+
+          if (
+            (Array.isArray(parsed) && parsed.length > 0) ||
+            (
+              parsed &&
+              typeof parsed === "object" &&
+              Object.keys(parsed).length > 0
+            )
+          ) {
+            found = true;
+            resolve(true);
+            return;
+          }
+        }
+
+        cursor.continue();
+      };
+
+      req.onerror = () => reject(req.error);
+      tx.onerror = () => reject(tx.error);
+    });
+
+    db.close();
+    return Boolean(hasData);
+  }
+
+  async function hasWorkspaceSnapshot(userId) {
+    if (!userId) return false;
+
+    const db = await openDb();
+
+    if (!db.objectStoreNames.contains(APP_STORE)) {
+      db.close();
+      return false;
+    }
+
+    const value = await new Promise((resolve, reject) => {
+      const tx = db.transaction(APP_STORE, "readonly");
+      const req = tx.objectStore(APP_STORE).get(WORKSPACE_PREFIX + userId);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+
+    db.close();
+    return Boolean(value);
+  }
+
   async function ensureWorkspace(user) {
     const loaded = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
     const next = user?.id || null;
+    const legacyOwner = localStorage.getItem(LEGACY_OWNER_KEY);
 
     if (loaded === next) return false;
 
-    // First V6 run while already signed in:
-    // adopt the existing local workspace instead of clearing it.
-    if (!loaded && next) {
+    // If an account workspace is already loaded, preserve it before switching.
+    if (loaded && loaded !== next) {
       try {
-        await snapshotWorkspace(next);
-        localStorage.setItem(ACTIVE_WORKSPACE_KEY, next);
-        return false;
+        await snapshotWorkspace(loaded);
       } catch (error) {
-        console.warn("[Chati-AI V6] Initial workspace adoption failed.", error);
+        console.warn("[Chati-AI V6.1] Workspace snapshot failed.", error);
       }
     }
 
-    if (loaded && loaded !== next) {
-      try { await snapshotWorkspace(loaded); }
-      catch (error) { console.warn("[Chati-AI V6] Workspace snapshot failed.", error); }
+    // Signed out with old pre-account local data:
+    // preserve it in an unclaimed vault, but NEVER attach it to the next
+    // random account that signs in.
+    if (!next) {
+      if (!loaded && !legacyOwner && await workspaceHasMeaningfulData()) {
+        try {
+          await snapshotWorkspace(LEGACY_UNCLAIMED);
+          localStorage.setItem(LEGACY_OWNER_KEY, LEGACY_UNCLAIMED);
+        } catch (error) {
+          console.warn("[Chati-AI V6.1] Legacy workspace safety snapshot failed.", error);
+        }
+      }
+
+      await restoreWorkspace(null);
+      return true;
     }
 
+    // First V6.1 load while already authenticated:
+    // only the account present at that moment may claim legacy local data.
+    if (!loaded && !legacyOwner) {
+      const hasLegacyData = await workspaceHasMeaningfulData();
+
+      if (hasLegacyData) {
+        await snapshotWorkspace(next);
+        localStorage.setItem(LEGACY_OWNER_KEY, next);
+        localStorage.setItem(ACTIVE_WORKSPACE_KEY, next);
+        return false;
+      }
+    }
+
+    // If this account owns the one-time legacy workspace, restore only its
+    // snapshot. No other account may inherit those records.
+    if (!loaded && legacyOwner === next) {
+      if (await hasWorkspaceSnapshot(next)) {
+        await restoreWorkspace(next);
+        return true;
+      }
+
+      await snapshotWorkspace(next);
+      localStorage.setItem(ACTIVE_WORKSPACE_KEY, next);
+      return false;
+    }
+
+    // Every other account gets ONLY its own saved workspace.
+    // A brand-new account therefore starts empty and cloud sync can populate
+    // only rows protected by that user's Supabase RLS.
     await restoreWorkspace(next);
     return true;
   }
@@ -869,13 +981,38 @@
     });
 
     window.addEventListener("chati:authchange", () => {
-      setTimeout(() => refreshAccount().catch(error => {
-        console.warn("[Chati-AI V6] Account refresh failed.", error);
-      }), 120);
+      document.body.classList.add("v6-account-switching");
+
+      setTimeout(() => {
+        refreshAccount()
+          .catch(error => {
+            console.warn("[Chati-AI V6.1] Account refresh failed.", error);
+          })
+          .finally(() => {
+            document.body.classList.remove("v6-account-switching");
+          });
+      }, 80);
     });
 
     matchMedia("(prefers-color-scheme: light)").addEventListener?.("change", () => {
       if ((currentProfile?.theme || localStorage.getItem("chatiThemeV6")) === "system") applyTheme("system");
+    });
+
+    document.addEventListener("ended", event => {
+      const video = event.target;
+
+      if (video instanceof HTMLVideoElement && video.classList.contains("v6-loop-video")) {
+        video.currentTime = 0;
+        video.play().catch(() => {});
+      }
+    }, true);
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible") return;
+
+      document.querySelectorAll("video.v6-loop-video").forEach(video => {
+        if (video.paused) video.play().catch(() => {});
+      });
     });
 
     refreshAccount().catch(error => {

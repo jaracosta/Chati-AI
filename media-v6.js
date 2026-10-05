@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "6.0.2";
+  const VERSION = "6.1.0";
   const VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
   const videoFileMap = {
     characterImageFile: "characterImage",
@@ -30,15 +30,31 @@
 
   function makeVideo(src, className) {
     const video = document.createElement("video");
-    video.className = className;
+    video.className = className + " v6-loop-video";
     video.src = src;
     video.autoplay = true;
     video.muted = true;
+    video.defaultMuted = true;
     video.loop = true;
     video.playsInline = true;
-    video.preload = "metadata";
+    video.preload = "auto";
+    video.disablePictureInPicture = true;
+    video.setAttribute("muted", "");
+    video.setAttribute("loop", "");
+    video.setAttribute("playsinline", "");
     video.setAttribute("aria-hidden", "true");
-    video.addEventListener("canplay", () => video.play().catch(() => {}), { once: true });
+
+    const resume = () => {
+      if (video.paused) video.play().catch(() => {});
+    };
+
+    video.addEventListener("canplay", resume);
+    video.addEventListener("loadedmetadata", resume);
+    video.addEventListener("ended", () => {
+      video.currentTime = 0;
+      video.play().catch(() => {});
+    });
+
     return video;
   }
 
@@ -85,27 +101,20 @@
     }
   }
 
-  function setPreviewMedia(container, source, mode) {
+  function setPreviewMedia(container, source) {
     if (!container) return;
 
     container.querySelectorAll(":scope > .v6-preview-media").forEach(node => node.remove());
 
-    if (!source) return;
-
-    if (isVideoSource(source)) {
-      const video = makeVideo(source, "v6-preview-media v6-preview-video");
-      container.appendChild(video);
-      container.classList.add("has-image");
+    if (!source || !isVideoSource(source)) {
+      // Images are already rendered by the creator's native CSS background.
+      // Do not add a second image layer.
       return;
     }
 
-    if (mode === "background") {
-      const img = document.createElement("img");
-      img.className = "v6-preview-media v6-preview-image";
-      img.src = source;
-      img.alt = "";
-      container.appendChild(img);
-    }
+    const video = makeVideo(source, "v6-preview-media v6-preview-video");
+    container.appendChild(video);
+    container.classList.add("has-image");
   }
 
   function updateFormPreviews() {
@@ -128,16 +137,32 @@
       }
     }
 
-    setPreviewMedia(document.getElementById("backgroundPreview"), charBackground, "background");
-    setPreviewMedia(document.getElementById("groupBackgroundPreview"), groupBackground, "background");
+    setPreviewMedia(document.getElementById("backgroundPreview"), charBackground);
+    setPreviewMedia(document.getElementById("groupBackgroundPreview"), groupBackground);
   }
 
   function ensureChatBackgroundMedia() {
     const host = document.getElementById("chatBackground");
     if (!host) return;
 
-    const source = extractCssUrl(host.style.backgroundImage);
+    const inlineSource = extractCssUrl(host.style.backgroundImage);
     let media = host.querySelector(":scope > .v6-chat-background-media");
+
+    // Static images use exactly ONE rendering layer: the host background.
+    if (inlineSource && !isVideoSource(inlineSource)) {
+      media?.remove();
+      delete host.dataset.v6VideoSource;
+      host.classList.remove("v6-has-video-background");
+      return;
+    }
+
+    // When script.js gives us a video URL through backgroundImage, capture it
+    // once, then remove the invalid CSS background and render a real <video>.
+    if (inlineSource && isVideoSource(inlineSource)) {
+      host.dataset.v6VideoSource = inlineSource;
+    }
+
+    const source = host.dataset.v6VideoSource || "";
 
     if (!source) {
       media?.remove();
@@ -145,27 +170,23 @@
       return;
     }
 
-    const video = isVideoSource(source);
-    const same = media && media.dataset.source === source && (
-      (video && media.tagName === "VIDEO") ||
-      (!video && media.tagName === "IMG")
-    );
+    const same =
+      media instanceof HTMLVideoElement &&
+      media.dataset.source === source;
 
-    if (same) return;
-    media?.remove();
+    host.classList.add("v6-has-video-background");
 
-    if (video) {
-      media = makeVideo(source, "v6-chat-background-media");
-      host.classList.add("v6-has-video-background");
-    } else {
-      media = document.createElement("img");
-      media.className = "v6-chat-background-media";
-      media.src = source;
-      media.alt = "";
-      media.setAttribute("aria-hidden", "true");
-      host.classList.remove("v6-has-video-background");
+    if (host.style.backgroundImage !== "none") {
+      host.style.backgroundImage = "none";
     }
 
+    if (same) {
+      if (media.paused) media.play().catch(() => {});
+      return;
+    }
+
+    media?.remove();
+    media = makeVideo(source, "v6-chat-background-media");
     media.dataset.source = source;
     host.appendChild(media);
   }
@@ -259,6 +280,21 @@
   });
 
   window.addEventListener("resize", ensureChatBackgroundMedia);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+
+    document.querySelectorAll("video.v6-loop-video").forEach(video => {
+      if (video.paused) video.play().catch(() => {});
+    });
+  });
+
+  window.addEventListener("pageshow", () => {
+    document.querySelectorAll("video.v6-loop-video").forEach(video => {
+      if (video.paused) video.play().catch(() => {});
+    });
+    ensureChatBackgroundMedia();
+  });
 
   window.ChatiMediaV6 = Object.freeze({
     version: VERSION,

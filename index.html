@@ -33,8 +33,9 @@
     rel="stylesheet"
     href="account-ui.css?v=4.0.7.2"
   >
-  <link rel="stylesheet" href="account-profile-v6.css?v=6.0.1">
-  <link rel="stylesheet" href="media-v6.css?v=6.0.2">
+  <link rel="stylesheet" href="account-profile-v6.css?v=6.1.0">
+  <link rel="stylesheet" href="media-v6.css?v=6.1.0">
+  <link rel="stylesheet" href="app-polish-v6.css?v=6.1.0">
 </head>
 
 
@@ -951,8 +952,10 @@
 
             <div class="creator-card-title powers-heading">
 
-              <span>
-                ⚡
+              <span class="v6-line-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M13.2 2.8 5.8 13h5.3l-.6 8.2L18.2 11h-5.3l.3-8.2Z"></path>
+                </svg>
               </span>
 
 
@@ -2756,8 +2759,11 @@
       type="button"
     >
 
-      <span>
-        ▣
+      <span aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <rect x="8" y="8" width="10" height="10" rx="2"></rect>
+          <path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"></path>
+        </svg>
       </span>
 
       Copy
@@ -2772,8 +2778,11 @@
       type="button"
     >
 
-      <span>
-        ✎
+      <span aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="m4 16-.7 4.7L8 20l10.4-10.4-4-4L4 16Z"></path>
+          <path d="m13.8 6.2 4 4"></path>
+        </svg>
       </span>
 
       Edit
@@ -2788,8 +2797,11 @@
       type="button"
     >
 
-      <span>
-        ↩
+      <span aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M8 7 3.5 11.5 8 16"></path>
+          <path d="M4 11.5h8.5a6 6 0 0 1 6 6"></path>
+        </svg>
       </span>
 
       Rewind to here
@@ -2804,8 +2816,12 @@
       type="button"
     >
 
-      <span>
-        🧠
+      <span aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M9.5 5.2A3.2 3.2 0 0 0 4.5 8a3.4 3.4 0 0 0 1.1 6.5A3.4 3.4 0 0 0 9 18h1"></path>
+          <path d="M14.5 5.2A3.2 3.2 0 0 1 19.5 8a3.4 3.4 0 0 1-1.1 6.5A3.4 3.4 0 0 1 15 18h-1"></path>
+          <path d="M10 5.5v13M14 5.5v13M8 10h2M14 10h2M8.5 14H10M14 14h1.5"></path>
+        </svg>
       </span>
 
 
@@ -2827,8 +2843,11 @@
       type="button"
     >
 
-      <span>
-        🗑
+      <span aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 7h16M9 3h6l1 4H8l1-4ZM7 7l.8 13h8.4L17 7"></path>
+          <path d="M10 11v5M14 11v5"></path>
+        </svg>
       </span>
 
       Delete
@@ -2866,8 +2885,12 @@
 
           <div class="memory-title-row">
 
-            <span class="memory-title-icon">
-              🧠
+            <span class="memory-title-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M9.5 5.2A3.2 3.2 0 0 0 4.5 8a3.4 3.4 0 0 0 1.1 6.5A3.4 3.4 0 0 0 9 18h1"></path>
+                <path d="M14.5 5.2A3.2 3.2 0 0 1 19.5 8a3.4 3.4 0 0 1-1.1 6.5A3.4 3.4 0 0 1 15 18h-1"></path>
+                <path d="M10 5.5v13M14 5.5v13"></path>
+              </svg>
             </span>
 
 
@@ -2930,8 +2953,14 @@
 
       <section class="memory-section">
 
-        <h3>
-          📌 Pinned Memories
+        <h3 class="memory-section-title-with-icon">
+          <span class="memory-section-title-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="m8 4 8 0-1.2 5 3.2 3H6l3.2-3L8 4Z"></path>
+              <path d="M12 12v8"></path>
+            </svg>
+          </span>
+          Pinned Memories
         </h3>
 
 
@@ -3119,7 +3148,7 @@
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker
-          .register("./sw.js?v=6.0.3", {
+          .register("./sw.js?v=6.1.0", {
             scope: "./",
             updateViaCache: "none"
           })
@@ -3161,8 +3190,9 @@
   <script src="cloud-sync.js?v=4.0.6.4a"></script>
 
   <script src="account-ui.js?v=4.0.7.5"></script>
-  <script src="media-v6.js?v=6.0.2"></script>
-  <script src="account-profile-v6.js?v=6.0.1"></script>
+  <script src="media-v6.js?v=6.1.0"></script>
+  <script src="account-profile-v6.js?v=6.1.0"></script>
+  <script src="app-polish-v6.js?v=6.1.0"></script>
 
 </body>
 </html>
