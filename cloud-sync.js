@@ -2449,6 +2449,32 @@
     }
 
 
+    const mountedWorkspace =
+      localStorage.getItem(
+        "chatiLoadedWorkspaceUidV6"
+      );
+
+
+    if (
+      mountedWorkspace !==
+      userId
+    ) {
+      return {
+        skipped:
+          true,
+
+        signedIn:
+          true,
+
+        reason:
+          "workspace-user-mismatch",
+
+        requestedReason:
+          reason
+      };
+    }
+
+
     if (
       navigator.onLine ===
       false
