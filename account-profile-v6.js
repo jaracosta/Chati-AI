@@ -561,20 +561,7 @@
     panel.setAttribute("aria-label", "Account profile");
     document.body.appendChild(panel);
 
-    signedOutShell = document.createElement("section");
-    signedOutShell.id = "v6SignedOutShell";
-    signedOutShell.className = "v6-signed-out-shell hidden";
-    signedOutShell.innerHTML =
-      '<div class="v6-signed-out-card">' +
-        '<div class="v6-signed-out-mark">CA</div>' +
-        '<h1>Welcome to Chati-AI</h1>' +
-        '<p>Your characters belong to your account. Sign in to restore them on this device.</p>' +
-        '<div class="v6-signed-out-actions">' +
-          '<button type="button" data-v6-action="signin">Sign In</button>' +
-          '<button type="button" class="primary" data-v6-action="create">Create Account</button>' +
-        '</div>' +
-      '</div>';
-    document.body.appendChild(signedOutShell);
+    signedOutShell = null;
 
     profileButton.addEventListener("click", event => {
       event.stopPropagation();
@@ -591,18 +578,6 @@
     panel.addEventListener("change", handlePanelChange);
     panel.addEventListener("submit", handlePanelSubmit);
 
-    signedOutShell.addEventListener("click", event => {
-      const action = event.target.closest("[data-v6-action]")?.dataset.v6Action;
-      if (action === "signin" || action === "create") {
-        document.body.classList.add("v6-auth-flow");
-        signedOutShell?.classList.add("hidden");
-        settingsBtn?.click();
-
-        setTimeout(() => {
-          document.getElementById(action === "signin" ? "accountSignInBtn" : "accountCreateBtn")?.click();
-        }, 80);
-      }
-    });
   }
 
   function setPanelOpen(next) {
@@ -618,7 +593,7 @@
     if (!currentUser) {
       profileButton.innerHTML =
         '<span class="v6-profile-avatar"><span class="v6-profile-initial">?</span></span>' +
-        '<span class="v6-profile-button-copy"><strong>Sign in</strong><small>Account</small></span>' +
+        '<span class="v6-profile-button-copy"><strong>Guest</strong><small>Sign in to sync</small></span>' +
         '<span class="v6-profile-chevron">⋯</span>';
       return;
     }
@@ -947,17 +922,14 @@
 
     const signedOut = !currentUser;
     document.body.classList.toggle("v6-signed-out", signedOut);
+    document.body.classList.toggle("v6-guest-mode", signedOut);
 
     if (!signedOut) {
       document.body.classList.remove("v6-auth-flow");
     }
 
-    signedOutShell?.classList.toggle(
-      "hidden",
-      !signedOut || document.body.classList.contains("v6-auth-flow")
-    );
-
     if (panelOpen) renderPanel();
+    requestAnimationFrame(() => activateSeamlessLoops(document));
   }
 
   async function refreshAccount() {
