@@ -5618,7 +5618,11 @@
     });
 
 
-  startAutoSync();
+  Promise.resolve(window.ChatiWorkspaceReady)
+    .then(() => startAutoSync())
+    .catch(error => {
+      console.error("[Chati-AI Sync] Workspace gate failed:", error);
+    });
 
 
   console.log(
