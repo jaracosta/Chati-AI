@@ -1,7 +1,7 @@
 // ============================================================
 // CHATI-AI V5.0.10 — CROSS-DEVICE SYNC COORDINATOR
 // V5.0.6 Realtime | V5.0.7 Cross-tab | V5.0.8 Recovery
-// V5.0.9 Diagnostics | V5.0.10 Stable coordinator
+// V5.0.9 Diagnostics | V5.0.10 Stable coordinator + lifecycle recovery
 // Private Chat / Private Group remain local-only.
 // ============================================================
 
@@ -274,6 +274,39 @@
     }
   }
 
+  function charactersChange() {
+    schedule("characters-change", 300, true);
+  }
+
+  function pageFocus() {
+    schedule("window-focus", 80, false);
+  }
+
+  function pageShow(event) {
+    schedule(
+      event?.persisted
+        ? "pageshow-bfcache"
+        : "pageshow",
+      90,
+      false
+    );
+  }
+
+  function crossTabStorage(event) {
+    const key = String(
+      event?.key ||
+      ""
+    );
+
+    if (
+      key.startsWith("chatiAccountData::") ||
+      key.startsWith("chati-ai-active-account-slot-v6") ||
+      key.startsWith("chatiActiveChat_")
+    ) {
+      schedule("cross-tab-storage", 120, false);
+    }
+  }
+
   async function healthCheck() {
     const api = syncApi();
     const currentSession = await session();
@@ -326,6 +359,9 @@
     }
 
     window.addEventListener("online", online);
+    window.addEventListener("focus", pageFocus);
+    window.addEventListener("pageshow", pageShow);
+    window.addEventListener("storage", crossTabStorage);
     window.addEventListener("chati:authchange", authChange);
     window.addEventListener("chati:characterschange", charactersChange);
     document.addEventListener("visibilitychange", visibility);
@@ -367,7 +403,11 @@
     fallbackTimer = null;
 
     window.removeEventListener("online", online);
+    window.removeEventListener("focus", pageFocus);
+    window.removeEventListener("pageshow", pageShow);
+    window.removeEventListener("storage", crossTabStorage);
     window.removeEventListener("chati:authchange", authChange);
+    window.removeEventListener("chati:characterschange", charactersChange);
     document.removeEventListener("visibilitychange", visibility);
     document.removeEventListener("click", localUiActivity, true);
     document.removeEventListener("keydown", keydown, true);
