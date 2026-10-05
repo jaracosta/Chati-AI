@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "6.2.0";
+  const VERSION = "6.2.2";
   let dock = null;
 
   function icon(path) {
@@ -36,6 +36,8 @@
     dock.addEventListener("click", event => {
       const action = event.target.closest("[data-v6-nav]")?.dataset.v6Nav;
       if (!action) return;
+      event.stopPropagation();
+      if (action !== "profile") window.ChatiProfileV6?.close?.();
 
       if (action === "chats") {
         document.getElementById("chatsBtn")?.click();
@@ -58,6 +60,7 @@
   function setActive(name) {
     dock?.querySelectorAll("[data-v6-nav]").forEach(button => {
       button.classList.toggle("active", button.dataset.v6Nav === name);
+      button.setAttribute("aria-current", button.dataset.v6Nav === name ? "page" : "false");
     });
   }
 
@@ -68,6 +71,7 @@
 
   function updateActive() {
     if (!dock) return;
+    if (document.body.classList.contains("v6-profile-open")) { setActive("profile"); return; }
 
     if (
       visible("characterCreateView") ||
@@ -97,6 +101,7 @@
 
   function initialize() {
     buildDock();
+    window.addEventListener("chati:profiletoggle", updateActive);
 
     document.querySelectorAll(".view").forEach(view => {
       observer.observe(view, { attributes: true, attributeFilter: ["class"] });

@@ -88,8 +88,7 @@ video.v6-loop-video {
 @media (max-width: 760px) {
   /*
    * One source, one layer.
-   * "contain" keeps the whole artwork visible without the previous
-   * cover + foreground duplicate collision.
+   * Cover fills the phone without adding a duplicate foreground layer.
    */
   .chat-background,
   .chat-background.active {
@@ -97,21 +96,21 @@ video.v6-loop-video {
   }
 
   .chat-background:not(.v6-has-video-background) {
-    background-size: contain !important;
+    background-size: cover !important;
     background-position: center center !important;
     background-repeat: no-repeat !important;
     background-color: #09090d !important;
   }
 
   .v6-chat-background-media {
-    object-fit: contain;
+    object-fit: cover;
     object-position: center center;
     background: #09090d;
   }
 
   #chatView {
     min-height: 0;
-    height: calc(var(--chati-vh, 1vh) * 100 - 8px) !important;
+    height: var(--app-height, 100dvh) !important;
     border-radius: 0;
   }
 }

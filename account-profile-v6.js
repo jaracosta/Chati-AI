@@ -567,7 +567,7 @@
 
     document.addEventListener("click", event => {
       if (!panelOpen) return;
-      if (panel.contains(event.target) || profileButton.contains(event.target)) return;
+      if (panel.contains(event.target) || profileButton.contains(event.target) || event.target.closest("[data-v6-nav]")) return;
       setPanelOpen(false);
     });
 
@@ -591,6 +591,8 @@
 
   function setPanelOpen(next) {
     panelOpen = Boolean(next);
+    document.body.classList.toggle("v6-profile-open", panelOpen);
+    window.dispatchEvent(new CustomEvent("chati:profiletoggle", { detail: { open: panelOpen } }));
     panel?.classList.toggle("hidden", !panelOpen);
     if (!panelOpen) panel?.classList.remove("v6-account-space-mode");
     profileButton?.setAttribute("aria-expanded", panelOpen ? "true" : "false");
@@ -1162,6 +1164,7 @@
     version: VERSION,
     refresh: refreshAccount,
     open: () => setPanelOpen(true),
+    close: () => setPanelOpen(false),
     snapshotWorkspace,
     restoreWorkspace,
     switchAccount,
