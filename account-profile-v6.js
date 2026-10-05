@@ -930,13 +930,23 @@
     if (!form) return;
 
     event.preventDefault();
-    if (busy) return;
+
+    const requestedKind = form.dataset.v6Form;
+
+    if (requestedKind === "delete-account") {
+      const deleteData = new FormData(form);
+      return deleteCurrentAccount(
+        String(deleteData.get("confirmDelete") || "").trim()
+      );
+    }
+
+    if (busy || authTransitionInFlight) return;
 
     busy = true;
     setStatus("", false);
 
     try {
-      const kind = form.dataset.v6Form;
+      const kind = requestedKind;
       const data = new FormData(form);
 
       if (kind === "profile") {
@@ -971,7 +981,15 @@
         const email = String(data.get("email") || "").trim();
         const password = String(data.get("password") || "");
 
-        if (currentUser?.id) await snapshotWorkspace(currentUser.id);
+        authTransitionInFlight = true;
+        document.body.classList.add("v6-account-switching");
+
+        const loaded =
+          localStorage.getItem(ACTIVE_WORKSPACE_KEY) ||
+          currentUser?.id ||
+          GUEST_WORKSPACE_ID;
+
+        await snapshotWorkspace(loaded);
         try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
         const result = await auth().signIn(email, password);
@@ -980,6 +998,7 @@
 
         const next = result.data.session;
         const vault = readVault();
+
         vault[next.user.id] = {
           userId: next.user.id,
           email: next.user.email || "",
@@ -989,12 +1008,18 @@
           displayName: "",
           avatarUrl: ""
         };
+
         writeVault(vault);
 
         await restoreWorkspace(next.user.id);
         location.reload();
       }
     } catch (error) {
+      if (authTransitionInFlight) {
+        authTransitionInFlight = false;
+        document.body.classList.remove("v6-account-switching");
+      }
+
       setStatus(error?.message || "Something went wrong.", true);
     } finally {
       busy = false;
