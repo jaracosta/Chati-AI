@@ -467,6 +467,12 @@
         return false;
       }
 
+      // Unknown local data is preserved as GUEST data before the account is
+      // loaded. It is never merged into the authenticated account.
+      if (hasLocalData) {
+        await snapshotWorkspace(GUEST_WORKSPACE_ID);
+      }
+
       // Never adopt unidentified/guest local data into an authenticated account.
       await restoreWorkspace(target);
       return true;
