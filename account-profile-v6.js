@@ -1069,6 +1069,18 @@
     applyTheme(currentProfile.theme || "dark");
     await rememberCurrentSession();
     render();
+
+    window.setTimeout(() => {
+      try {
+        const characterSync = window.ChatiSync?.syncCharactersProtected?.("account-workspace-ready");
+        characterSync?.catch?.(() => {});
+      } catch {}
+
+      try {
+        const chatSync = window.ChatiV5Sync?.syncNow?.("account-workspace-ready");
+        chatSync?.catch?.(() => {});
+      } catch {}
+    }, 260);
   }
 
   async function captureLegacySignOut() {
@@ -1086,17 +1098,18 @@
     document.getElementById("accountFormCloseBtn")?.addEventListener("click", () => {
       if (!currentUser) {
         document.body.classList.remove("v6-auth-flow");
-        signedOutShell?.classList.remove("hidden");
       }
     });
 
     window.addEventListener("chati:authchange", () => {
+      if (authTransitionInFlight) return;
+
       document.body.classList.add("v6-account-switching");
 
       setTimeout(() => {
         refreshAccount()
           .catch(error => {
-            console.warn("[Chati-AI V6.1] Account refresh failed.", error);
+            console.warn("[Chati-AI V6.2] Account refresh failed.", error);
           })
           .finally(() => {
             document.body.classList.remove("v6-account-switching");
@@ -1120,9 +1133,11 @@
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState !== "visible") return;
 
-      document.querySelectorAll("video.v6-loop-video").forEach(video => {
+      document.querySelectorAll("video.v6-loop-video, .v6-seamless-video video.is-active").forEach(video => {
         if (video.paused) video.play().catch(() => {});
       });
+
+      activateSeamlessLoops(document);
     });
 
     refreshAccount().catch(error => {
@@ -1142,6 +1157,9 @@
     restoreWorkspace,
     switchAccount,
     signOutCurrent,
+    deleteCurrentAccount,
+    activateSeamlessLoops,
+    getWorkspaceId: () => localStorage.getItem(ACTIVE_WORKSPACE_KEY) || GUEST_WORKSPACE_ID,
     getProfile: () => currentProfile ? Object.assign({}, currentProfile) : null
   });
 
