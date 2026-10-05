@@ -20629,6 +20629,33 @@ function initializeCinematicSplash() {
 
 async function initializeChatiAI() {
 
+  // V6.0.2 — Account-scoped local workspace.
+  // Wait until the active account dataset is mounted before
+  // script.js caches chatiCharacters / chatiChats_*.
+  if (
+    window.ChatiAccountDataReady
+  ) {
+
+    try {
+
+      await window.ChatiAccountDataReady;
+
+    }
+
+    catch (
+      error
+    ) {
+
+      console.warn(
+        "[Chati-AI] Account data preparation failed:",
+        error
+      );
+
+    }
+
+  }
+
+
   await initializeAppDataStorage();
 
 
