@@ -33,6 +33,25 @@
     rel="stylesheet"
     href="account-ui.css?v=4.0.7.2"
   >
+
+  <!-- V6 — Profile / theme / mobile -->
+  <link
+    rel="stylesheet"
+    href="profile-ui-v6.css?v=6.1.0"
+  >
+
+  <script>
+    (function () {
+      var value = localStorage.getItem("chati-theme-v6") || "dark";
+      var light = value === "light" || (
+        value === "system" &&
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: light)").matches
+      );
+      document.documentElement.setAttribute("data-theme", light ? "light" : "dark");
+      document.documentElement.setAttribute("data-theme-preference", value);
+    })();
+  </script>
 </head>
 
 
@@ -267,6 +286,29 @@
         ></div>
 
       </div>
+
+
+      <button
+        class="profile-nav-btn"
+        id="profileNavBtn"
+        type="button"
+        data-tooltip="Profile"
+        aria-haspopup="dialog"
+        aria-controls="profileModal"
+      >
+        <span id="profileNavAvatar" class="profile-nav-avatar" aria-hidden="true">
+          <span id="profileNavInitial">C</span>
+        </span>
+
+        <span class="profile-nav-copy">
+          <strong id="profileNavName">Profile</strong>
+          <small id="profileNavStatus">Sign in</small>
+        </span>
+
+        <svg class="profile-nav-chevron" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m9 6 6 6-6 6"></path>
+        </svg>
+      </button>
 
 
       <button
@@ -2122,6 +2164,232 @@
 
 
   <!-- =========================
+       V6 PROFILE / ACCOUNTS / SECURITY / APPEARANCE
+  ========================== -->
+
+  <div
+    id="profileModal"
+    class="profile-modal hidden"
+    aria-hidden="true"
+  >
+    <button
+      id="profileOverlay"
+      class="profile-overlay"
+      type="button"
+      aria-label="Close profile"
+    ></button>
+
+    <section
+      class="profile-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profilePanelTitle"
+    >
+      <header class="profile-panel-header">
+        <div>
+          <span class="profile-kicker">You</span>
+          <h2 id="profilePanelTitle">Profile</h2>
+        </div>
+
+        <button
+          id="profileCloseBtn"
+          class="profile-icon-btn"
+          type="button"
+          aria-label="Close profile"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18"></path>
+          </svg>
+        </button>
+      </header>
+
+      <div class="profile-tabs" role="tablist">
+        <button class="profile-tab is-active" data-profile-tab="profile" type="button">Profile</button>
+        <button class="profile-tab" data-profile-tab="accounts" type="button">Accounts</button>
+        <button class="profile-tab" data-profile-tab="security" type="button">Security</button>
+        <button class="profile-tab" data-profile-tab="appearance" type="button">Appearance</button>
+      </div>
+
+      <div id="profileMessage" class="profile-message hidden"></div>
+
+      <div class="profile-panel-scroll">
+        <section class="profile-tab-page" data-profile-page="profile">
+          <div id="profileSignedOutCard" class="profile-card">
+            <div class="profile-auth-heading">
+              <div class="profile-hero-avatar"><span>CA</span></div>
+              <div>
+                <h3>Sign in to Chati-AI</h3>
+                <p>Your account keeps normal characters and chats available across browsers. Signed-out mode starts with an empty workspace.</p>
+              </div>
+            </div>
+
+            <form id="profileAuthForm" class="profile-form">
+              <label>
+                Email
+                <input id="profileAuthEmail" type="email" autocomplete="email" required>
+              </label>
+
+              <label>
+                Password
+                <input id="profileAuthPassword" type="password" autocomplete="current-password" minlength="8" required>
+              </label>
+
+              <div class="profile-action-row">
+                <button id="profileSignInBtn" class="profile-primary-btn" type="submit">Sign In</button>
+                <button id="profileCreateAccountBtn" class="profile-secondary-btn" type="button">Create Account</button>
+              </div>
+
+              <button id="profileForgotPasswordBtn" class="profile-link-btn" type="button">Forgot password?</button>
+            </form>
+          </div>
+
+          <div id="profileSignedInCard" class="profile-card hidden">
+            <div class="profile-editor">
+              <div id="profileAvatarPreview" class="profile-avatar-preview">
+                <span id="profileAvatarInitial">C</span>
+              </div>
+
+              <div class="profile-avatar-controls">
+                <strong>Profile picture or video</strong>
+                <p>Use an image or short looping video from a link or your gallery.</p>
+
+                <label>
+                  Media URL
+                  <input id="profileAvatarUrl" type="url" placeholder="https://example.com/profile.mp4">
+                </label>
+
+                <div class="profile-action-row">
+                  <button id="profileChooseAvatarBtn" class="profile-secondary-btn" type="button">Choose from gallery</button>
+                  <button id="profileRemoveAvatarBtn" class="profile-quiet-btn" type="button">Remove</button>
+                </div>
+
+                <input
+                  id="profileAvatarFile"
+                  class="hidden"
+                  type="file"
+                  accept="image/*,video/mp4,video/webm,video/quicktime"
+                >
+              </div>
+            </div>
+
+            <form id="profileDetailsForm" class="profile-form">
+              <label>
+                Display name
+                <input id="profileDisplayName" type="text" maxlength="60" placeholder="Your name">
+              </label>
+
+              <label>
+                Email
+                <input id="profileEmail" type="email" disabled>
+              </label>
+
+              <button class="profile-primary-btn" type="submit">Save Profile</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="profile-tab-page hidden" data-profile-page="accounts">
+          <div class="profile-card">
+            <div class="profile-section-heading">
+              <div>
+                <h3>Accounts</h3>
+                <p>Keep more than one Chati-AI account signed in on this device and switch between them.</p>
+              </div>
+              <button id="profileShowAddAccountBtn" class="profile-secondary-btn" type="button">+ Add account</button>
+            </div>
+
+            <div id="profileAccountsList" class="profile-accounts-list"></div>
+
+            <form id="profileAddAccountForm" class="profile-form profile-inline-form hidden">
+              <h4>Add another account</h4>
+
+              <label>
+                Email
+                <input id="profileAddAccountEmail" type="email" autocomplete="email">
+              </label>
+
+              <label>
+                Password
+                <input id="profileAddAccountPassword" type="password" autocomplete="current-password">
+              </label>
+
+              <div class="profile-action-row">
+                <button class="profile-primary-btn" type="submit">Add &amp; Switch</button>
+                <button id="profileCancelAddAccountBtn" class="profile-quiet-btn" type="button">Cancel</button>
+              </div>
+            </form>
+
+            <button id="profileSignOutBtn" class="profile-danger-btn" type="button">Sign out of this account</button>
+          </div>
+        </section>
+
+        <section class="profile-tab-page hidden" data-profile-page="security">
+          <div class="profile-card">
+            <div class="profile-section-heading">
+              <div>
+                <h3>Security</h3>
+                <p>Change the password for the active account.</p>
+              </div>
+            </div>
+
+            <form id="profilePasswordForm" class="profile-form">
+              <label>
+                Current password
+                <input id="profileCurrentPassword" type="password" autocomplete="current-password">
+              </label>
+
+              <label>
+                New password
+                <input id="profileNewPassword" type="password" autocomplete="new-password" minlength="8">
+              </label>
+
+              <label>
+                Confirm new password
+                <input id="profileConfirmPassword" type="password" autocomplete="new-password" minlength="8">
+              </label>
+
+              <button class="profile-primary-btn" type="submit">Change Password</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="profile-tab-page hidden" data-profile-page="appearance">
+          <div class="profile-card">
+            <div class="profile-section-heading">
+              <div>
+                <h3>Appearance</h3>
+                <p>Choose how Chati-AI looks on this device. Signed-in accounts sync this preference.</p>
+              </div>
+            </div>
+
+            <label class="profile-theme-field">
+              Theme
+              <select id="profileThemeSelect">
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="system">Use device setting</option>
+              </select>
+            </label>
+
+            <div class="profile-theme-preview-grid" aria-hidden="true">
+              <div class="profile-theme-preview dark">
+                <span></span><span></span><span></span>
+                <strong>Dark</strong>
+              </div>
+
+              <div class="profile-theme-preview light">
+                <span></span><span></span><span></span>
+                <strong>Light</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </div>
+
+
+  <!-- =========================
        SETTINGS / ROLEPLAY LEVEL
   ========================== -->
 
@@ -3128,13 +3396,14 @@
     }
   </script>
 
-  <script src="script.js?v=3.10.7"></script>
-
   <!-- =========================
-       V4.0.1 — SUPABASE AUTH
+       V6.0.1 — MULTI-ACCOUNT AUTH + ACCOUNT DATA ISOLATION
   ========================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-auth-v4.js?v=4.0.7.3"></script>
+  <script src="supabase-auth-v6.js?v=6.0.1"></script>
+  <script src="account-data-v6.js?v=6.0.2"></script>
+
+  <script src="script.js?v=3.11.0"></script>
 
   <!-- =========================
        V4.0.2 — CLOUD DATABASE
@@ -3158,7 +3427,7 @@
 
   <script src="cloud-sync.js?v=4.0.6.4a"></script>
 
-  <script src="account-ui.js?v=4.0.7.5"></script>
+  <script src="profile-ui-v6.js?v=6.1.0"></script>
 
 </body>
 </html>
