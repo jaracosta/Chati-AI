@@ -1918,10 +1918,41 @@
           .getSession();
 
 
-      return (
+      const session =
         result?.data?.session ||
-        null
-      );
+        null;
+
+
+      const userId =
+        session?.user?.id ||
+        null;
+
+
+      if (!userId) {
+        return null;
+      }
+
+
+      // V6.2 ACCOUNT ISOLATION:
+      // Guest chats or another account's local chats are never allowed
+      // to participate in cloud conversation sync.
+      const activeWorkspace =
+        localStorage.getItem(
+          "chatiLoadedWorkspaceUidV6"
+        );
+
+
+      if (
+        activeWorkspace !==
+        String(
+          userId
+        )
+      ) {
+        return null;
+      }
+
+
+      return session;
 
     }
 
