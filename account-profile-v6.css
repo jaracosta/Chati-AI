@@ -524,3 +524,14 @@ html[data-chati-theme="light"] .v6-theme-grid button {
 body:not(.v6-signed-out) .account-settings-section {
   display: none !important;
 }
+
+
+/* Hide the signed-out user's previous local workspace from sight/access. */
+body.v6-signed-out:not(.v6-auth-flow) .app {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.v6-signed-out.v6-auth-flow .app {
+  visibility: visible;
+}
