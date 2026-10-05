@@ -1,8 +1,8 @@
-// CHATI-AI V6.1 — native-feeling mobile shell and UI polish
+// CHATI-AI V6.2 — native-feeling mobile shell and UI polish
 (() => {
   "use strict";
 
-  const VERSION = "6.1.0";
+  const VERSION = "6.2.0";
   let dock = null;
 
   function icon(path) {
@@ -92,16 +92,7 @@
   });
 
   function keepLoopingVideosAlive() {
-    document.querySelectorAll("video[loop], video.v6-loop-video").forEach(video => {
-      video.muted = true;
-      video.defaultMuted = true;
-      video.loop = true;
-      video.playsInline = true;
-
-      if (document.visibilityState === "visible" && video.paused) {
-        video.play().catch(() => {});
-      }
-    });
+    window.ChatiMediaV6?.refresh?.();
   }
 
   function initialize() {

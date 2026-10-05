@@ -33,9 +33,9 @@
     rel="stylesheet"
     href="account-ui.css?v=4.0.7.2"
   >
-  <link rel="stylesheet" href="account-profile-v6.css?v=6.1.0">
-  <link rel="stylesheet" href="media-v6.css?v=6.1.0">
-  <link rel="stylesheet" href="app-polish-v6.css?v=6.1.0">
+  <link rel="stylesheet" href="account-profile-v6.css?v=6.2.0">
+  <link rel="stylesheet" href="media-v6.css?v=6.2.0">
+  <link rel="stylesheet" href="app-polish-v6.css?v=6.2.0">
 </head>
 
 
@@ -3148,7 +3148,7 @@
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker
-          .register("./sw.js?v=6.1.0", {
+          .register("./sw.js?v=6.2.0", {
             scope: "./",
             updateViaCache: "none"
           })
@@ -3166,6 +3166,7 @@
   ========================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-auth-v4.js?v=4.0.7.3"></script>
+  <script src="account-profile-v6.js?v=6.2.0"></script>
 
   <!-- =========================
        V4.0.2 — CLOUD DATABASE
@@ -3180,19 +3181,18 @@
   ========================== -->
   <script src="conversation-db.js?v=5.0.1b"></script>
   <script src="conversation-sync.js?v=5.0.5b"></script>
-  <script src="conversation-sync-v5-final.js?v=5.0.11"></script>
+  <script src="conversation-sync-v5-final.js?v=6.2.0"></script>
 
   <!-- =========================
        V4.0.6 — CLOUD MEDIA
   ========================== -->
   <script src="cloud-media.js?v=6.0.2"></script>
 
-  <script src="cloud-sync.js?v=4.0.6.4a"></script>
+  <script src="cloud-sync.js?v=6.2.0"></script>
 
   <script src="account-ui.js?v=4.0.7.5"></script>
-  <script src="media-v6.js?v=6.1.0"></script>
-  <script src="account-profile-v6.js?v=6.1.0"></script>
-  <script src="app-polish-v6.js?v=6.1.0"></script>
+  <script src="media-v6.js?v=6.2.0"></script>
+  <script src="app-polish-v6.js?v=6.2.0"></script>
 
 </body>
 </html>

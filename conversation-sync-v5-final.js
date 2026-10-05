@@ -125,6 +125,17 @@
         return lastRun;
       }
 
+      const mountedWorkspace = localStorage.getItem("chatiLoadedWorkspaceUidV6");
+
+      if (mountedWorkspace !== currentSession.user.id) {
+        lastRun = {
+          ok: false,
+          reason: "workspace-user-mismatch",
+          finishedAt: Date.now()
+        };
+        return lastRun;
+      }
+
       if (lastUserId !== currentSession.user.id) {
         lastUserId = currentSession.user.id;
         await setupRealtime(lastUserId);
@@ -440,7 +451,7 @@
     })
   });
 
-  Promise.resolve()
+  Promise.resolve(window.ChatiWorkspaceReady)
     .then(start)
     .catch(error => {
       lastError = String((error && error.message) || error);

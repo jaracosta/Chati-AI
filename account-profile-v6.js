@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "6.1.0";
+  const VERSION = "6.2.0";
   const PROFILE_TABLE = "user_profiles";
   const MEDIA_BUCKET = "character-media";
   const VAULT_KEY = "chatiAccountVaultV6";
@@ -10,11 +10,19 @@
   const WORKSPACE_PREFIX = "chatiAccountWorkspaceV6_";
   const LEGACY_OWNER_KEY = "chatiLegacyWorkspaceOwnerV6";
   const LEGACY_UNCLAIMED = "__legacy_unclaimed__";
+  const ANON_WORKSPACE_ID = "__anonymous__";
   const DB_NAME = "chatiMediaDB";
   const APP_STORE = "appData";
 
   let currentUser = null;
   let currentProfile = null;
+
+  let resolveWorkspaceReady = null;
+  if (!window.ChatiWorkspaceReady) {
+    window.ChatiWorkspaceReady = new Promise(resolve => {
+      resolveWorkspaceReady = resolve;
+    });
+  }
   let avatarDisplayUrl = "";
   let panelOpen = false;
   let busy = false;
@@ -299,68 +307,63 @@
     return Boolean(value);
   }
 
+  async function deleteWorkspaceSnapshot(workspaceId) {
+    if (!workspaceId) return;
+
+    const db = await openDb();
+
+    if (db.objectStoreNames.contains(APP_STORE)) {
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(APP_STORE, "readwrite");
+        tx.objectStore(APP_STORE).delete(WORKSPACE_PREFIX + workspaceId);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    db.close();
+  }
+
   async function ensureWorkspace(user) {
     const loaded = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
-    const next = user?.id || null;
-    const legacyOwner = localStorage.getItem(LEGACY_OWNER_KEY);
+    const next = user?.id || ANON_WORKSPACE_ID;
 
     if (loaded === next) return false;
 
-    // If an account workspace is already loaded, preserve it before switching.
+    // Save whatever workspace is currently mounted under its OWN identity.
+    // Anonymous data is never adopted into an authenticated account.
     if (loaded && loaded !== next) {
       try {
         await snapshotWorkspace(loaded);
       } catch (error) {
-        console.warn("[Chati-AI V6.1] Workspace snapshot failed.", error);
+        console.warn("[Chati-AI V6.2] Workspace snapshot failed.", error);
       }
     }
 
-    // Signed out with old pre-account local data:
-    // preserve it in an unclaimed vault, but NEVER attach it to the next
-    // random account that signs in.
-    if (!next) {
-      if (!loaded && !legacyOwner && await workspaceHasMeaningfulData()) {
+    // Migration from pre-V6.2 browsers that have local data mounted without
+    // an ownership marker. Preserve it safely, but never merge it into login.
+    if (!loaded) {
+      const hasMountedData = await workspaceHasMeaningfulData();
+
+      if (hasMountedData) {
+        const safeOwner = user ? LEGACY_UNCLAIMED : ANON_WORKSPACE_ID;
+
         try {
-          await snapshotWorkspace(LEGACY_UNCLAIMED);
-          localStorage.setItem(LEGACY_OWNER_KEY, LEGACY_UNCLAIMED);
+          await snapshotWorkspace(safeOwner);
+
+          if (!user) {
+            localStorage.setItem(ACTIVE_WORKSPACE_KEY, ANON_WORKSPACE_ID);
+            return false;
+          }
         } catch (error) {
-          console.warn("[Chati-AI V6.1] Legacy workspace safety snapshot failed.", error);
+          console.warn("[Chati-AI V6.2] Legacy workspace snapshot failed.", error);
         }
       }
-
-      await restoreWorkspace(null);
-      return true;
     }
 
-    // First V6.1 load while already authenticated:
-    // only the account present at that moment may claim legacy local data.
-    if (!loaded && !legacyOwner) {
-      const hasLegacyData = await workspaceHasMeaningfulData();
-
-      if (hasLegacyData) {
-        await snapshotWorkspace(next);
-        localStorage.setItem(LEGACY_OWNER_KEY, next);
-        localStorage.setItem(ACTIVE_WORKSPACE_KEY, next);
-        return false;
-      }
-    }
-
-    // If this account owns the one-time legacy workspace, restore only its
-    // snapshot. No other account may inherit those records.
-    if (!loaded && legacyOwner === next) {
-      if (await hasWorkspaceSnapshot(next)) {
-        await restoreWorkspace(next);
-        return true;
-      }
-
-      await snapshotWorkspace(next);
-      localStorage.setItem(ACTIVE_WORKSPACE_KEY, next);
-      return false;
-    }
-
-    // Every other account gets ONLY its own saved workspace.
-    // A brand-new account therefore starts empty and cloud sync can populate
-    // only rows protected by that user's Supabase RLS.
+    // Exact Botify-style separation:
+    // signed out -> anonymous workspace
+    // signed in  -> only that account workspace
     await restoreWorkspace(next);
     return true;
   }
@@ -579,6 +582,7 @@
   function setPanelOpen(next) {
     panelOpen = Boolean(next);
     panel?.classList.toggle("hidden", !panelOpen);
+    if (!panelOpen) panel?.classList.remove("v6-account-space-mode");
     profileButton?.setAttribute("aria-expanded", panelOpen ? "true" : "false");
     if (panelOpen) renderPanel();
   }
@@ -659,7 +663,8 @@
         '</form>' +
       '</div>' +
 
-      '<div class="v6-panel-section hidden" data-v6-panel-section="accounts">' +
+      '<div class="v6-panel-section hidden v6-account-space" data-v6-panel-section="accounts">' +
+        '<div class="v6-account-space-head"><strong>Account spaces</strong><p>Each account has its own characters, chats, profile and cloud sync. Nothing is merged between accounts.</p></div>' +
         '<div class="v6-account-list">' + (accounts || '<p class="v6-muted">No remembered accounts yet.</p>') + '</div>' +
         '<button class="v6-wide" type="button" data-v6-action="add-account">+ Add another account</button>' +
         '<div class="v6-add-account hidden" id="v6AddAccountBox">' +
@@ -677,6 +682,14 @@
           '<label>Confirm password<input name="confirm" type="password" minlength="8" autocomplete="new-password" required></label>' +
           '<button class="v6-wide primary" type="submit">Change Password</button>' +
         '</form>' +
+        '<div class="v6-danger-zone">' +
+          '<div><strong>Delete account</strong><p>Permanently deletes this account, its cloud characters, chats, profile and uploaded media.</p></div>' +
+          '<button type="button" class="v6-danger-outline" data-v6-action="delete-account">Delete Account</button>' +
+          '<form class="hidden" id="v6DeleteAccountConfirm" data-v6-form="delete-account">' +
+            '<label>Type DELETE to confirm<input name="confirmDelete" autocomplete="off" spellcheck="false" required></label>' +
+            '<button class="v6-wide danger" type="submit">Permanently Delete Account</button>' +
+          '</form>' +
+        '</div>' +
       '</div>' +
 
       '<div class="v6-panel-section hidden" data-v6-panel-section="appearance">' +
@@ -720,6 +733,7 @@
 
     try {
       if (currentUser?.id) await snapshotWorkspace(currentUser.id);
+      try { window.ChatiSync?.stopAutoSync?.(); } catch {}
       try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
       const result = await client().auth.setSession({
@@ -750,8 +764,9 @@
         writeVault(vault);
       }
 
+      try { window.ChatiSync?.stopAutoSync?.(); } catch {}
       try { await window.ChatiV5Sync?.stop?.(); } catch {}
-      await restoreWorkspace(null);
+      await restoreWorkspace(ANON_WORKSPACE_ID);
 
       const result = await auth().signOut();
       if (result?.error) throw result.error;
@@ -773,6 +788,7 @@
     if (section) {
       panel.querySelectorAll("[data-v6-section]").forEach(btn => btn.classList.toggle("active", btn.dataset.v6Section === section));
       panel.querySelectorAll("[data-v6-panel-section]").forEach(node => node.classList.toggle("hidden", node.dataset.v6PanelSection !== section));
+      panel.classList.toggle("v6-account-space-mode", section === "accounts");
       return;
     }
 
@@ -793,6 +809,13 @@
 
     if (action === "close") return setPanelOpen(false);
     if (action === "signout") return signOutCurrent();
+
+    if (action === "delete-account") {
+      const confirmBox = document.getElementById("v6DeleteAccountConfirm");
+      confirmBox?.classList.toggle("hidden");
+      confirmBox?.querySelector("input")?.focus();
+      return;
+    }
 
     if (action === "signin" || action === "create") {
       setPanelOpen(false);
@@ -879,12 +902,49 @@
         setStatus("Password changed.", false);
       }
 
+      if (kind === "delete-account") {
+        const confirmation = String(data.get("confirmDelete") || "").trim();
+
+        if (confirmation !== "DELETE") {
+          throw new Error("Type DELETE exactly to confirm.");
+        }
+
+        setStatus("Deleting account…", false);
+        try { window.ChatiSync?.stopAutoSync?.(); } catch {}
+      try { await window.ChatiV5Sync?.stop?.(); } catch {}
+
+        const sessionResult = await auth().getSession();
+        const session = sessionResult?.data?.session;
+        const deletingUserId = session?.user?.id;
+
+        if (!deletingUserId) throw new Error("No active account.");
+
+        const response = await client().functions.invoke("delete-account", {
+          body: { confirm: true }
+        });
+
+        if (response.error) throw response.error;
+        if (!response.data?.ok) throw new Error(response.data?.error || "Account deletion failed.");
+
+        const vault = readVault();
+        delete vault[deletingUserId];
+        writeVault(vault);
+
+        await deleteWorkspaceSnapshot(deletingUserId);
+        await restoreWorkspace(ANON_WORKSPACE_ID);
+
+        try { await auth().signOut(); } catch {}
+        location.reload();
+        return;
+      }
+
       if (kind === "add-account") {
         const email = String(data.get("email") || "").trim();
         const password = String(data.get("password") || "");
 
         if (currentUser?.id) await snapshotWorkspace(currentUser.id);
-        try { await window.ChatiV5Sync?.stop?.(); } catch {}
+        try { window.ChatiSync?.stopAutoSync?.(); } catch {}
+      try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
         const result = await auth().signIn(email, password);
         if (result?.error) throw result.error;
@@ -923,12 +983,30 @@
       document.body.classList.remove("v6-auth-flow");
     }
 
-    signedOutShell?.classList.toggle(
-      "hidden",
-      !signedOut || document.body.classList.contains("v6-auth-flow")
-    );
+    // Guest/local mode stays usable while signed out. The profile button opens
+    // Sign In / Create Account, but anonymous characters and chats remain in
+    // their own isolated workspace.
+    signedOutShell?.classList.add("hidden");
 
     if (panelOpen) renderPanel();
+  }
+
+  async function syncSignedInAccount() {
+    if (!currentUser) return;
+
+    try {
+      window.ChatiSync?.startAutoSync?.();
+      await window.ChatiSync?.syncCharactersProtected?.("account-session");
+    } catch (error) {
+      console.warn("[Chati-AI V6.2] Character account sync failed.", error);
+    }
+
+    try {
+      await window.ChatiV5Sync?.start?.();
+      await window.ChatiV5Sync?.syncNow?.("account-session");
+    } catch (error) {
+      console.warn("[Chati-AI V6.2] Chat account sync failed.", error);
+    }
   }
 
   async function refreshAccount() {
@@ -941,7 +1019,7 @@
     const workspaceChanged = await ensureWorkspace(user);
     if (workspaceChanged) {
       location.reload();
-      return;
+      return { reloading: true };
     }
 
     currentUser = user;
@@ -951,7 +1029,7 @@
       avatarDisplayUrl = "";
       applyTheme(localStorage.getItem("chatiThemeV6") || "dark");
       render();
-      return;
+      return { ready: true, userId: null };
     }
 
     currentProfile = await ensureProfile(user);
@@ -959,6 +1037,14 @@
     applyTheme(currentProfile.theme || "dark");
     await rememberCurrentSession();
     render();
+
+    setTimeout(() => {
+      syncSignedInAccount().catch(error => {
+        console.warn("[Chati-AI V6.2] Post-login sync failed.", error);
+      });
+    }, 250);
+
+    return { ready: true, userId: user.id };
   }
 
   async function captureLegacySignOut() {
@@ -976,17 +1062,19 @@
     document.getElementById("accountFormCloseBtn")?.addEventListener("click", () => {
       if (!currentUser) {
         document.body.classList.remove("v6-auth-flow");
-        signedOutShell?.classList.remove("hidden");
+        signedOutShell?.classList.add("hidden");
       }
     });
 
     window.addEventListener("chati:authchange", () => {
       document.body.classList.add("v6-account-switching");
+      try { window.ChatiSync?.stopAutoSync?.(); } catch {}
+      try { window.ChatiV5Sync?.stop?.(); } catch {}
 
       setTimeout(() => {
         refreshAccount()
           .catch(error => {
-            console.warn("[Chati-AI V6.1] Account refresh failed.", error);
+            console.warn("[Chati-AI V6.2] Account refresh failed.", error);
           })
           .finally(() => {
             document.body.classList.remove("v6-account-switching");
@@ -998,30 +1086,25 @@
       if ((currentProfile?.theme || localStorage.getItem("chatiThemeV6")) === "system") applyTheme("system");
     });
 
-    document.addEventListener("ended", event => {
-      const video = event.target;
+    refreshAccount()
+      .then(result => {
+        if (!result?.reloading && resolveWorkspaceReady) {
+          resolveWorkspaceReady(result || { ready: true });
+          resolveWorkspaceReady = null;
+        }
+      })
+      .catch(error => {
+        console.error("[Chati-AI V6.2] Profile system failed:", error);
+        currentUser = null;
+        render();
 
-      if (video instanceof HTMLVideoElement && video.classList.contains("v6-loop-video")) {
-        video.currentTime = 0;
-        video.play().catch(() => {});
-      }
-    }, true);
-
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState !== "visible") return;
-
-      document.querySelectorAll("video.v6-loop-video").forEach(video => {
-        if (video.paused) video.play().catch(() => {});
+        if (resolveWorkspaceReady) {
+          resolveWorkspaceReady({ ready: false, error: String(error?.message || error) });
+          resolveWorkspaceReady = null;
+        }
       });
-    });
 
-    refreshAccount().catch(error => {
-      console.error("[Chati-AI V6] Profile system failed:", error);
-      currentUser = null;
-      render();
-    });
-
-    console.log("[Chati-AI Account] V" + VERSION + " profile + multi-account ready.");
+    console.log("[Chati-AI Account] V" + VERSION + " isolated account spaces ready.");
   }
 
   window.ChatiProfileV6 = Object.freeze({
@@ -1032,6 +1115,8 @@
     restoreWorkspace,
     switchAccount,
     signOutCurrent,
+    deleteWorkspaceSnapshot,
+    syncSignedInAccount,
     getProfile: () => currentProfile ? Object.assign({}, currentProfile) : null
   });
 

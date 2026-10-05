@@ -1,4 +1,4 @@
-/* CHATI-AI V6.1 — single-layer image backgrounds + true looping video */
+/* CHATI-AI V6.2 — single-layer backgrounds + seamless crossfade video loops */
 
 .v6-video-avatar-host {
   position: relative;
@@ -120,4 +120,34 @@ video.v6-loop-video {
   .chat-background.active {
     opacity: .4;
   }
+}
+
+
+/* Two decoded video layers overlap briefly at the seam. */
+.v6-smooth-loop-host {
+  position: relative;
+  overflow: hidden;
+}
+
+.v6-smooth-loop-host > video.v6-loop-video {
+  transition: opacity 180ms linear;
+  will-change: opacity;
+}
+
+.v6-profile-avatar.v6-smooth-loop-host,
+.v6-mini-avatar.v6-smooth-loop-host {
+  display: block;
+}
+
+.v6-profile-avatar.v6-smooth-loop-host > video.v6-loop-video,
+.v6-mini-avatar.v6-smooth-loop-host > video.v6-loop-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.v6-loop-twin {
+  pointer-events: none;
 }

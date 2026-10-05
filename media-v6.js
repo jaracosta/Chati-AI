@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "6.1.0";
+  const VERSION = "6.2.0";
   const VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
   const videoFileMap = {
     characterImageFile: "characterImage",
@@ -35,12 +35,11 @@
     video.autoplay = true;
     video.muted = true;
     video.defaultMuted = true;
-    video.loop = true;
+    video.loop = false;
     video.playsInline = true;
     video.preload = "auto";
     video.disablePictureInPicture = true;
     video.setAttribute("muted", "");
-    video.setAttribute("loop", "");
     video.setAttribute("playsinline", "");
     video.setAttribute("aria-hidden", "true");
 
@@ -50,12 +49,114 @@
 
     video.addEventListener("canplay", resume);
     video.addEventListener("loadedmetadata", resume);
-    video.addEventListener("ended", () => {
-      video.currentTime = 0;
-      video.play().catch(() => {});
-    });
+    installSmoothLoop(video);
 
     return video;
+  }
+
+  function installSmoothLoop(video) {
+    if (!(video instanceof HTMLVideoElement)) return;
+    if (video.dataset.v6SmoothLoop === "1") return;
+
+    const parent = video.parentElement;
+    if (!parent) {
+      video.loop = true;
+      return;
+    }
+
+    video.dataset.v6SmoothLoop = "1";
+    video.loop = false;
+    parent.classList.add("v6-smooth-loop-host");
+
+    const twin = video.cloneNode(true);
+    twin.removeAttribute("id");
+    twin.dataset.v6SmoothLoop = "1";
+    twin.classList.add("v6-loop-twin");
+    twin.loop = false;
+    twin.autoplay = false;
+    twin.muted = true;
+    twin.defaultMuted = true;
+    twin.playsInline = true;
+    twin.preload = "auto";
+    twin.style.opacity = "0";
+    twin.setAttribute("aria-hidden", "true");
+    parent.appendChild(twin);
+
+    let active = video;
+    let standby = twin;
+    let blending = false;
+    let raf = 0;
+
+    const blendMs = 180;
+    const leadSeconds = 0.22;
+
+    const resume = () => {
+      if (document.visibilityState === "hidden") return;
+      if (active.paused) active.play().catch(() => {});
+    };
+
+    const swap = async () => {
+      if (blending) return;
+      if (!Number.isFinite(active.duration) || active.duration <= 0) return;
+
+      blending = true;
+
+      try {
+        standby.currentTime = 0;
+      } catch {}
+
+      try {
+        await standby.play();
+      } catch {}
+
+      standby.style.opacity = "1";
+      active.style.opacity = "0";
+
+      setTimeout(() => {
+        try { active.pause(); } catch {}
+        try { active.currentTime = 0; } catch {}
+
+        const oldActive = active;
+        active = standby;
+        standby = oldActive;
+        standby.style.opacity = "0";
+        active.style.opacity = "1";
+        blending = false;
+      }, blendMs);
+    };
+
+    const tick = () => {
+      if (!parent.isConnected) {
+        cancelAnimationFrame(raf);
+        document.removeEventListener("visibilitychange", resume);
+        return;
+      }
+
+      if (
+        !blending &&
+        Number.isFinite(active.duration) &&
+        active.duration > 0 &&
+        active.currentTime > 0 &&
+        active.duration - active.currentTime <= leadSeconds
+      ) {
+        swap().catch(() => {});
+      }
+
+      raf = requestAnimationFrame(tick);
+    };
+
+    const endedFallback = () => {
+      swap().catch(() => {});
+    };
+
+    video.addEventListener("ended", endedFallback);
+    twin.addEventListener("ended", endedFallback);
+    video.addEventListener("canplay", resume);
+    twin.addEventListener("canplay", () => {});
+    document.addEventListener("visibilitychange", resume);
+
+    resume();
+    raf = requestAnimationFrame(tick);
   }
 
   function enhanceAvatarImage(img) {
@@ -162,10 +263,15 @@
       host.dataset.v6VideoSource = inlineSource;
     }
 
+    if (!inlineSource && !host.classList.contains("active")) {
+      delete host.dataset.v6VideoSource;
+    }
+
     const source = host.dataset.v6VideoSource || "";
 
     if (!source) {
       media?.remove();
+      host.querySelectorAll(":scope > .v6-loop-twin").forEach(node => node.remove());
       host.classList.remove("v6-has-video-background");
       return;
     }
@@ -243,7 +349,14 @@
     records.forEach(record => {
       if (record.type === "childList") {
         record.addedNodes.forEach(node => {
-          if (node.nodeType === 1) scanAvatars(node);
+          if (node.nodeType !== 1) return;
+          scanAvatars(node);
+
+          if (node.matches?.("video.v6-loop-video")) {
+            installSmoothLoop(node);
+          }
+
+          node.querySelectorAll?.("video.v6-loop-video").forEach(installSmoothLoop);
         });
       }
 
@@ -269,6 +382,7 @@
 
   prepareInputs();
   scanAvatars();
+  document.querySelectorAll("video.v6-loop-video").forEach(installSmoothLoop);
   updateFormPreviews();
   ensureChatBackgroundMedia();
 
@@ -281,18 +395,8 @@
 
   window.addEventListener("resize", ensureChatBackgroundMedia);
 
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "visible") return;
-
-    document.querySelectorAll("video.v6-loop-video").forEach(video => {
-      if (video.paused) video.play().catch(() => {});
-    });
-  });
-
   window.addEventListener("pageshow", () => {
-    document.querySelectorAll("video.v6-loop-video").forEach(video => {
-      if (video.paused) video.play().catch(() => {});
-    });
+    document.querySelectorAll("video.v6-loop-video:not(.v6-loop-twin)").forEach(installSmoothLoop);
     ensureChatBackgroundMedia();
   });
 
@@ -300,9 +404,11 @@
     version: VERSION,
     refresh() {
       scanAvatars();
+      document.querySelectorAll("video.v6-loop-video").forEach(installSmoothLoop);
       updateFormPreviews();
       ensureChatBackgroundMedia();
-    }
+    },
+    installSmoothLoop
   });
 
   console.log("[Chati-AI Media] V" + VERSION + " video + responsive media ready.");

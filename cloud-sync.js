@@ -2449,6 +2449,32 @@
     }
 
 
+    const mountedWorkspace =
+      localStorage.getItem(
+        "chatiLoadedWorkspaceUidV6"
+      );
+
+
+    if (
+      mountedWorkspace !==
+      userId
+    ) {
+      return {
+        skipped:
+          true,
+
+        signedIn:
+          true,
+
+        reason:
+          "workspace-user-mismatch",
+
+        requestedReason:
+          reason
+      };
+    }
+
+
     if (
       navigator.onLine ===
       false
@@ -5618,7 +5644,11 @@
     });
 
 
-  startAutoSync();
+  Promise.resolve(window.ChatiWorkspaceReady)
+    .then(() => startAutoSync())
+    .catch(error => {
+      console.error("[Chati-AI Sync] Workspace gate failed:", error);
+    });
 
 
   console.log(
