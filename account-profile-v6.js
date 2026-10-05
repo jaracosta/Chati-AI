@@ -793,6 +793,8 @@
         '<button class="danger" type="button" data-v6-action="signout">Sign Out</button>' +
         '<span id="v6PanelStatus" class="v6-panel-status"></span>' +
       '</div>';
+
+    requestAnimationFrame(() => activateSeamlessLoops(panel));
   }
 
   function themeButton(theme, label) {
@@ -829,6 +831,8 @@
         GUEST_WORKSPACE_ID;
 
       await snapshotWorkspace(loaded);
+      try { window.ChatiSync?.stopAutoSync?.(); } catch {}
+      try { window.ChatiConversationSync?.stopAutoConversationSync?.(); } catch {}
       try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
       const result = await client().auth.setSession({
@@ -867,6 +871,8 @@
         writeVault(vault);
       }
 
+      try { window.ChatiSync?.stopAutoSync?.(); } catch {}
+      try { window.ChatiConversationSync?.stopAutoConversationSync?.(); } catch {}
       try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
       await restoreWorkspace(GUEST_WORKSPACE_ID);
@@ -899,6 +905,8 @@
     setStatus("Deleting account…", false);
 
     try {
+      try { window.ChatiSync?.stopAutoSync?.(); } catch {}
+      try { window.ChatiConversationSync?.stopAutoConversationSync?.(); } catch {}
       try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
       const invoked = await client().functions.invoke("delete-account", {
@@ -1083,7 +1091,9 @@
           GUEST_WORKSPACE_ID;
 
         await snapshotWorkspace(loaded);
-        try { await window.ChatiV5Sync?.stop?.(); } catch {}
+        try { window.ChatiSync?.stopAutoSync?.(); } catch {}
+      try { window.ChatiConversationSync?.stopAutoConversationSync?.(); } catch {}
+      try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
         const result = await auth().signIn(email, password);
         if (result?.error) throw result.error;
