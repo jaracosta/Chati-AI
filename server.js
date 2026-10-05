@@ -29,7 +29,7 @@ const PORT =
 
 
 const MODEL = process.env.OPENROUTER_API_KEY
-  ? (process.env.OPENROUTER_MODEL || "openai/gpt-4o")
+  ? (process.env.OPENROUTER_MODEL || "gryphe/mythomax-l2-13b")
   : (process.env.OPENAI_MODEL || "gpt-5.6-terra");
 
 
