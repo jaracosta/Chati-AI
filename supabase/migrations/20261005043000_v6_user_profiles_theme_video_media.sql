@@ -1,0 +1,105 @@
+-- Chati-AI V6 user profiles, theme and video media support.
+
+create table if not exists public.user_profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  display_name text not null default '',
+  avatar_url text,
+  avatar_storage_path text,
+  avatar_kind text not null default 'image'
+    check (avatar_kind in ('image','video')),
+  theme text not null default 'dark'
+    check (theme in ('dark','light','system')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_profiles enable row level security;
+
+drop policy if exists "Users can read own profile" on public.user_profiles;
+create policy "Users can read own profile"
+on public.user_profiles
+for select
+to authenticated
+using ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can insert own profile" on public.user_profiles;
+create policy "Users can insert own profile"
+on public.user_profiles
+for insert
+to authenticated
+with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can update own profile" on public.user_profiles;
+create policy "Users can update own profile"
+on public.user_profiles
+for update
+to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can delete own profile" on public.user_profiles;
+create policy "Users can delete own profile"
+on public.user_profiles
+for delete
+to authenticated
+using ((select auth.uid()) = user_id);
+
+create or replace function public.chati_touch_updated_at()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+revoke execute on function public.chati_touch_updated_at()
+from public, anon, authenticated;
+
+drop trigger if exists user_profiles_touch_updated_at
+on public.user_profiles;
+
+create trigger user_profiles_touch_updated_at
+before update on public.user_profiles
+for each row
+execute function public.chati_touch_updated_at();
+
+create index if not exists user_profiles_updated_idx
+on public.user_profiles (updated_at desc);
+
+update storage.buckets
+set
+  file_size_limit = 31457280,
+  allowed_mime_types = array[
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'video/mp4',
+    'video/webm',
+    'video/quicktime'
+  ]::text[]
+where id = 'character-media';
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_publication
+    where pubname = 'supabase_realtime'
+  )
+  and not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'user_profiles'
+  )
+  then
+    alter publication supabase_realtime
+      add table public.user_profiles;
+  end if;
+end
+$$;
