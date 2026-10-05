@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "6.1.0";
+  const VERSION = "6.2.0";
   const VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
   const videoFileMap = {
     characterImageFile: "characterImage",
@@ -141,54 +141,81 @@
     setPreviewMedia(document.getElementById("groupBackgroundPreview"), groupBackground);
   }
 
-  function ensureChatBackgroundMedia() {
+  function setChatBackground(source) {
     const host = document.getElementById("chatBackground");
     if (!host) return;
 
-    const inlineSource = extractCssUrl(host.style.backgroundImage);
+    const clean = String(source || "").trim();
     let media = host.querySelector(":scope > .v6-chat-background-media");
 
-    // Static images use exactly ONE rendering layer: the host background.
-    if (inlineSource && !isVideoSource(inlineSource)) {
+    if (!clean) {
       media?.remove();
-      delete host.dataset.v6VideoSource;
-      host.classList.remove("v6-has-video-background");
-      return;
-    }
-
-    // When script.js gives us a video URL through backgroundImage, capture it
-    // once, then remove the invalid CSS background and render a real <video>.
-    if (inlineSource && isVideoSource(inlineSource)) {
-      host.dataset.v6VideoSource = inlineSource;
-    }
-
-    const source = host.dataset.v6VideoSource || "";
-
-    if (!source) {
-      media?.remove();
-      host.classList.remove("v6-has-video-background");
-      return;
-    }
-
-    const same =
-      media instanceof HTMLVideoElement &&
-      media.dataset.source === source;
-
-    host.classList.add("v6-has-video-background");
-
-    if (host.style.backgroundImage !== "none") {
+      delete host.dataset.v6MediaSource;
       host.style.backgroundImage = "none";
+      host.classList.remove("v6-has-video-background");
+      return;
     }
 
-    if (same) {
-      if (media.paused) media.play().catch(() => {});
+    host.dataset.v6MediaSource = clean;
+
+    if (isVideoSource(clean)) {
+      const same =
+        media instanceof HTMLVideoElement &&
+        media.dataset.source === clean;
+
+      host.style.backgroundImage = "none";
+      host.classList.add("v6-has-video-background");
+
+      if (same) {
+        if (media.paused) media.play().catch(() => {});
+        return;
+      }
+
+      media?.remove();
+      media = makeVideo(clean, "v6-chat-background-media");
+      media.dataset.source = clean;
+      host.appendChild(media);
       return;
     }
 
     media?.remove();
-    media = makeVideo(source, "v6-chat-background-media");
-    media.dataset.source = source;
-    host.appendChild(media);
+    host.classList.remove("v6-has-video-background");
+
+    const safe = clean
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"')
+      .replace(/[\r\n]/g, "");
+
+    host.style.backgroundImage = 'url("' + safe + '")';
+  }
+
+  function ensureChatBackgroundMedia() {
+    const host = document.getElementById("chatBackground");
+    if (!host) return;
+
+    const stored = String(host.dataset.v6MediaSource || "").trim();
+    const inline = extractCssUrl(host.style.backgroundImage);
+
+    if (stored) {
+      if (!isVideoSource(stored) && inline && inline !== stored) {
+        host.dataset.v6MediaSource = inline;
+        setChatBackground(inline);
+        return;
+      }
+
+      setChatBackground(stored);
+      return;
+    }
+
+    if (inline) {
+      setChatBackground(inline);
+      return;
+    }
+
+    const media = host.querySelector(":scope > .v6-chat-background-media");
+    if (media?.dataset.source) {
+      setChatBackground(media.dataset.source);
+    }
   }
 
   async function handleVideoFileInput(event) {
@@ -298,6 +325,7 @@
 
   window.ChatiMediaV6 = Object.freeze({
     version: VERSION,
+    setChatBackground,
     refresh() {
       scanAvatars();
       updateFormPreviews();
