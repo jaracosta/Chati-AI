@@ -1,0 +1,573 @@
+/* CHATI-AI V6.1 — app-like polish, mobile creator stability, proper light theme */
+
+:root {
+  --v6-accent: #7c6ee6;
+  --v6-accent-soft: rgba(124, 110, 230, .14);
+  --v6-radius-lg: 22px;
+  --v6-radius-md: 16px;
+}
+
+/* ---------------------------------------------------------
+   MOBILE APP SHELL
+--------------------------------------------------------- */
+
+.v6-mobile-dock {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  body:not(.mobile-chat-active):not(.v6-signed-out) .v6-mobile-dock {
+    position: fixed;
+    left: max(10px, env(safe-area-inset-left));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    z-index: 9000;
+    height: 64px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding: 6px;
+    border: 1px solid rgba(120, 120, 145, .22);
+    border-radius: 20px;
+    background: rgba(17, 17, 23, .92);
+    box-shadow:
+      0 18px 50px rgba(0,0,0,.34),
+      inset 0 1px 0 rgba(255,255,255,.04);
+    backdrop-filter: blur(24px) saturate(1.14);
+    -webkit-backdrop-filter: blur(24px) saturate(1.14);
+  }
+
+  .v6-mobile-dock button {
+    min-width: 0;
+    min-height: 50px;
+    border: 0;
+    border-radius: 15px;
+    background: transparent;
+    color: #8e8e9b;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 2px;
+    font: inherit;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .v6-mobile-dock button svg {
+    width: 21px;
+    height: 21px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .v6-mobile-dock button span {
+    font-size: 10px;
+    font-weight: 760;
+    letter-spacing: .01em;
+  }
+
+  .v6-mobile-dock button.active {
+    color: #f5f5f8;
+    background: rgba(124, 110, 230, .12);
+  }
+
+  body:not(.mobile-chat-active) .main-content {
+    padding-bottom: calc(90px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* ---------------------------------------------------------
+   MOBILE CREATOR — NO IOS ZOOM / NO JUMPY FORM
+--------------------------------------------------------- */
+
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  #characterCreateView,
+  #groupCreateView,
+  #createChoiceView {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    overscroll-behavior-y: contain;
+  }
+
+  #characterCreateView .create-header,
+  #groupCreateView .create-header {
+    position: sticky;
+    top: 0;
+    z-index: 80;
+    margin: -4px -2px 14px;
+    padding:
+      calc(8px + env(safe-area-inset-top))
+      10px
+      10px;
+    background: linear-gradient(
+      180deg,
+      rgba(12,12,17,.96) 0%,
+      rgba(12,12,17,.92) 76%,
+      rgba(12,12,17,0) 100%
+    );
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .character-form {
+    width: 100%;
+    max-width: 100%;
+    gap: 12px;
+    padding-bottom: calc(110px + env(safe-area-inset-bottom));
+  }
+
+  .creator-card {
+    width: 100%;
+    min-width: 0;
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .creator-card-title {
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .creator-card-title > span {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: rgba(255,255,255,.035);
+  }
+
+  .creator-card-title > span svg {
+    width: 19px;
+    height: 19px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .two-columns,
+  .appearance-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .avatar-editor-row {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .avatar-preview-wrap {
+    width: 92px;
+    min-width: 92px;
+    height: 92px;
+    border-radius: 20px;
+  }
+
+  .character-form input,
+  .character-form textarea,
+  .character-form select,
+  .group-form input,
+  .group-form textarea,
+  .group-form select,
+  .account-auth-form input,
+  .v6-profile-panel input,
+  #sidebarSearchInput {
+    /* iOS Safari zooms focused form fields below 16px. */
+    font-size: 16px !important;
+    line-height: 1.35;
+    transform: translateZ(0);
+  }
+
+  .character-form input,
+  .character-form textarea,
+  .character-form select,
+  .group-form input,
+  .group-form textarea,
+  .group-form select {
+    min-height: 48px;
+    scroll-margin-top: 110px;
+    scroll-margin-bottom: 170px;
+  }
+
+  .character-form textarea,
+  .group-form textarea {
+    min-height: 126px;
+    resize: none;
+  }
+
+  .small-textarea {
+    min-height: 110px !important;
+  }
+
+  .creator-large-textarea {
+    min-height: 170px !important;
+  }
+
+  .pronoun-option,
+  .image-picker-btn,
+  .image-remove-btn,
+  .outline-add-btn,
+  .save-character-btn,
+  .secondary-btn,
+  .back-btn {
+    min-height: 46px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .image-source-actions {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+    display: grid !important;
+  }
+
+  .image-remove-btn {
+    width: auto !important;
+  }
+
+  .creator-form-actions {
+    position: sticky;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    z-index: 70;
+    padding: 10px;
+    margin: 4px -4px 0;
+    border: 1px solid rgba(108,108,126,.18);
+    border-radius: 16px;
+    background: rgba(15,15,21,.94);
+    box-shadow: 0 14px 36px rgba(0,0,0,.28);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+}
+
+/* ---------------------------------------------------------
+   CONSISTENT LINE ICONS — NO EMOJI / STICKER LOOK
+--------------------------------------------------------- */
+
+.v6-line-icon,
+.context-action > span:first-child,
+.memory-title-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.v6-line-icon svg,
+.context-action > span:first-child svg,
+.memory-title-icon svg,
+.memory-section-title-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------------------------------------------------------
+   LIGHT THEME — PURPOSE-BUILT PALETTE, NOT INVERTED DARK UI
+--------------------------------------------------------- */
+
+html[data-chati-theme="light"] {
+  color-scheme: light;
+  --v6-light-bg: #f5f6f9;
+  --v6-light-panel: #ffffff;
+  --v6-light-panel-soft: #fafafe;
+  --v6-light-border: #e3e5ec;
+  --v6-light-text: #20222b;
+  --v6-light-muted: #747886;
+  --v6-light-accent: #6656d7;
+}
+
+html[data-chati-theme="light"] body,
+html[data-chati-theme="light"] .app,
+html[data-chati-theme="light"] .main-content {
+  background: var(--v6-light-bg) !important;
+  color: var(--v6-light-text) !important;
+}
+
+html[data-chati-theme="light"] .sidebar {
+  background: rgba(255,255,255,.97) !important;
+  border-color: var(--v6-light-border) !important;
+  box-shadow: 8px 0 30px rgba(28,31,42,.045) !important;
+}
+
+html[data-chati-theme="light"] .sidebar::before,
+html[data-chati-theme="light"] .sidebar::after {
+  opacity: 0 !important;
+}
+
+html[data-chati-theme="light"] .sidebar-brand-name,
+html[data-chati-theme="light"] .sidebar-label,
+html[data-chati-theme="light"] .sidebar-section-title,
+html[data-chati-theme="light"] .history-character,
+html[data-chati-theme="light"] .history-title,
+html[data-chati-theme="light"] h1,
+html[data-chati-theme="light"] h2,
+html[data-chati-theme="light"] h3,
+html[data-chati-theme="light"] h4 {
+  color: var(--v6-light-text) !important;
+}
+
+html[data-chati-theme="light"] .nav-btn,
+html[data-chati-theme="light"] .settings-btn,
+html[data-chati-theme="light"] .v6-profile-button {
+  color: #626777 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+html[data-chati-theme="light"] .nav-btn.active,
+html[data-chati-theme="light"] .v6-profile-button:hover {
+  color: #4d43aa !important;
+  background: #f0effb !important;
+}
+
+html[data-chati-theme="light"] .sidebar-divider,
+html[data-chati-theme="light"] .sidebar-section-heading {
+  border-color: var(--v6-light-border) !important;
+}
+
+html[data-chati-theme="light"] .sidebar-search {
+  background: #f5f6fa !important;
+  border-color: #e3e5ed !important;
+}
+
+html[data-chati-theme="light"] .sidebar-search-input {
+  background: transparent !important;
+  color: var(--v6-light-text) !important;
+}
+
+html[data-chati-theme="light"] .history-item {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+html[data-chati-theme="light"] .history-item:hover,
+html[data-chati-theme="light"] .history-item.active {
+  background: #f1f1f7 !important;
+  border-color: #e6e5ef !important;
+}
+
+html[data-chati-theme="light"] .character-card,
+html[data-chati-theme="light"] .group-card,
+html[data-chati-theme="light"] .creator-card,
+html[data-chati-theme="light"] .settings-panel,
+html[data-chati-theme="light"] .memory-panel,
+html[data-chati-theme="light"] .create-choice-card {
+  background: var(--v6-light-panel) !important;
+  color: var(--v6-light-text) !important;
+  border-color: var(--v6-light-border) !important;
+  box-shadow: 0 10px 30px rgba(27,31,45,.055) !important;
+}
+
+html[data-chati-theme="light"] .character-info p,
+html[data-chati-theme="light"] .creator-card-title p,
+html[data-chati-theme="light"] .settings-section-description,
+html[data-chati-theme="light"] .chat-character-info p,
+html[data-chati-theme="light"] .v6-muted,
+html[data-chati-theme="light"] .v6-profile-button-copy small,
+html[data-chati-theme="light"] .v6-panel-identity small,
+html[data-chati-theme="light"] .v6-account-row small {
+  color: var(--v6-light-muted) !important;
+}
+
+html[data-chati-theme="light"] .character-form label,
+html[data-chati-theme="light"] .form-field,
+html[data-chati-theme="light"] .v6-panel-section label {
+  color: #4f5360 !important;
+}
+
+html[data-chati-theme="light"] .character-form input,
+html[data-chati-theme="light"] .character-form textarea,
+html[data-chati-theme="light"] .character-form select,
+html[data-chati-theme="light"] .group-form input,
+html[data-chati-theme="light"] .group-form textarea,
+html[data-chati-theme="light"] .v6-profile-panel input,
+html[data-chati-theme="light"] .account-auth-form input {
+  background: #fbfbfd !important;
+  color: var(--v6-light-text) !important;
+  border-color: #dde0e8 !important;
+  box-shadow: none !important;
+}
+
+html[data-chati-theme="light"] .character-form input:focus,
+html[data-chati-theme="light"] .character-form textarea:focus,
+html[data-chati-theme="light"] .v6-profile-panel input:focus {
+  border-color: #8d82e8 !important;
+  box-shadow: 0 0 0 3px rgba(102,86,215,.10) !important;
+}
+
+html[data-chati-theme="light"] .pronoun-picker {
+  background: #f7f7fb !important;
+  border-color: #e2e4ea !important;
+}
+
+html[data-chati-theme="light"] .pronoun-option {
+  color: #696e7b !important;
+}
+
+html[data-chati-theme="light"] .pronoun-option.active,
+html[data-chati-theme="light"] .pronoun-option:hover {
+  color: #4f45ae !important;
+  background: #eeecfb !important;
+}
+
+html[data-chati-theme="light"] .image-picker-btn,
+html[data-chati-theme="light"] .image-remove-btn,
+html[data-chati-theme="light"] .outline-add-btn,
+html[data-chati-theme="light"] .secondary-btn {
+  background: #f7f7fb !important;
+  color: #555a68 !important;
+  border-color: #e0e2e9 !important;
+}
+
+html[data-chati-theme="light"] .save-character-btn,
+html[data-chati-theme="light"] .account-primary-btn,
+html[data-chati-theme="light"] .v6-wide.primary {
+  background: #20222b !important;
+  color: #fff !important;
+  border-color: #20222b !important;
+}
+
+html[data-chati-theme="light"] #chatView {
+  background: #eceef3 !important;
+}
+
+html[data-chati-theme="light"] .chat-header.chat-layer,
+html[data-chati-theme="light"] .chat-form.chat-layer,
+html[data-chati-theme="light"] .current-chat-bar.chat-layer {
+  background: rgba(255,255,255,.88) !important;
+  border-color: rgba(52,56,70,.10) !important;
+  box-shadow: 0 10px 30px rgba(31,34,45,.055) !important;
+}
+
+html[data-chati-theme="light"] .message.character {
+  background: rgba(255,255,255,.95) !important;
+  color: #252730 !important;
+  border-color: rgba(50,54,68,.10) !important;
+  box-shadow: 0 8px 22px rgba(35,39,52,.055) !important;
+}
+
+html[data-chati-theme="light"] .message.user {
+  background: #242630 !important;
+  color: #fff !important;
+  border-color: #242630 !important;
+  box-shadow: 0 8px 22px rgba(35,39,52,.09) !important;
+}
+
+html[data-chati-theme="light"] .chat-form textarea,
+html[data-chati-theme="light"] #messageInput {
+  background: #fff !important;
+  color: #20222b !important;
+  border-color: #dfe1e8 !important;
+}
+
+html[data-chati-theme="light"] .memory-btn,
+html[data-chati-theme="light"] .menu-btn,
+html[data-chati-theme="light"] .new-chat-btn {
+  background: #fff !important;
+  color: #444957 !important;
+  border-color: #e0e2e8 !important;
+  box-shadow: none !important;
+}
+
+html[data-chati-theme="light"] .chat-background {
+  filter: saturate(.92) contrast(1.01) brightness(1) !important;
+}
+
+html[data-chati-theme="light"] .chat-background::before {
+  background: radial-gradient(
+    ellipse at 50% 40%,
+    rgba(255,255,255,.08) 0%,
+    rgba(246,247,250,.25) 48%,
+    rgba(239,241,245,.55) 100%
+  ) !important;
+}
+
+html[data-chati-theme="light"] .chat-background::after {
+  background: linear-gradient(
+    180deg,
+    rgba(246,247,250,.30) 0%,
+    rgba(246,247,250,.45) 25%,
+    rgba(246,247,250,.66) 72%,
+    rgba(246,247,250,.86) 100%
+  ) !important;
+}
+
+html[data-chati-theme="light"] .v6-profile-panel {
+  background: rgba(255,255,255,.98) !important;
+  color: var(--v6-light-text) !important;
+  border-color: var(--v6-light-border) !important;
+  box-shadow: 0 22px 70px rgba(30,34,48,.14) !important;
+}
+
+html[data-chati-theme="light"] .v6-profile-tabs {
+  background: #f4f5f8 !important;
+}
+
+html[data-chati-theme="light"] .v6-profile-tabs button {
+  color: #777c89 !important;
+}
+
+html[data-chati-theme="light"] .v6-profile-tabs button.active {
+  color: #5146b2 !important;
+  background: #eceafa !important;
+}
+
+html[data-chati-theme="light"] .v6-wide,
+html[data-chati-theme="light"] .v6-file-btn,
+html[data-chati-theme="light"] .v6-inline-actions button,
+html[data-chati-theme="light"] .v6-account-row,
+html[data-chati-theme="light"] .v6-theme-grid button {
+  background: #fafafe !important;
+  color: #30333d !important;
+  border-color: #e1e3ea !important;
+}
+
+html[data-chati-theme="light"] .v6-account-row.active,
+html[data-chati-theme="light"] .v6-theme-grid button.active {
+  background: #f0eefc !important;
+  border-color: #cbc5f4 !important;
+}
+
+@media (max-width: 760px) {
+  html[data-chati-theme="light"] body:not(.mobile-chat-active) .v6-mobile-dock {
+    background: rgba(255,255,255,.95) !important;
+    border-color: #e2e4ea !important;
+    box-shadow: 0 16px 42px rgba(28,32,46,.12) !important;
+  }
+
+  html[data-chati-theme="light"] .v6-mobile-dock button {
+    color: #777c89 !important;
+  }
+
+  html[data-chati-theme="light"] .v6-mobile-dock button.active {
+    color: #5146b2 !important;
+    background: #f0eefc !important;
+  }
+
+  html[data-chati-theme="light"] #characterCreateView .create-header,
+  html[data-chati-theme="light"] #groupCreateView .create-header {
+    background: linear-gradient(
+      180deg,
+      rgba(245,246,249,.98) 0%,
+      rgba(245,246,249,.94) 78%,
+      rgba(245,246,249,0) 100%
+    ) !important;
+  }
+
+  html[data-chati-theme="light"] .creator-form-actions {
+    background: rgba(255,255,255,.96) !important;
+    border-color: #e1e3e9 !important;
+    box-shadow: 0 12px 32px rgba(30,34,48,.10) !important;
+  }
+}
