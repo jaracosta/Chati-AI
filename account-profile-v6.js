@@ -59,7 +59,7 @@
 
   function isVideo(src, mime) {
     const clean = String(src || "").split("?")[0].split("#")[0].toLowerCase();
-    return String(mime || "").startsWith("video/") ||
+    return String(mime || "") === "video" || String(mime || "").startsWith("video/") ||
       clean.startsWith("data:video/") ||
       /\.(mp4|webm|mov|m4v)$/i.test(clean);
   }
@@ -260,8 +260,8 @@
       user_id: user.id,
       display_name: base,
       avatar_url: null,
-      avatar_path: null,
-      avatar_mime: null,
+      avatar_storage_path: null,
+      avatar_kind: "image",
       theme: localStorage.getItem("chatiThemeV6") || "dark"
     };
   }
@@ -289,11 +289,11 @@
   async function resolveAvatar(profile) {
     if (!profile) return "";
 
-    if (profile.avatar_path) {
+    if (profile.avatar_storage_path) {
       const signed = await client()
         .storage
         .from(MEDIA_BUCKET)
-        .createSignedUrl(profile.avatar_path, 86400);
+        .createSignedUrl(profile.avatar_storage_path, 86400);
 
       if (!signed.error && signed.data?.signedUrl) return signed.data.signedUrl;
     }
@@ -389,13 +389,13 @@
 
     if (upload.error) throw upload.error;
 
-    const oldPath = currentProfile?.avatar_path || null;
+    const oldPath = currentProfile?.avatar_storage_path || null;
 
     await saveProfile({
       display_name: currentProfile?.display_name || defaultProfile(currentUser).display_name,
       avatar_url: null,
-      avatar_path: path,
-      avatar_mime: file.type,
+      avatar_storage_path: path,
+      avatar_kind: file.type.startsWith("video/") ? "video" : "image",
       theme: currentProfile?.theme || "dark"
     });
 
@@ -480,7 +480,7 @@
     }
 
     profileButton.innerHTML =
-      '<span class="v6-profile-avatar">' + mediaHtml(avatarDisplayUrl, currentProfile?.avatar_mime) + '</span>' +
+      '<span class="v6-profile-avatar">' + mediaHtml(avatarDisplayUrl, currentProfile?.avatar_kind) + '</span>' +
       '<span class="v6-profile-button-copy">' +
         '<strong>' + esc(currentProfile?.display_name || currentUser.email || "Chati User") + '</strong>' +
         '<small>' + esc(currentUser.email || "") + '</small>' +
@@ -519,7 +519,7 @@
     panel.innerHTML =
       '<div class="v6-panel-head">' +
         '<div class="v6-panel-identity">' +
-          '<span class="v6-profile-avatar large">' + mediaHtml(avatarDisplayUrl, currentProfile?.avatar_mime) + '</span>' +
+          '<span class="v6-profile-avatar large">' + mediaHtml(avatarDisplayUrl, currentProfile?.avatar_kind) + '</span>' +
           '<span><strong>' + esc(currentProfile?.display_name || "Chati User") + '</strong><small>' + esc(currentUser.email || "") + '</small></span>' +
         '</div>' +
         '<button type="button" data-v6-action="close">×</button>' +
@@ -668,8 +668,8 @@
       await saveProfile({
         display_name: currentProfile?.display_name || defaultProfile(currentUser).display_name,
         avatar_url: currentProfile?.avatar_url || null,
-        avatar_path: currentProfile?.avatar_path || null,
-        avatar_mime: currentProfile?.avatar_mime || null,
+        avatar_storage_path: currentProfile?.avatar_storage_path || null,
+        avatar_kind: currentProfile?.avatar_kind || null,
         theme
       });
       renderPanel();
@@ -694,13 +694,13 @@
     }
 
     if (action === "remove-avatar") {
-      const oldPath = currentProfile?.avatar_path || null;
+      const oldPath = currentProfile?.avatar_storage_path || null;
 
       await saveProfile({
         display_name: currentProfile?.display_name || defaultProfile(currentUser).display_name,
         avatar_url: null,
-        avatar_path: null,
-        avatar_mime: null,
+        avatar_storage_path: null,
+        avatar_kind: "image",
         theme: currentProfile?.theme || "dark"
       });
 
@@ -742,8 +742,8 @@
         await saveProfile({
           display_name: String(data.get("displayName") || "").trim().slice(0, 60),
           avatar_url: url || null,
-          avatar_path: url ? null : currentProfile?.avatar_path || null,
-          avatar_mime: url ? null : currentProfile?.avatar_mime || null,
+          avatar_storage_path: url ? null : currentProfile?.avatar_storage_path || null,
+          avatar_kind: url ? (isVideo(url, "") ? "video" : "image") : currentProfile?.avatar_kind || "image",
           theme: currentProfile?.theme || "dark"
         });
 
