@@ -126,6 +126,12 @@
     };
 
     const tick = () => {
+      if (!parent.isConnected) {
+        cancelAnimationFrame(raf);
+        document.removeEventListener("visibilitychange", resume);
+        return;
+      }
+
       if (
         !blending &&
         Number.isFinite(active.duration) &&
@@ -149,17 +155,8 @@
     twin.addEventListener("canplay", () => {});
     document.addEventListener("visibilitychange", resume);
 
+    resume();
     raf = requestAnimationFrame(tick);
-
-    const cleanupObserver = new MutationObserver(() => {
-      if (!parent.isConnected) {
-        cancelAnimationFrame(raf);
-        cleanupObserver.disconnect();
-        document.removeEventListener("visibilitychange", resume);
-      }
-    });
-
-    cleanupObserver.observe(document.documentElement, { childList: true, subtree: true });
   }
 
   function enhanceAvatarImage(img) {
@@ -398,18 +395,8 @@
 
   window.addEventListener("resize", ensureChatBackgroundMedia);
 
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "visible") return;
-
-    document.querySelectorAll("video.v6-loop-video").forEach(video => {
-      if (video.paused) video.play().catch(() => {});
-    });
-  });
-
   window.addEventListener("pageshow", () => {
-    document.querySelectorAll("video.v6-loop-video").forEach(video => {
-      if (video.paused) video.play().catch(() => {});
-    });
+    document.querySelectorAll("video.v6-loop-video:not(.v6-loop-twin)").forEach(installSmoothLoop);
     ensureChatBackgroundMedia();
   });
 
