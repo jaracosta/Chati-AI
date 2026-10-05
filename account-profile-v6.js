@@ -1212,6 +1212,33 @@
         );
       } catch {}
 
+      let restoredHistory = null;
+
+      try {
+        restoredHistory =
+          await window.ChatiConversationSync
+            ?.restoreAccountCloudChats
+            ?.();
+      } catch (
+        error
+      ) {
+        console.warn(
+          "[Chati-AI V6.2] Full account chat restore failed.",
+          error
+        );
+      }
+
+      if (
+        restoredHistory?.requiresReload
+      ) {
+        window.setTimeout(
+          () => location.reload(),
+          220
+        );
+
+        return;
+      }
+
       try {
         await window.ChatiV5Sync?.syncNow?.(
           "account-workspace-ready"
