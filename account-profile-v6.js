@@ -1,8 +1,8 @@
-// CHATI-AI V6.0.1 — profile, multi-account, security, theme
+// CHATI-AI V6.2 — guest/account isolation, multi-account, security, deletion
 (() => {
   "use strict";
 
-  const VERSION = "6.1.0";
+  const VERSION = "6.2.0";
   const PROFILE_TABLE = "user_profiles";
   const MEDIA_BUCKET = "character-media";
   const VAULT_KEY = "chatiAccountVaultV6";
@@ -10,6 +10,7 @@
   const WORKSPACE_PREFIX = "chatiAccountWorkspaceV6_";
   const LEGACY_OWNER_KEY = "chatiLegacyWorkspaceOwnerV6";
   const LEGACY_UNCLAIMED = "__legacy_unclaimed__";
+  const GUEST_WORKSPACE_ID = "__guest__";
   const DB_NAME = "chatiMediaDB";
   const APP_STORE = "appData";
 
@@ -183,31 +184,85 @@
     remove.forEach(key => localStorage.removeItem(key));
   }
 
-  async function restoreWorkspace(userId) {
-    await clearWorkspace();
+  async function readWorkspaceSnapshot(workspaceId) {
+    if (!workspaceId) return null;
 
-    if (!userId) {
-      localStorage.removeItem(ACTIVE_WORKSPACE_KEY);
+    const db = await openDb();
+    if (!db.objectStoreNames.contains(APP_STORE)) {
+      db.close();
+      return null;
+    }
+
+    const raw = await new Promise((resolve, reject) => {
+      const tx = db.transaction(APP_STORE, "readonly");
+      const req = tx.objectStore(APP_STORE).get(WORKSPACE_PREFIX + workspaceId);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+
+    db.close();
+    return parse(raw, null);
+  }
+
+  async function deleteWorkspaceSnapshot(workspaceId) {
+    if (!workspaceId) return;
+
+    const db = await openDb();
+    if (!db.objectStoreNames.contains(APP_STORE)) {
+      db.close();
       return;
     }
 
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(APP_STORE, "readwrite");
+      tx.objectStore(APP_STORE).delete(WORKSPACE_PREFIX + workspaceId);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+
+    db.close();
+  }
+
+  async function restoreWorkspace(workspaceId) {
+    const target = workspaceId || GUEST_WORKSPACE_ID;
+    await clearWorkspace();
+
+    let snapshot = await readWorkspaceSnapshot(target);
+
+    if (!snapshot && target === GUEST_WORKSPACE_ID) {
+      const legacy = await readWorkspaceSnapshot(LEGACY_UNCLAIMED);
+
+      if (legacy) {
+        snapshot = legacy;
+        const db = await openDb();
+
+        if (db.objectStoreNames.contains(APP_STORE)) {
+          await new Promise((resolve, reject) => {
+            const tx = db.transaction(APP_STORE, "readwrite");
+            tx.objectStore(APP_STORE).put(
+              JSON.stringify(legacy),
+              WORKSPACE_PREFIX + GUEST_WORKSPACE_ID
+            );
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+          });
+        }
+
+        db.close();
+      }
+    }
+
     const db = await openDb();
-    let snapshot = null;
 
     if (db.objectStoreNames.contains(APP_STORE)) {
-      snapshot = await new Promise((resolve, reject) => {
-        const tx = db.transaction(APP_STORE, "readonly");
-        const req = tx.objectStore(APP_STORE).get(WORKSPACE_PREFIX + userId);
-        req.onsuccess = () => resolve(parse(req.result, null));
-        req.onerror = () => reject(req.error);
-      });
-
       await new Promise((resolve, reject) => {
         const tx = db.transaction(APP_STORE, "readwrite");
         const store = tx.objectStore(APP_STORE);
 
         if (snapshot?.data) {
-          Object.entries(snapshot.data).forEach(pair => store.put(pair[1], pair[0]));
+          Object.entries(snapshot.data).forEach(([key, value]) => {
+            store.put(value, key);
+          });
         } else {
           store.put(JSON.stringify([]), "chatiCharacters");
         }
@@ -220,148 +275,28 @@
     db.close();
 
     if (snapshot?.local) {
-      Object.entries(snapshot.local).forEach(pair => {
-        if (pair[1] != null) localStorage.setItem(pair[0], pair[1]);
+      Object.entries(snapshot.local).forEach(([key, value]) => {
+        if (value != null) localStorage.setItem(key, value);
       });
     }
 
-    localStorage.setItem(ACTIVE_WORKSPACE_KEY, userId);
-  }
-
-  async function workspaceHasMeaningfulData() {
-    const db = await openDb();
-
-    if (!db.objectStoreNames.contains(APP_STORE)) {
-      db.close();
-      return false;
-    }
-
-    const hasData = await new Promise((resolve, reject) => {
-      const tx = db.transaction(APP_STORE, "readonly");
-      const store = tx.objectStore(APP_STORE);
-      const req = store.openCursor();
-      let found = false;
-
-      req.onsuccess = event => {
-        const cursor = event.target.result;
-
-        if (!cursor || found) {
-          resolve(found);
-          return;
-        }
-
-        if (isWorkspaceDbKey(cursor.key)) {
-          const parsed = parse(cursor.value, null);
-
-          if (
-            (Array.isArray(parsed) && parsed.length > 0) ||
-            (
-              parsed &&
-              typeof parsed === "object" &&
-              Object.keys(parsed).length > 0
-            )
-          ) {
-            found = true;
-            resolve(true);
-            return;
-          }
-        }
-
-        cursor.continue();
-      };
-
-      req.onerror = () => reject(req.error);
-      tx.onerror = () => reject(tx.error);
-    });
-
-    db.close();
-    return Boolean(hasData);
-  }
-
-  async function hasWorkspaceSnapshot(userId) {
-    if (!userId) return false;
-
-    const db = await openDb();
-
-    if (!db.objectStoreNames.contains(APP_STORE)) {
-      db.close();
-      return false;
-    }
-
-    const value = await new Promise((resolve, reject) => {
-      const tx = db.transaction(APP_STORE, "readonly");
-      const req = tx.objectStore(APP_STORE).get(WORKSPACE_PREFIX + userId);
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => reject(req.error);
-    });
-
-    db.close();
-    return Boolean(value);
+    localStorage.setItem(ACTIVE_WORKSPACE_KEY, target);
   }
 
   async function ensureWorkspace(user) {
+    const target = user?.id || GUEST_WORKSPACE_ID;
     const loaded = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
-    const next = user?.id || null;
-    const legacyOwner = localStorage.getItem(LEGACY_OWNER_KEY);
 
-    if (loaded === next) return false;
+    if (loaded === target) return false;
 
-    // If an account workspace is already loaded, preserve it before switching.
-    if (loaded && loaded !== next) {
-      try {
-        await snapshotWorkspace(loaded);
-      } catch (error) {
-        console.warn("[Chati-AI V6.1] Workspace snapshot failed.", error);
-      }
-    }
-
-    // Signed out with old pre-account local data:
-    // preserve it in an unclaimed vault, but NEVER attach it to the next
-    // random account that signs in.
-    if (!next) {
-      if (!loaded && !legacyOwner && await workspaceHasMeaningfulData()) {
-        try {
-          await snapshotWorkspace(LEGACY_UNCLAIMED);
-          localStorage.setItem(LEGACY_OWNER_KEY, LEGACY_UNCLAIMED);
-        } catch (error) {
-          console.warn("[Chati-AI V6.1] Legacy workspace safety snapshot failed.", error);
-        }
-      }
-
-      await restoreWorkspace(null);
-      return true;
-    }
-
-    // First V6.1 load while already authenticated:
-    // only the account present at that moment may claim legacy local data.
-    if (!loaded && !legacyOwner) {
-      const hasLegacyData = await workspaceHasMeaningfulData();
-
-      if (hasLegacyData) {
-        await snapshotWorkspace(next);
-        localStorage.setItem(LEGACY_OWNER_KEY, next);
-        localStorage.setItem(ACTIVE_WORKSPACE_KEY, next);
-        return false;
-      }
-    }
-
-    // If this account owns the one-time legacy workspace, restore only its
-    // snapshot. No other account may inherit those records.
-    if (!loaded && legacyOwner === next) {
-      if (await hasWorkspaceSnapshot(next)) {
-        await restoreWorkspace(next);
-        return true;
-      }
-
-      await snapshotWorkspace(next);
-      localStorage.setItem(ACTIVE_WORKSPACE_KEY, next);
+    if (!loaded) {
+      await snapshotWorkspace(target);
+      localStorage.setItem(ACTIVE_WORKSPACE_KEY, target);
       return false;
     }
 
-    // Every other account gets ONLY its own saved workspace.
-    // A brand-new account therefore starts empty and cloud sync can populate
-    // only rows protected by that user's Supabase RLS.
-    await restoreWorkspace(next);
+    await snapshotWorkspace(loaded);
+    await restoreWorkspace(target);
     return true;
   }
 
