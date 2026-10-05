@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "6.2.0";
+  const VERSION = "6.2.1";
   const PROFILE_TABLE = "user_profiles";
   const MEDIA_BUCKET = "character-media";
   const VAULT_KEY = "chatiAccountVaultV6";
@@ -34,6 +34,8 @@
   let profileButton = null;
   let panel = null;
   let signedOutShell = null;
+  let accountIcons = null;
+  let refreshQueue = Promise.resolve();
 
   function auth() {
     if (!window.ChatiAuth) throw new Error("ChatiAuth is unavailable.");
@@ -462,8 +464,8 @@
       accessToken: session.access_token,
       refreshToken: session.refresh_token,
       lastUsedAt: Date.now(),
-      displayName: currentProfile?.display_name || vault[user.id]?.displayName || "",
-      avatarUrl: avatarDisplayUrl || vault[user.id]?.avatarUrl || ""
+      displayName: (currentUser?.id === user.id ? currentProfile?.display_name : "") || vault[user.id]?.displayName || "",
+      avatarUrl: (currentUser?.id === user.id ? avatarDisplayUrl : "") || vault[user.id]?.avatarUrl || ""
     };
 
     writeVault(vault);
@@ -527,6 +529,14 @@
     profileButton.id = "v6ProfileButton";
     profileButton.className = "v6-profile-button";
     sidebar.insertBefore(profileButton, settingsBtn);
+    accountIcons = document.createElement("div");
+    accountIcons.className = "v6-account-icons";
+    accountIcons.setAttribute("aria-label", "Switch account");
+    sidebar.insertBefore(accountIcons, profileButton);
+    accountIcons.addEventListener("click", event => {
+      const id = event.target.closest("[data-v6-switch]")?.dataset.v6Switch;
+      if (id) switchAccount(id);
+    });
 
     panel = document.createElement("div");
     panel.id = "v6ProfilePanel";
@@ -585,6 +595,22 @@
     if (!panelOpen) panel?.classList.remove("v6-account-space-mode");
     profileButton?.setAttribute("aria-expanded", panelOpen ? "true" : "false");
     if (panelOpen) renderPanel();
+  }
+
+  function renderAccountIcons() {
+    if (!accountIcons) return;
+    accountIcons.innerHTML = Object.values(readVault()).map(item => {
+      const active = item.userId === currentUser?.id;
+      const name = item.displayName || item.email || "Account";
+      const avatar = item.avatarUrl
+        ? mediaHtml(item.avatarUrl, "", "v6-mini-avatar-media")
+        : esc(name.charAt(0).toUpperCase());
+      return '<button type="button" class="v6-account-icon ' + (active ? 'active' : '') +
+        '" data-v6-switch="' + esc(item.userId) + '" title="' + esc(name) +
+        '" aria-label="Switch to ' + esc(name) + '" aria-pressed="' + active +
+        '"><span class="v6-mini-avatar">' + avatar + '</span></button>';
+    }).join("");
+    accountIcons.hidden = !accountIcons.innerHTML;
   }
 
   function renderProfileButton() {
@@ -732,7 +758,10 @@
     setStatus("Switching account…", false);
 
     try {
-      if (currentUser?.id) await snapshotWorkspace(currentUser.id);
+      await refreshQueue.catch(() => {});
+      await rememberCurrentSession();
+      const mounted = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
+      if (mounted) await snapshotWorkspace(mounted);
       try { window.ChatiSync?.stopAutoSync?.(); } catch {}
       try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
@@ -742,7 +771,8 @@
       });
 
       if (result.error) throw result.error;
-
+      if (result.data?.session?.user?.id !== userId) throw new Error("Account session does not match.");
+      await rememberCurrentSession();
       await restoreWorkspace(userId);
       location.reload();
     } catch (error) {
@@ -942,9 +972,12 @@
         const email = String(data.get("email") || "").trim();
         const password = String(data.get("password") || "");
 
-        if (currentUser?.id) await snapshotWorkspace(currentUser.id);
+        await refreshQueue.catch(() => {});
+        await rememberCurrentSession();
+        const mounted = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
+        if (mounted) await snapshotWorkspace(mounted);
         try { window.ChatiSync?.stopAutoSync?.(); } catch {}
-      try { await window.ChatiV5Sync?.stop?.(); } catch {}
+        try { await window.ChatiV5Sync?.stop?.(); } catch {}
 
         const result = await auth().signIn(email, password);
         if (result?.error) throw result.error;
@@ -975,6 +1008,7 @@
 
   function render() {
     renderProfileButton();
+    renderAccountIcons();
 
     const signedOut = !currentUser;
     document.body.classList.toggle("v6-signed-out", signedOut);
@@ -1009,7 +1043,13 @@
     }
   }
 
-  async function refreshAccount() {
+  function refreshAccount() {
+    refreshQueue = refreshQueue.catch(() => {}).then(() => refreshAccountNow());
+    return refreshQueue;
+  }
+
+  async function refreshAccountNow() {
+    if (busy) return { transitioning: true };
     const result = await auth().getSession();
     if (result?.error) throw result.error;
 
@@ -1032,8 +1072,17 @@
       return { ready: true, userId: null };
     }
 
-    currentProfile = await ensureProfile(user);
-    avatarDisplayUrl = await resolveAvatar(currentProfile);
+    // Profile availability must not change authenticated identity or block chat sync.
+    currentProfile = defaultProfile(user);
+    avatarDisplayUrl = "";
+    await rememberCurrentSession();
+    render();
+    try {
+      currentProfile = await ensureProfile(user);
+      avatarDisplayUrl = await resolveAvatar(currentProfile);
+    } catch (error) {
+      console.warn("[Chati-AI Account] Using local profile fallback.", error);
+    }
     applyTheme(currentProfile.theme || "dark");
     await rememberCurrentSession();
     render();
@@ -1067,11 +1116,13 @@
     });
 
     window.addEventListener("chati:authchange", () => {
+      if (busy) return;
       document.body.classList.add("v6-account-switching");
       try { window.ChatiSync?.stopAutoSync?.(); } catch {}
       try { window.ChatiV5Sync?.stop?.(); } catch {}
 
       setTimeout(() => {
+        if (busy) return;
         refreshAccount()
           .catch(error => {
             console.warn("[Chati-AI V6.2] Account refresh failed.", error);

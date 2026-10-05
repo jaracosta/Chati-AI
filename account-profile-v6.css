@@ -639,3 +639,9 @@ html[data-chati-theme="light"] .v6-danger-zone .danger {
     padding-bottom: 24px;
   }
 }
+
+.v6-account-icons { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+.v6-account-icons[hidden] { display: none; }
+.v6-account-icon { border: 2px solid transparent; background: transparent; border-radius: 50%; padding: 3px; cursor: pointer; }
+.v6-account-icon.active { border-color: var(--accent, #a78bfa); }
+.v6-account-icon:focus-visible { outline: 2px solid var(--accent, #a78bfa); outline-offset: 2px; }
