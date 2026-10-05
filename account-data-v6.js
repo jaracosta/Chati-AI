@@ -7,7 +7,7 @@
 // restores the target user's dataset.
 //
 // Signed-out mode intentionally exposes an empty character/chat
-// workspace. Private Chat / Private Group remain temporary.
+// workspace and does not restore anonymous leftovers. Private Chat / Private Group remain temporary.
 // ============================================================
 
 (() => {
@@ -616,49 +616,56 @@
     }
 
 
-    const targetPrefix =
-      ARCHIVE_PREFIX +
-      safeOwner(
-        toOwner
-      ) +
-      "::";
-
-
-    for (
-      const [
-        key,
-        value
-      ]
-      of entries
+    if (
+      toOwner !==
+      SIGNED_OUT_OWNER
     ) {
 
-      if (
-        key.startsWith(
-          targetPrefix
-        )
+      const targetPrefix =
+        ARCHIVE_PREFIX +
+        safeOwner(
+          toOwner
+        ) +
+        "::";
+
+
+      for (
+        const [
+          key,
+          value
+        ]
+        of entries
       ) {
 
-        const activeKey =
-          key.slice(
-            targetPrefix.length
-          );
-
-
         if (
-          isActiveAppKey(
-            activeKey
+          key.startsWith(
+            targetPrefix
           )
         ) {
 
-          mutations.push({
-            type:
-              "put",
+          const activeKey =
+            key.slice(
+              targetPrefix.length
+            );
 
-            key:
-              activeKey,
 
-            value
-          });
+          if (
+            isActiveAppKey(
+              activeKey
+            )
+          ) {
+
+            mutations.push({
+              type:
+                "put",
+
+              key:
+                activeKey,
+
+              value
+            });
+
+          }
 
         }
 
@@ -677,9 +684,16 @@
     );
 
 
-    restoreLocalStorage(
-      toOwner
-    );
+    if (
+      toOwner !==
+      SIGNED_OUT_OWNER
+    ) {
+
+      restoreLocalStorage(
+        toOwner
+      );
+
+    }
 
 
     localStorage.setItem(
@@ -782,6 +796,77 @@
       currentOwner ===
       desiredOwner
     ) {
+
+      if (
+        desiredOwner ===
+        SIGNED_OUT_OWNER
+      ) {
+
+        const entries =
+          await readAllAppEntries();
+
+
+        await mutateAppEntries(
+          entries
+            .filter(
+              entry =>
+                isActiveAppKey(
+                  entry[0]
+                )
+            )
+            .map(
+              entry => ({
+                type:
+                  "delete",
+
+                key:
+                  entry[0]
+              })
+            )
+        );
+
+
+        const localKeys =
+          [];
+
+
+        for (
+          let index = 0;
+          index < localStorage.length;
+          index += 1
+        ) {
+
+          const key =
+            localStorage.key(
+              index
+            );
+
+
+          if (
+            key &&
+            isAccountLocalKey(
+              key
+            )
+          ) {
+
+            localKeys.push(
+              key
+            );
+
+          }
+
+        }
+
+
+        localKeys.forEach(
+          key =>
+            localStorage.removeItem(
+              key
+            )
+        );
+
+      }
+
 
       return {
         changed:
