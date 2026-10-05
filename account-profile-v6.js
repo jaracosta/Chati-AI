@@ -575,6 +575,7 @@
   function setPanelOpen(next) {
     panelOpen = Boolean(next);
     panel?.classList.toggle("hidden", !panelOpen);
+    if (!panelOpen) panel?.classList.remove("v6-account-space-mode");
     profileButton?.setAttribute("aria-expanded", panelOpen ? "true" : "false");
     if (panelOpen) renderPanel();
   }
@@ -655,7 +656,8 @@
         '</form>' +
       '</div>' +
 
-      '<div class="v6-panel-section hidden" data-v6-panel-section="accounts">' +
+      '<div class="v6-panel-section hidden v6-account-space" data-v6-panel-section="accounts">' +
+        '<div class="v6-account-space-head"><strong>Account spaces</strong><p>Each account has its own characters, chats, profile and cloud sync. Nothing is merged between accounts.</p></div>' +
         '<div class="v6-account-list">' + (accounts || '<p class="v6-muted">No remembered accounts yet.</p>') + '</div>' +
         '<button class="v6-wide" type="button" data-v6-action="add-account">+ Add another account</button>' +
         '<div class="v6-add-account hidden" id="v6AddAccountBox">' +
@@ -777,6 +779,7 @@
     if (section) {
       panel.querySelectorAll("[data-v6-section]").forEach(btn => btn.classList.toggle("active", btn.dataset.v6Section === section));
       panel.querySelectorAll("[data-v6-panel-section]").forEach(node => node.classList.toggle("hidden", node.dataset.v6PanelSection !== section));
+      panel.classList.toggle("v6-account-space-mode", section === "accounts");
       return;
     }
 
