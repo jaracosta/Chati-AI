@@ -1002,13 +1002,39 @@
     }
 
 
-    return (
+    const userId =
       data
         ?.session
         ?.user
         ?.id ||
-      null
-    );
+      null;
+
+
+    if (!userId) {
+      return null;
+    }
+
+
+    // V6.2 ACCOUNT ISOLATION:
+    // Never run cloud character sync until the local workspace loaded
+    // in IndexedDB belongs to this exact authenticated user.
+    const activeWorkspace =
+      localStorage.getItem(
+        "chatiLoadedWorkspaceUidV6"
+      );
+
+
+    if (
+      activeWorkspace !==
+      String(
+        userId
+      )
+    ) {
+      return null;
+    }
+
+
+    return userId;
   }
 
 
