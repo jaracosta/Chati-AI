@@ -1741,6 +1741,25 @@
 
     await refreshSession();
 
+
+    if (
+      window.ChatiAuth
+        ?.isPasswordRecovery?.()
+    ) {
+
+      openProfile(
+        "security"
+      );
+
+
+      setMessage(
+        "Password recovery verified. Enter your new password.",
+        "success"
+      );
+
+    }
+
+
     window.addEventListener(
       "chati:passwordrecovery",
       async () => {
