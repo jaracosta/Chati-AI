@@ -378,6 +378,57 @@
     localStorage.setItem(ACTIVE_WORKSPACE_KEY, target);
   }
 
+  async function currentWorkspaceHasMeaningfulData() {
+    const db = await openDb();
+
+    if (!db.objectStoreNames.contains(APP_STORE)) {
+      db.close();
+      return false;
+    }
+
+    const found = await new Promise((resolve, reject) => {
+      const tx = db.transaction(APP_STORE, "readonly");
+      const store = tx.objectStore(APP_STORE);
+      const req = store.openCursor();
+      let hasData = false;
+
+      req.onsuccess = event => {
+        const cursor = event.target.result;
+
+        if (!cursor || hasData) {
+          resolve(hasData);
+          return;
+        }
+
+        if (isWorkspaceDbKey(cursor.key)) {
+          const value = parse(cursor.value, null);
+
+          if (
+            (Array.isArray(value) && value.length > 0) ||
+            (
+              value &&
+              typeof value === "object" &&
+              !Array.isArray(value) &&
+              Object.keys(value).length > 0
+            )
+          ) {
+            hasData = true;
+            resolve(true);
+            return;
+          }
+        }
+
+        cursor.continue();
+      };
+
+      req.onerror = () => reject(req.error);
+      tx.onerror = () => reject(tx.error);
+    });
+
+    db.close();
+    return Boolean(found);
+  }
+
   async function ensureWorkspace(user) {
     const target = user?.id || GUEST_WORKSPACE_ID;
     const loaded = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
@@ -385,9 +436,40 @@
     if (loaded === target) return false;
 
     if (!loaded) {
-      await snapshotWorkspace(target);
-      localStorage.setItem(ACTIVE_WORKSPACE_KEY, target);
-      return false;
+      const savedTarget = await readWorkspaceSnapshot(target);
+
+      if (savedTarget) {
+        await restoreWorkspace(target);
+        return true;
+      }
+
+      if (target === GUEST_WORKSPACE_ID) {
+        const legacyGuest = await readWorkspaceSnapshot(LEGACY_UNCLAIMED);
+
+        if (legacyGuest) {
+          await restoreWorkspace(GUEST_WORKSPACE_ID);
+          return true;
+        }
+
+        await snapshotWorkspace(GUEST_WORKSPACE_ID);
+        localStorage.setItem(ACTIVE_WORKSPACE_KEY, GUEST_WORKSPACE_ID);
+        return false;
+      }
+
+      // The only legacy data an authenticated account is allowed to claim is
+      // data explicitly marked as belonging to that same account.
+      const legacyOwner = localStorage.getItem(LEGACY_OWNER_KEY);
+      const hasLocalData = await currentWorkspaceHasMeaningfulData();
+
+      if (legacyOwner === target && hasLocalData) {
+        await snapshotWorkspace(target);
+        localStorage.setItem(ACTIVE_WORKSPACE_KEY, target);
+        return false;
+      }
+
+      // Never adopt unidentified/guest local data into an authenticated account.
+      await restoreWorkspace(target);
+      return true;
     }
 
     await snapshotWorkspace(loaded);
