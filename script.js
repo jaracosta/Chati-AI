@@ -20986,7 +20986,7 @@ document
       if (
         turningOn &&
         !window.confirm(
-          "Mature content allows explicit sexual content between adult characters and graphic violence.\n\nConfirm that you are 18 years or older."
+          "NSFW content is only for adults.\n\nConfirm that you are 18 years or older."
         )
       ) {
 
