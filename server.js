@@ -7,6 +7,12 @@ import dotenv from "dotenv";
 import OpenAI, { toFile } from "openai";
 import { createChatProvider } from "./chat-provider.js";
 import {
+  buildChatiInstructions,
+  extractCharacterDraft,
+  extractUrls,
+  fetchPageText
+} from "./chati-assistant.js";
+import {
   buildCoreRoleplayRules,
   cleanRoleplayReply,
   createReplyGuard,
@@ -44,6 +50,13 @@ const PORT =
 const MODEL = process.env.OPENROUTER_API_KEY
   ? (process.env.OPENROUTER_MODEL || "gryphe/mythomax-l2-13b")
   : (process.env.OPENAI_MODEL || "gpt-5.6-terra");
+
+
+// Chati (the in-app assistant) needs a model that can see photos and use
+// OpenRouter web search. Override with CHATI_MODEL.
+const CHATI_MODEL =
+  process.env.CHATI_MODEL ||
+  "google/gemini-2.5-flash";
 
 
 const MEMORY_MODEL = process.env.OPENROUTER_API_KEY
@@ -485,6 +498,18 @@ const memoryRateLimiter =
   });
 
 
+const chatiRateLimiter =
+  createRateLimiter({
+    name:
+      "chati",
+
+    maxRequests:
+      Number(process.env.CHATI_RATE_LIMIT_MAX) > 0
+        ? Number(process.env.CHATI_RATE_LIMIT_MAX)
+        : 60
+  });
+
+
 const rateLimitCleanupTimer =
   setInterval(
 
@@ -623,6 +648,8 @@ const PUBLIC_ROOT_FILES =
     "app-shell-v8.js",
     "i18n-v8.js",
     "explore-v8.js",
+    "chati-v8.js",
+    "chati-v8.css",
     "script.js",
     "supabase-auth-v4.js",
     "account-profile-v6.js",
@@ -4197,6 +4224,267 @@ RULES
 
 
 // =========================
+// CHATI — IN-APP ASSISTANT
+// =========================
+
+const CHATI_IMAGE_PATTERN =
+  /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i;
+
+const CHATI_MAX_IMAGE_CHARS =
+  6 * 1024 * 1024;
+
+
+app.post(
+
+  "/api/chati",
+
+  chatiRateLimiter,
+
+  async (
+    req,
+    res
+  ) => {
+
+    if (
+      typeof chatProvider.assistant !==
+      "function"
+    ) {
+
+      return res
+        .status(503)
+        .json({
+          error:
+            "Chati needs OpenRouter. Set OPENROUTER_API_KEY on the server."
+        });
+
+    }
+
+
+    const incoming =
+      Array.isArray(
+        req.body?.messages
+      )
+        ? req.body.messages.slice(-30)
+        : [];
+
+
+    const lastUser =
+      incoming[incoming.length - 1];
+
+
+    if (
+      !lastUser ||
+      lastUser.role !== "user" ||
+      (
+        !String(lastUser.text || "").trim() &&
+        !(lastUser.images || []).length
+      )
+    ) {
+
+      return res
+        .status(400)
+        .json({
+          error:
+            "Send a message for Chati."
+        });
+
+    }
+
+
+    try {
+
+      // Photos: only the most recent ones are sent to keep requests small.
+      let imageBudget = 4;
+
+      const conversation =
+        incoming
+          .slice()
+          .reverse()
+          .map(
+            message => {
+
+              const role =
+                message?.role === "assistant"
+                  ? "assistant"
+                  : "user";
+
+              const textPart =
+                String(message?.text || "").slice(0, 6000);
+
+              const images =
+                role === "user" && Array.isArray(message?.images)
+                  ? message.images.filter(
+                      image =>
+                        typeof image === "string" &&
+                        image.length <= CHATI_MAX_IMAGE_CHARS &&
+                        CHATI_IMAGE_PATTERN.test(image.slice(0, 120) + "A")
+                    )
+                  : [];
+
+              const kept = [];
+
+              for (const image of images) {
+                if (imageBudget > 0) {
+                  kept.push(image);
+                  imageBudget -= 1;
+                }
+              }
+
+              if (!kept.length) {
+                return {
+                  role,
+                  content:
+                    textPart ||
+                    (images.length ? "[photo shared earlier]" : "")
+                };
+              }
+
+              return {
+                role,
+                content: [
+                  {
+                    type: "text",
+                    text: textPart || "Here is a photo of the character."
+                  },
+                  ...kept.map(
+                    url => ({
+                      type: "image_url",
+                      image_url: { url }
+                    })
+                  )
+                ]
+              };
+
+            }
+          )
+          .reverse()
+          .filter(
+            message =>
+              typeof message.content !== "string" ||
+              message.content.trim()
+          );
+
+
+      // Links the user pasted: read them so facts come from the page.
+      const urls =
+        extractUrls(
+          lastUser.text
+        );
+
+      const pages =
+        (
+          await Promise.all(
+            urls.map(
+              url =>
+                fetchPageText(url).catch(
+                  error => ({
+                    url,
+                    error: String(error?.message || error)
+                  })
+                )
+            )
+          )
+        );
+
+      const pageContext =
+        pages.map(
+          page =>
+            page.error
+              ? `The user shared ${page.url} but it could not be read (${page.error}). Do not pretend you read it.`
+              : `Content of the page the user shared — ${page.title || page.url} (${page.url}):\n${page.text}`
+        );
+
+
+      const result =
+        await chatProvider.assistant({
+          model:
+            CHATI_MODEL,
+          messages: [
+            {
+              role: "system",
+              content:
+                buildChatiInstructions({
+                  rootDir: __dirname
+                })
+            },
+            ...pageContext.map(
+              content => ({
+                role: "system",
+                content
+              })
+            ),
+            ...conversation
+          ],
+          max_output_tokens:
+            3500,
+          web:
+            req.body?.web !== false
+        });
+
+
+      const {
+        text,
+        draft
+      } =
+        extractCharacterDraft(
+          result.text
+        );
+
+
+      const sources = [];
+      const seen = new Set();
+
+      for (
+        const source of [
+          ...result.citations,
+          ...pages
+            .filter(page => !page.error)
+            .map(page => ({ url: page.url, title: page.title })),
+          ...(draft?.sources || []).map(url => ({ url, title: "" }))
+        ]
+      ) {
+        if (!source?.url || seen.has(source.url)) continue;
+        seen.add(source.url);
+        sources.push({
+          url: source.url,
+          title: source.title || ""
+        });
+      }
+
+
+      res.json({
+        reply:
+          text ||
+          (draft ? "" : "…"),
+        draft,
+        sources:
+          sources.slice(0, 8)
+      });
+
+    }
+
+    catch (error) {
+
+      console.error(
+        "❌ Chati error:",
+        error
+      );
+
+      res
+        .status(502)
+        .json({
+          error:
+            "Chati couldn't answer right now. Please try again."
+        });
+
+    }
+
+  }
+
+);
+
+
+// =========================
 // API / ERROR FALLBACKS
 // =========================
 
@@ -4431,6 +4719,11 @@ const server =
     console.log(
       `💬 Chat provider: ${process.env.OPENROUTER_API_KEY ? "OpenRouter" : "OpenAI"}; model: ${MODEL}`
     );
+
+    console.log(
+      `🤖 Chati model: ${CHATI_MODEL}`
+    );
+
 
     console.log(
       `🧠 Memory model: ${MEMORY_MODEL}`

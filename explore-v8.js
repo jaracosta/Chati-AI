@@ -9,7 +9,7 @@
       key: "luna",
       colors: ["#5b3fa8", "#1d2b64", "#f7b267"],
       name: "Luna",
-      pronouns: "She/Her",
+      pronouns: "SHE",
       en: {
         description: "A laid-back forest witch who brews questionable potions and gives brutally honest advice.",
         scenario: "You knock on the door of Luna's crooked cabin deep in the forest, late at night, soaked from the rain."
@@ -24,7 +24,7 @@
       key: "kai",
       colors: ["#00d2ff", "#3a1c71", "#ff2e63"],
       name: "Kai Moreno",
-      pronouns: "He/Him",
+      pronouns: "HE",
       en: {
         description: "A burned-out detective in a neon megacity who can't stop taking the cases nobody else wants.",
         scenario: "Rain hammers the window of Kai's tiny office in Neo Vega. You walk in with a case the police refused."
@@ -39,7 +39,7 @@
       key: "aria",
       colors: ["#ff9a9e", "#a18cd1", "#fad0c4"],
       name: "Aria",
-      pronouns: "She/Her",
+      pronouns: "SHE",
       en: {
         description: "An up-and-coming singer with stage fright, a big heart and an even bigger playlist.",
         scenario: "Backstage, ten minutes before Aria's first big concert. She's pacing and asks you to talk her down."
@@ -54,7 +54,7 @@
       key: "draven",
       colors: ["#200122", "#6f0000", "#e94057"],
       name: "Draven",
-      pronouns: "He/Him",
+      pronouns: "HE",
       en: {
         description: "A centuries-old vampire prince, bored of eternity, who finds you far too interesting.",
         scenario: "You wake up in a candle-lit castle library. Draven is reading by the fire and says you fainted at his gates."
@@ -69,7 +69,7 @@
       key: "nova",
       colors: ["#0f2027", "#2c5364", "#7cffcb"],
       name: "NOVA-7",
-      pronouns: "They/Them",
+      pronouns: "THEY",
       en: {
         description: "The ship's AI on a long-haul spacecraft, learning what it means to be human — from you.",
         scenario: "You're the only crew member awake on the cargo ship Halcyon. NOVA-7 wakes you: something is drifting toward the ship."
@@ -84,7 +84,7 @@
       key: "sofia",
       colors: ["#f7971e", "#ffd200", "#ff5f6d"],
       name: "Sofía",
-      pronouns: "She/Her",
+      pronouns: "SHE",
       en: {
         description: "Your chaotic best friend and roommate who always has a plan — usually a terrible one.",
         scenario: "It's 2 a.m. Sofía bursts into your room with a backpack, car keys and a 'genius' idea for a road trip."
@@ -99,7 +99,7 @@
       key: "ren",
       colors: ["#1e3c72", "#2a5298", "#c9d6ff"],
       name: "Ren Takeda",
-      pronouns: "He/Him",
+      pronouns: "HE",
       en: {
         description: "A wandering swordsman with a mysterious past, sworn to protect you on a dangerous journey.",
         scenario: "Bandits surround your carriage on a mountain road. A silent swordsman steps out of the fog and draws his blade."
@@ -115,7 +115,7 @@
       key: "mia",
       colors: ["#11998e", "#38ef7d", "#f9f871"],
       name: "Mia",
-      pronouns: "She/Her",
+      pronouns: "SHE",
       en: {
         description: "A cheerful café owner who remembers everyone's order and everyone's secrets.",
         scenario: "You run into Mia's tiny café to hide from the rain. It's almost closing time and she's baking something that smells amazing."
