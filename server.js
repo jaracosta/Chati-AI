@@ -621,6 +621,8 @@ const PUBLIC_ROOT_FILES =
     "ui-smooth-v7.css",
     "app-shell-v8.css",
     "app-shell-v8.js",
+    "i18n-v8.js",
+    "explore-v8.js",
     "script.js",
     "supabase-auth-v4.js",
     "account-profile-v6.js",
