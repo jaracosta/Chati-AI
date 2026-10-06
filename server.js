@@ -619,6 +619,8 @@ const PUBLIC_ROOT_FILES =
     "media-v6.css",
     "app-polish-v6.css",
     "ui-smooth-v7.css",
+    "app-shell-v8.css",
+    "app-shell-v8.js",
     "script.js",
     "supabase-auth-v4.js",
     "account-profile-v6.js",

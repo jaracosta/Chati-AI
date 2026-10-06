@@ -1,0 +1,253 @@
+/* =========================================================
+   V8 — APP SHELL
+   Makes the web app feel like an installed app. Loaded last.
+   ========================================================= */
+
+/* ---------- No "web page" tells (all devices) ---------- */
+
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+button,
+[role="button"],
+.v6-mobile-dock,
+.top-bar,
+.chat-header,
+.sidebar-nav,
+.character-card,
+.group-card,
+.history-item {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+img,
+video {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  /* Long-press opens Chati's own menu (with Copy) instead of the system
+     text-selection callout. */
+  .message,
+  .message * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* ---------- Compact header (phones) ---------- */
+
+.v8-compact-header {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .v8-compact-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 5000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    height: calc(env(safe-area-inset-top, 0px) + 48px);
+    padding-bottom: 12px;
+    background: rgba(11, 11, 15, .78);
+    border-bottom: 1px solid rgba(120, 116, 140, .18);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+
+  .v8-compact-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+  }
+
+  body.v8-header-compact .v8-compact-header {
+    opacity: 1;
+    transform: none;
+  }
+
+  html[data-chati-theme="light"] .v8-compact-header {
+    background: rgba(246, 245, 250, .82);
+    border-bottom-color: rgba(0, 0, 0, .08);
+  }
+}
+
+/* ---------- Navigation: dock only, no floating ☰ (phones) ---------- */
+
+@media (max-width: 760px) {
+  .mobile-sidebar-btn {
+    display: none !important;
+  }
+
+  /* The space that was reserved for the floating ☰ button. */
+  .main-content {
+    padding-top: 0 !important;
+  }
+
+  #homeView .top-bar {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 18px) !important;
+    margin-top: 0 !important;
+  }
+
+  /* The "Chats" tab shows the recent-chats list as a full page. */
+  .sidebar.mobile-open {
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    transform: none !important;
+    background: #0d0d12 !important;
+    animation: v8-tab-in .18s ease both;
+  }
+
+  html[data-chati-theme="light"] .sidebar.mobile-open {
+    background: #f6f5fa !important;
+  }
+
+  .sidebar-mobile-overlay {
+    display: none !important;
+  }
+
+  /* Home and Create already live in the dock. */
+  .sidebar.mobile-open #chatsBtn,
+  .sidebar.mobile-open #createBtn,
+  .sidebar.mobile-open #sidebarCollapseBtn {
+    display: none !important;
+  }
+}
+
+@keyframes v8-tab-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---------- Native-style screen transitions (phones) ---------- */
+
+@keyframes v8-push-in {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+
+@keyframes v8-back-in {
+  from { opacity: .4; transform: translateX(-24%); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 760px) {
+  #chatView:not(.hidden) {
+    animation: v8-push-in .3s cubic-bezier(.2, .8, .2, 1) both;
+  }
+
+  #homeView:not(.hidden) {
+    animation: v8-back-in .26s cubic-bezier(.2, .8, .2, 1) both;
+  }
+
+  #createView:not(.hidden),
+  #groupCreateView:not(.hidden),
+  #characterCreateView:not(.hidden) {
+    animation: v8-push-in .3s cubic-bezier(.2, .8, .2, 1) both;
+  }
+}
+
+/* ---------- Bottom sheets instead of floating menus (phones) ---------- */
+
+@keyframes v8-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+@media (max-width: 760px) {
+  #newChatMenu:not(.hidden),
+  #chatMenu:not(.hidden),
+  #mediaAttachMenu:not(.hidden),
+  #messageContextMenu:not(.hidden) {
+    position: fixed !important;
+    top: auto !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    max-height: 70vh;
+    overflow-y: auto;
+    z-index: 9500 !important;
+    padding: 10px 8px calc(10px + env(safe-area-inset-bottom, 0px) * 0) !important;
+    border-radius: 22px !important;
+    transform: none;
+    /* Dim the page behind the sheet. Taps outside still close it. */
+    box-shadow:
+      0 0 0 100vmax rgba(0, 0, 0, .5),
+      0 -8px 40px rgba(0, 0, 0, .35) !important;
+    animation: v8-sheet-up .26s cubic-bezier(.2, .8, .2, 1) both;
+  }
+
+  #newChatMenu:not(.hidden) button,
+  #chatMenu:not(.hidden) button,
+  #mediaAttachMenu:not(.hidden) button,
+  #messageContextMenu:not(.hidden) button {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  /* Grab handle on top of each sheet. */
+  #newChatMenu:not(.hidden)::before,
+  #chatMenu:not(.hidden)::before,
+  #mediaAttachMenu:not(.hidden)::before,
+  #messageContextMenu:not(.hidden)::before {
+    content: "";
+    display: block;
+    width: 38px;
+    height: 5px;
+    margin: 0 auto 8px;
+    border-radius: 999px;
+    background: rgba(160, 156, 180, .45);
+  }
+
+  .memory-modal:not(.hidden) {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .memory-modal:not(.hidden) .memory-panel {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: 90vh !important;
+    border-radius: 24px 24px 0 0 !important;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+    animation: v8-sheet-up .3s cubic-bezier(.2, .8, .2, 1) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #chatView:not(.hidden),
+  #homeView:not(.hidden),
+  #createView:not(.hidden),
+  #groupCreateView:not(.hidden),
+  #characterCreateView:not(.hidden),
+  .sidebar.mobile-open,
+  #newChatMenu:not(.hidden),
+  #chatMenu:not(.hidden),
+  #mediaAttachMenu:not(.hidden),
+  #messageContextMenu:not(.hidden),
+  .memory-modal:not(.hidden) .memory-panel {
+    animation: none !important;
+  }
+}
