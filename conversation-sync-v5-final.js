@@ -9,7 +9,8 @@
   "use strict";
 
   const VERSION = "5.0.11";
-  const FALLBACK_MS = 2500;
+  // Realtime delivers changes instantly; this is only a safety net.
+  const FALLBACK_MS = 15000;
   const REALTIME_DELAY = 120;
   const LOCAL_DELAY = 180;
   const MAX_BACKOFF = 30000;

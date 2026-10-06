@@ -4715,13 +4715,76 @@
 
 
     console.log(
-      "[Chati-AI Sync] Cloud changes applied locally. Reloading..."
+      "[Chati-AI Sync] Cloud changes applied locally. Refreshing UI..."
     );
 
 
+    const refresh =
+      window.ChatiRefreshFromStorage;
+
+
+    if (
+      typeof refresh !==
+      "function"
+    ) {
+
+      window.setTimeout(
+        () =>
+          window.location.reload(),
+        250
+      );
+
+      return;
+
+    }
+
+
+    // Redraw in place; retry shortly if a reply is still streaming.
+    const attempt = () => {
+
+      Promise.resolve()
+        .then(
+          () => refresh()
+        )
+        .then(
+          refreshed => {
+
+            if (refreshed) {
+
+              reloadScheduled =
+                false;
+
+            }
+
+            else {
+
+              window.setTimeout(
+                attempt,
+                1500
+              );
+
+            }
+
+          }
+        )
+        .catch(
+          error => {
+
+            console.warn(
+              "[Chati-AI Sync] In-place refresh failed; reloading.",
+              error
+            );
+
+            window.location.reload();
+
+          }
+        );
+
+    };
+
+
     window.setTimeout(
-      () =>
-        window.location.reload(),
+      attempt,
       250
     );
   }

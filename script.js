@@ -14549,6 +14549,17 @@ function createMessageRow(
       "message-tools";
 
 
+    if (
+      normalized.variants.length > 1
+    ) {
+
+      tools.classList.add(
+        "has-variants"
+      );
+
+    }
+
+
     const left =
       document.createElement(
         "button"
@@ -20809,6 +20820,131 @@ async function initializeChatiAI() {
   renderChatHistory();
 
 }
+
+
+// =========================
+// IN-PLACE REFRESH AFTER CLOUD SYNC
+// =========================
+
+// Cloud sync writes straight to IndexedDB. Instead of reloading the whole
+// page, re-read that data and redraw what the user is looking at.
+// Returns false when it is not a good moment (a reply is still streaming),
+// so the caller can try again later.
+async function refreshFromSyncedStorage() {
+
+  if (isSending) {
+
+    return false;
+
+  }
+
+
+  try {
+
+    await appDataWriteQueue;
+
+  }
+
+  catch (_) {}
+
+
+  if (
+    !appDataFallbackToLocalStorage
+  ) {
+
+    await loadAppDataCacheFromIndexedDB();
+
+  }
+
+
+  try {
+
+    const storedCharacters =
+      JSON.parse(
+        getAppDataValue(
+          "chatiCharacters"
+        ) ||
+        "[]"
+      );
+
+
+    if (
+      Array.isArray(
+        storedCharacters
+      )
+    ) {
+
+      characters =
+        storedCharacters.map(
+          normalizeCharacter
+        );
+
+    }
+
+  }
+
+  catch (
+    error
+  ) {
+
+    console.warn(
+      "Could not reload synced characters:",
+      error
+    );
+
+  }
+
+
+  if (currentCharacter) {
+
+    currentCharacter =
+      characters.find(
+        character =>
+          String(character.id) ===
+          String(currentCharacter.id)
+      ) ||
+      currentCharacter;
+
+  }
+
+
+  renderCharacters();
+  renderGroups();
+  renderChatHistory();
+
+
+  if (
+    currentCharacter &&
+    currentChatId
+  ) {
+
+    const followLatest =
+      isMessagesNearBottom();
+
+    const previousScrollTop =
+      messages.scrollTop;
+
+
+    renderMessages();
+
+
+    if (!followLatest) {
+
+      messages.scrollTop =
+        previousScrollTop;
+
+    }
+
+  }
+
+
+  return true;
+
+}
+
+
+window.ChatiRefreshFromStorage =
+  refreshFromSyncedStorage;
 
 
 initializeCinematicSplash();
