@@ -70,3 +70,41 @@ test('history is trimmed from the oldest side to fit, starting on a user turn', 
   assert.equal(kept.at(-1), input.at(-1));
   assert.equal(kept[0].role, 'user');
 });
+
+import { buildVoiceRules, findRepeatedPhrases, getSamplingSettings, recentOpenings } from '../roleplay-guard.js';
+
+test('finds phrases the character keeps repeating across replies', () => {
+  const replies = [
+    '**Luna sonríe con un brillo travieso en sus ojos.** Claro que sí, viajero.',
+    '**Remueve el caldero.** Bueno, eso depende de ti.',
+    '**Luna sonríe con un brillo travieso en sus ojos.** ¿Y ahora qué quieres?',
+    'Claro que sí, viajero. **Se ríe con un brillo travieso en sus ojos.**'
+  ];
+  const phrases = findRepeatedPhrases(replies);
+  assert.ok(phrases.some(p => p.includes('con un brillo travieso en sus ojos')), JSON.stringify(phrases));
+  assert.ok(phrases.some(p => p.startsWith('luna sonríe con')), 'repeated opening is reported');
+  assert.ok(!phrases.some(p => p.includes('remueve el caldero')), 'one-off phrases are not flagged');
+});
+
+test('no repetition warnings for fresh conversations', () => {
+  assert.deepEqual(findRepeatedPhrases(['Hola.']), []);
+  assert.deepEqual(findRepeatedPhrases(['Uno dos tres cuatro cinco.', 'Seis siete ocho nueve diez.']), []);
+});
+
+test('voice rules default to casual speech but defer to the character profile', () => {
+  const rules = buildVoiceRules({ characterName: 'Kai', repeatedPhrases: ['well well well'], openings: recentOpenings(['Mira, no sé qué decirte ahora mismo.']) });
+  assert.match(rules, /use "tú" \(not "usted"\)/);
+  assert.match(rules, /Only speak formally.*if Kai's personality/);
+  assert.match(rules, /• "well well well"/);
+  assert.match(rules, /• "mira no sé qué decirte…"/);
+});
+
+test('sampling defaults reduce repetition and can be tuned from env', () => {
+  const sampling = getSamplingSettings({});
+  assert.ok(sampling.repetition_penalty > 1 && sampling.frequency_penalty > 0);
+  assert.equal(getSamplingSettings({ CHAT_TEMPERATURE: '0.7' }).temperature, 0.7);
+});
+
+test('recent openings are listed once each', () => {
+  assert.deepEqual(recentOpenings(['Hola, ¿qué tal estás hoy?', 'Hola, ¿qué tal estás hoy?']), ['hola qué tal estás hoy']);
+});

@@ -22,12 +22,14 @@ test('OpenRouter maps images and streaming chunks into existing app events', asy
     const provider = createChatProvider({OPENROUTER_API_KEY:'test-secret'}, {});
     const events = [];
     for await (const event of await provider.responses.create({
-      model:'openai/gpt-4o', instructions:'Stay in character.', max_output_tokens:100, stream:true,
+      model:'openai/gpt-4o', instructions:'Stay in character.', max_output_tokens:100, stream:true, sampling:{temperature:0.9, repetition_penalty:1.08},
       input:[{role:'user',content:[{type:'input_text',text:'Hi'},{type:'input_image',image_url:'data:image/png;base64,AA',detail:'high'}]}]
     })) events.push(event);
     assert.equal(payload.messages[0].content, 'Stay in character.');
     assert.equal(payload.messages[1].content[1].image_url.detail, 'high');
     assert.equal(payload.max_tokens, 100);
+    assert.equal(payload.repetition_penalty, 1.08);
+    assert.equal(payload.temperature, 0.9);
     assert.ok(payload.stop.includes('\nUser:'), 'stops before writing the user turn');
     assert.equal(events.at(-1).response.output_text, 'Hello there');
     assert.equal(events[0].type, 'response.output_text.delta');

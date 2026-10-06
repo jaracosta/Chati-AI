@@ -209,3 +209,170 @@ export function fitInputToContext(input, { instructions, contextTokens, maxOutpu
 
   return kept;
 }
+
+// ---------------------------------------------------------------------------
+// Natural voice and anti-repetition
+// ---------------------------------------------------------------------------
+
+// Strip formatting so "**She smiles.**" and "She smiles." compare equal.
+function plainWords(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[*_"“”«»()[\]{}]/g, " ")
+    .replace(/[^\p{L}\p{N}'\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+// Sentences as word lists, so repeated phrases never span two sentences.
+function plainSentences(text) {
+  return String(text || "")
+    .split(/[.!?¡¿…\n]+|\*{1,2}/)
+    .map(plainWords)
+    .filter(words => words.length);
+}
+
+function firstWords(text, count) {
+  const firstLine = String(text || "").trim().split(/\n+/)[0] || "";
+  return plainWords(firstLine).slice(0, count).join(" ");
+}
+
+// Phrases the character keeps reusing across its recent replies: 4-word
+// runs that appear in at least two different replies, plus repeated reply
+// openings. Returned as short readable phrases for the prompt.
+export function findRepeatedPhrases(replies, { maxPhrases = 12 } = {}) {
+  const recent = replies.filter(Boolean).slice(-8);
+  if (recent.length < 2) return [];
+
+  const seenIn = new Map();
+
+  recent.forEach((reply, replyIndex) => {
+    const local = new Set();
+    plainSentences(reply).forEach(words => {
+      for (let i = 0; i + 4 <= words.length; i += 1) {
+        const gram = words.slice(i, i + 4).join(" ");
+        if (gram.replace(/\s/g, "").length < 12) continue;
+        local.add(gram);
+      }
+    });
+    local.forEach(gram => {
+      if (!seenIn.has(gram)) seenIn.set(gram, new Set());
+      seenIn.get(gram).add(replyIndex);
+    });
+  });
+
+  const repeated = new Set(
+    [...seenIn.entries()]
+      .filter(([, replySet]) => replySet.size >= 2)
+      .map(([gram]) => gram)
+  );
+
+  // Rebuild each repeated phrase in full: in every reply, mark the words
+  // covered by repeated 4-word runs and take the longest covered stretches.
+  const phraseCounts = new Map();
+  recent.forEach(reply => plainSentences(reply).forEach(words => {
+    const covered = new Array(words.length).fill(false);
+    for (let i = 0; i + 4 <= words.length; i += 1) {
+      if (repeated.has(words.slice(i, i + 4).join(" "))) {
+        for (let k = i; k < i + 4; k += 1) covered[k] = true;
+      }
+    }
+    let run = [];
+    const flush = () => {
+      if (run.length >= 4) {
+        const phrase = run.join(" ");
+        phraseCounts.set(phrase, (phraseCounts.get(phrase) || 0) + 1);
+      }
+      run = [];
+    };
+    words.forEach((word, index) => (covered[index] ? run.push(word) : flush()));
+    flush();
+  }));
+
+  const phrases = [];
+  [...phraseCounts.keys()]
+    .sort((a, b) => b.length - a.length)
+    .forEach(phrase => {
+      if (!phrases.some(kept => kept.includes(phrase))) phrases.push(phrase);
+    });
+
+  const openings = new Map();
+  recent.forEach(reply => {
+    const opening = firstWords(reply, 3);
+    if (opening.split(" ").length === 3) {
+      openings.set(opening, (openings.get(opening) || 0) + 1);
+    }
+  });
+
+  const repeatedOpenings = [...openings.entries()]
+    .filter(([, count]) => count >= 2)
+    .map(([opening]) => opening + "…");
+
+  return [...repeatedOpenings, ...phrases].slice(0, maxPhrases);
+}
+
+// Ways of opening a reply the character used recently; the next reply
+// should start differently.
+export function recentOpenings(replies, count = 4) {
+  return [...new Set(
+    replies
+      .filter(Boolean)
+      .slice(-count)
+      .map(reply => firstWords(reply, 5))
+      .filter(opening => opening.split(" ").length >= 3)
+  )];
+}
+
+export function buildVoiceRules({ characterName, repeatedPhrases = [], openings = [] }) {
+  const name = String(characterName || "the character").trim();
+
+  const avoidList = repeatedPhrases.length
+    ? `
+- ${name} has been repeating these lately. Do NOT use them again (not even reworded slightly):
+${repeatedPhrases.map(phrase => `  • "${phrase}"`).join("\n")}`
+    : "";
+
+  const openingList = openings.length
+    ? `
+- Recent replies started like this. Start this one differently:
+${openings.map(opening => `  • "${opening}…"`).join("\n")}`
+    : "";
+
+  return `
+HOW ${name.toUpperCase()} TALKS (VERY IMPORTANT)
+
+- Talk like a real person texting or talking face to face, not like an assistant, a narrator of a novel, or a customer-service agent.
+
+- Default to casual, everyday language: short sentences, contractions, filler words, slang, interruptions, trailing off, typos-level informality when it fits. In Spanish, use "tú" (not "usted") and natural spoken Spanish.
+
+- Only speak formally, poetically, archaically, or with a special accent/dialect if ${name}'s personality, background, or creator instructions say so. The character profile always wins over these defaults.
+
+- Never repeat the same sentence, catchphrase, description, or opening across replies. Each reply must feel new. Vary sentence length and structure.
+
+- Do not re-describe things already described (the same smile, the same eyes, the same room) unless something changed.
+
+- Avoid stock AI phrases such as: "a mischievous glint in their eyes", "sends shivers down", "a smirk playing on their lips", "I can't help but", "Well, well, well", "little did they know", "the air was thick with", "what do you say?", "¿En qué puedo ayudarte?", "no puedo evitar", "una sonrisa traviesa", "un brillo en sus ojos".
+
+- Do not end every reply with a question or an offer. Let some replies just end.
+
+- React to what the user actually said or did in their last message, specifically. No generic replies.${avoidList}${openingList}
+  `.trim();
+}
+
+// Sampling settings that reduce loops and repetition. Each can be tuned
+// from the environment without a code change.
+export function getSamplingSettings(env = {}) {
+  const number = (value, fallback) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  return {
+    temperature: number(env.CHAT_TEMPERATURE, 0.9),
+    top_p: number(env.CHAT_TOP_P, 0.95),
+    min_p: number(env.CHAT_MIN_P, 0.05),
+    frequency_penalty: number(env.CHAT_FREQUENCY_PENALTY, 0.35),
+    presence_penalty: number(env.CHAT_PRESENCE_PENALTY, 0.25),
+    repetition_penalty: number(env.CHAT_REPETITION_PENALTY, 1.08)
+  };
+}

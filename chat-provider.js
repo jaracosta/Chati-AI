@@ -35,6 +35,7 @@ export function createChatProvider(env, openai) {
           model: request.model,
           messages,
           max_tokens: request.max_output_tokens,
+          ...(request.sampling || {}),
           // Stop if the model starts writing the user's turn.
           stop: ROLEPLAY_STOP_SEQUENCES,
           stream: Boolean(request.stream)
