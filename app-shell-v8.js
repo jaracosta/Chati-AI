@@ -190,7 +190,78 @@
     }, { passive: true });
   }
 
+  // ---------------------------------------------------------------------
+  // Desktop keyboard shortcuts
+  //   Ctrl/⌘ + K  search chats and characters
+  //   Ctrl/⌘ + B  show/hide the chat list
+  //   Alt + N     new chat with the open character
+  //   ↑           edit your last message (when the message box is empty)
+  //   Esc         close menus and panels (already handled by the app)
+  // ---------------------------------------------------------------------
+
+  function setupDesktopShortcuts() {
+    document.addEventListener("keydown", event => {
+      if (isPhone()) return;
+      const mod = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+
+      if (mod && !event.shiftKey && !event.altKey && key === "k") {
+        event.preventDefault();
+        if (typeof setSidebarCollapsed === "function" &&
+            document.getElementById("sidebar")?.classList.contains("is-collapsed")) {
+          setSidebarCollapsed(false, { persist: true });
+        }
+        const search = document.getElementById("sidebarSearchInput");
+        search?.focus();
+        search?.select();
+        return;
+      }
+
+      if (mod && !event.shiftKey && !event.altKey && key === "b") {
+        event.preventDefault();
+        const collapsed = document.getElementById("sidebar")?.classList.contains("is-collapsed");
+        if (typeof setSidebarCollapsed === "function") {
+          setSidebarCollapsed(!collapsed, { persist: true });
+        }
+        return;
+      }
+
+      if (event.altKey && !mod && (key === "n" || event.code === "KeyN")) {
+        if (!visible("chatView")) return;
+        event.preventDefault();
+        document.getElementById("newChatBtn")?.click();
+        return;
+      }
+
+      if (
+        event.key === "ArrowUp" &&
+        !mod && !event.altKey && !event.shiftKey &&
+        event.target?.id === "messageInput" &&
+        !event.target.value.trim()
+      ) {
+        const chat = typeof getCurrentChat === "function" ? getCurrentChat() : null;
+        const lastUserMessage = chat?.messages?.slice().reverse().find(message => message.sender === "user");
+        if (!lastUserMessage) return;
+        event.preventDefault();
+        // Reuse the app's own "Edit" action from the message menu.
+        contextMessageId = lastUserMessage.id;
+        document.getElementById("ctxEdit")?.click();
+        return;
+      }
+
+    });
+
+    // Show the shortcut in the search placeholder on desktop.
+    const search = document.getElementById("sidebarSearchInput");
+    if (search && !isPhone()) {
+      const mac = /Mac|iP(hone|ad|od)/.test(navigator.platform);
+      search.dataset.v8Shortcut = mac ? "⌘K" : "Ctrl K";
+      search.closest(".sidebar-search")?.setAttribute("data-shortcut", search.dataset.v8Shortcut);
+    }
+  }
+
   function initialize() {
+    setupDesktopShortcuts();
     setupCompactHeader();
     setupBackNavigation();
     setupEdgeSwipeBack();
