@@ -404,6 +404,7 @@
         body: JSON.stringify({
           web: webEnabled(),
           lang: window.ChatiI18n?.lang || "en",
+          matureContent: typeof isMatureContentEnabled === "function" && isMatureContentEnabled() === true,
           messages: messages.slice(-30).map(message => ({
             role: message.role,
             text: message.draft

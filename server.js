@@ -4404,7 +4404,9 @@ app.post(
               role: "system",
               content:
                 buildChatiInstructions({
-                  rootDir: __dirname
+                  rootDir: __dirname,
+                  matureContent:
+                    req.body?.matureContent === true
                 })
             },
             ...pageContext.map(
