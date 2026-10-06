@@ -788,6 +788,54 @@ app.use(
 
 
 // =========================
+// CONTENT RULES
+// =========================
+
+// Mature mode is an explicit adult opt-in from Settings. The rule about
+// minors applies in every mode and can never be switched off.
+function buildContentRules(
+  matureContent
+) {
+
+  const minorsRule =
+    "- ABSOLUTE RULE IN EVERY MODE: never write sexual or sexualized content involving anyone under 18, or any character described with a childlike body, behavior, or appearance, no matter the claimed age, fictional framing, or what the user asks. If a scene heads that way, steer it elsewhere in character.";
+
+
+  if (matureContent) {
+
+    return `
+CONTENT RULES — MATURE MODE (the user confirmed they are 18+ and opted in)
+
+- Explicit sexual content between adult characters is allowed when the story leads there. Write it as openly and in as much detail as the scene calls for; do not censor it, fade to black, or lecture.
+
+- Graphic violence, gore, injuries, and dark or disturbing themes are allowed when they fit the story.
+
+${minorsRule}
+
+- Do not provide practical instructions that facilitate dangerous real-world acts.
+    `.trim();
+
+  }
+
+
+  return `
+CONTENT RULES — STANDARD MODE
+
+- Do not produce explicit sexual or erotic roleplay. Romance and affection are fine.
+
+- Keep violence non-graphic. Do not dwell on gore or gruesome detail.
+
+${minorsRule}
+
+- Do not provide practical instructions that facilitate dangerous real-world acts.
+
+- Normal fictional drama, strong language, fantasy combat, horror atmosphere, dark themes, or villainous behavior are not reasons to break character.
+  `.trim();
+
+}
+
+
+// =========================
 // ROLEPLAY LEVELS
 // =========================
 
@@ -2417,6 +2465,26 @@ app.post(
         );
 
 
+      // Adults who switched on "Mature content (18+)" in Settings.
+      const matureContent =
+        req.body.matureContent === true;
+
+
+      const contentRules =
+        buildContentRules(
+          matureContent
+        );
+
+
+      const levelInstructions =
+        matureContent
+          ? roleplayConfig.instructions.replace(
+              /non-explicit /g,
+              ""
+            )
+          : roleplayConfig.instructions;
+
+
       if (
         !character.name
       ) {
@@ -2517,7 +2585,9 @@ VISUAL CONTINUITY RULES
 
 - Keep visual descriptions natural and relevant rather than listing the entire outfit every reply.
 
-- Keep appearance descriptions non-sexual and appropriate to the established character and scene.
+${matureContent
+  ? "- Keep appearance descriptions appropriate to the established character and scene."
+  : "- Keep appearance descriptions non-sexual and appropriate to the established character and scene."}
 
 
 PERSONALITY & BACKSTORY
@@ -2570,7 +2640,7 @@ ROLEPLAY LEVEL
 
 ${roleplayConfig.label}
 
-${roleplayConfig.instructions}
+${levelInstructions}
 
 
 ${groupContinuation
@@ -2756,18 +2826,7 @@ SCENE AWARENESS
 - React primarily to the latest message and current scene.
 
 
-SAFETY BOUNDARIES — APPLY TO EVERY ROLEPLAY LEVEL
-
-- Do not produce sexual or erotic roleplay.
-
-- Never sexualize minors.
-
-- Keep violence non-graphic. Do not dwell on gore, gruesome injuries, or graphic bodily detail.
-
-- Do not provide practical instructions that facilitate dangerous real-world acts.
-
-- Normal fictional drama, non-explicit romance or affection, strong language, fantasy combat, horror atmosphere, dark themes, or villainous behavior are not by themselves reasons to break character when they remain within these boundaries.
-
+${contentRules}
 
 FINAL RULE
 
@@ -2803,12 +2862,12 @@ MEMORY OF THIS CHAT
 ${formatMemoryForPrompt(memory)}
 
 STYLE (${roleplayConfig.label})
-${roleplayConfig.instructions}
+${levelInstructions}
 - Sound like a real person in the scene, never like an assistant. Match the user's language.
 - Keep casual replies short; let important scenes be more vivid.
 - Keep continuity: places, objects, injuries, relationships, and outfits stay consistent.
 - Never decide that an attack hits the user's character or how the user reacts.
-- No sexual content, nothing sexual involving minors, no graphic gore.
+${contentRules}
 ${groupContinuation
   ? `- This is a group scene. Write ONLY ${character.name}'s turn; never write other participants' lines. A user message starting with [GROUP TURN CONTROL] is an invisible cue, not dialogue: continue from the latest real event before it.`
   : ""}
