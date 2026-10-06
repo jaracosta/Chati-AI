@@ -20,8 +20,33 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Chati-AI">
 
-  <link rel="manifest" href="manifest.webmanifest?v=3.7.6">
-  <link rel="apple-touch-icon" href="assets/icons/chati-ai-192.png?v=3.7.6">
+  <link rel="manifest" href="manifest.webmanifest?v=8.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon-180.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/chati-ai-192.png">
+
+  <!-- iPhone launch screens: no white flash when opening the installed app. -->
+  <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash/splash-1290x2796.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash/splash-1179x2556.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash/splash-1284x2778.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash/splash-1170x2532.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash/splash-1125x2436.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash/splash-1242x2688.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="assets/splash/splash-828x1792.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="assets/splash/splash-750x1334.png">
+
+  <!-- Paint the app background before any stylesheet loads. -->
+  <style>
+    html, body { background: #0b0b0f; }
+    html.chati-light, html.chati-light body { background: #f6f5fa; }
+  </style>
+  <script>
+    try {
+      var chatiTheme = localStorage.getItem("chatiThemeV6") || "dark";
+      if (chatiTheme === "light" || (chatiTheme === "system" && window.matchMedia("(prefers-color-scheme: light)").matches)) {
+        document.documentElement.classList.add("chati-light");
+      }
+    } catch (_) {}
+  </script>
 
   <link
     rel="stylesheet"
@@ -35,8 +60,9 @@
   >
   <link rel="stylesheet" href="account-profile-v6.css?v=6.2.3">
   <link rel="stylesheet" href="media-v6.css?v=7.0.0">
-  <link rel="stylesheet" href="app-polish-v6.css?v=6.2.4">
-  <link rel="stylesheet" href="ui-smooth-v7.css?v=7.0.2">
+  <link rel="stylesheet" href="app-polish-v6.css?v=6.3.0">
+  <link rel="stylesheet" href="ui-smooth-v7.css?v=7.0.3">
+  <link rel="stylesheet" href="app-shell-v8.css?v=8.2.2">
 
   <!-- Returning visitors skip the cinematic splash entirely. -->
   <script>
@@ -277,7 +303,7 @@
         <div
           id="chatHistoryList"
           class="chat-history-list"
-        ></div>
+        ><div class="v8-skeleton-row" aria-hidden="true"><i></i><span></span></div><div class="v8-skeleton-row" aria-hidden="true"><i></i><span></span></div><div class="v8-skeleton-row" aria-hidden="true"><i></i><span></span></div></div>
 
       </div>
 
@@ -337,7 +363,8 @@
         <div
           id="charactersGrid"
           class="characters-grid"
-        ></div>
+          aria-busy="true"
+        ><div class="v8-skeleton-card" aria-hidden="true"><span></span><span></span></div><div class="v8-skeleton-card" aria-hidden="true"><span></span><span></span></div><div class="v8-skeleton-card" aria-hidden="true"><span></span><span></span></div><div class="v8-skeleton-card" aria-hidden="true"><span></span><span></span></div></div>
 
 
         <section
@@ -3178,7 +3205,7 @@
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker
-          .register("./sw.js?v=7.0.4", {
+          .register("./sw.js?v=8.2.2", {
             scope: "./",
             updateViaCache: "none"
           })
@@ -3222,7 +3249,10 @@
 
   <script src="account-ui.js?v=4.0.7.5"></script>
   <script src="media-v6.js?v=7.0.0"></script>
-  <script src="app-polish-v6.js?v=6.2.4"></script>
+  <script src="app-polish-v6.js?v=6.3.0"></script>
+  <script src="app-shell-v8.js?v=8.1.0"></script>
+  <script src="i18n-v8.js?v=8.2.2"></script>
+  <script src="explore-v8.js?v=8.2.1"></script>
 
 </body>
 </html>

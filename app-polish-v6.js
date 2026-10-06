@@ -19,6 +19,10 @@
 
     dock.innerHTML =
       '<button type="button" data-v6-nav="chats">' +
+        icon('<path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9v5.5H5.5A1.5 1.5 0 0 1 4 19v-8.5Z"/>') +
+        '<span>Home</span>' +
+      '</button>' +
+      '<button type="button" data-v6-nav="history">' +
         icon('<path d="M5.2 5.5h13.6a2.2 2.2 0 0 1 2.2 2.2v7.5a2.2 2.2 0 0 1-2.2 2.2h-6.9L7.2 21v-3.6h-2A2.2 2.2 0 0 1 3 15.2V7.7a2.2 2.2 0 0 1 2.2-2.2Z"/><path d="M7.5 9.5h9M7.5 13h6"/>') +
         '<span>Chats</span>' +
       '</button>' +
@@ -39,6 +43,13 @@
       event.stopPropagation();
       if (action !== "create") document.getElementById("closeCreateChoiceBtn")?.click();
       if (action !== "profile") window.ChatiProfileV6?.close?.();
+
+      // "Chats" shows the recent-chats list (the sidebar) as a full page.
+      if (action === "history") {
+        window.setMobileSidebarOpen?.(true);
+      } else {
+        window.closeMobileSidebar?.();
+      }
 
       if (action === "chats") {
         document.getElementById("chatsBtn")?.click();
@@ -75,6 +86,7 @@
     const editing = visible("characterCreateView") || visible("groupCreateView");
     document.body.classList.toggle("v6-creator-active", editing);
     if (document.body.classList.contains("v6-profile-open")) { setActive("profile"); return; }
+    if (document.body.classList.contains("mobile-sidebar-open")) { setActive("history"); return; }
 
     if (
       visible("characterCreateView") ||
@@ -104,6 +116,7 @@
 
   function initialize() {
     buildDock();
+    new MutationObserver(updateActive).observe(document.body, { attributes: true, attributeFilter: ["class"] });
     window.addEventListener("chati:profiletoggle", updateActive);
 
     document.querySelectorAll(".view, #createChoiceModal").forEach(view => {
