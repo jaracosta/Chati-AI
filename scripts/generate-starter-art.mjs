@@ -1,16 +1,15 @@
 // Generates anime profile pictures and chat backgrounds for the Explore
 // starter characters into assets/starters/. Run by the "Starter art" GitHub
-// Action (needs the OPENROUTER_API_KEY secret), or locally:
-//   npm i --no-save sharp && OPENROUTER_API_KEY=... node scripts/generate-starter-art.mjs [luna kai ...]
+// Action (needs the FAL_KEY or OPENROUTER_API_KEY secret), or locally:
+//   npm i --no-save sharp && FAL_KEY=... node scripts/generate-starter-art.mjs [luna kai ...]
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { createImageGenerator } from "../image-provider.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(ROOT, "assets", "starters");
-const MODEL = process.env.IMAGE_MODEL || "google/gemini-2.5-flash-image";
-const KEY = process.env.OPENROUTER_API_KEY;
 
 const STYLE =
   "High-quality modern anime illustration, clean line art, detailed shading, vibrant cinematic lighting, original character (not from any existing series). No text, no watermark, no logo.";
@@ -50,28 +49,12 @@ const STARTERS = {
   }
 };
 
-async function generate(prompt, aspectRatio) {
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${KEY}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://chati-ai.com",
-      "X-OpenRouter-Title": "Chati-AI"
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [{ role: "user", content: prompt }],
-      modalities: ["image", "text"],
-      image_config: { aspect_ratio: aspectRatio }
-    })
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(JSON.stringify(data.error || data).slice(0, 400));
-  const url = data.choices?.[0]?.message?.images?.[0]?.image_url?.url || "";
-  if (url.startsWith("data:")) return Buffer.from(url.slice(url.indexOf(",") + 1), "base64");
-  if (url.startsWith("http")) return Buffer.from(await (await fetch(url)).arrayBuffer());
-  throw new Error("No image returned.");
+const generator = createImageGenerator(process.env);
+
+async function generate(prompt, aspect) {
+  const dataUrl = await generator.generate({ prompt, aspect, mature: false });
+  if (!dataUrl) throw new Error("No image returned.");
+  return Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64");
 }
 
 async function save(buffer, file, width) {
@@ -80,7 +63,8 @@ async function save(buffer, file, width) {
 }
 
 async function main() {
-  if (!KEY) throw new Error("Set OPENROUTER_API_KEY.");
+  if (!generator.provider) throw new Error("Set FAL_KEY (fal.ai) or OPENROUTER_API_KEY.");
+  console.log("provider:", generator.provider);
   await mkdir(OUT, { recursive: true });
 
   const only = process.argv.slice(2).filter(key => STARTERS[key]);

@@ -204,6 +204,7 @@
     "Create image": "Crear imagen",
     "The character sends you a picture": "El personaje te manda una imagen",
     "sends a picture": "manda una imagen",
+    "Image generation isn't set up on the server yet.": "La generación de imágenes todavía no está configurada en el servidor.",
     "Couldn't prepare the image. Please try again.": "No se pudo preparar la imagen. Inténtalo de nuevo.",
     "The image model didn't return a picture. Try a different request.": "El modelo no devolvió ninguna imagen. Prueba con otra petición.",
     "Couldn't create the image right now. Please try again.": "No se pudo crear la imagen ahora. Inténtalo de nuevo.",
