@@ -5,7 +5,12 @@ import compression from "compression";
 import dotenv from "dotenv";
 
 import OpenAI, { toFile } from "openai";
-import { createChatProvider } from "./chat-provider.js";
+import { createChatProvider, extractJsonObject } from "./chat-provider.js";
+import {
+  buildImagePromptMessages,
+  parseImagePlan,
+  usableReferenceImage
+} from "./character-image.js";
 import {
   buildChatiInstructions,
   extractCharacterDraft,
@@ -57,6 +62,17 @@ const MODEL = process.env.OPENROUTER_API_KEY
 const CHATI_MODEL =
   process.env.CHATI_MODEL ||
   "google/gemini-2.5-flash";
+
+
+// Character pictures: IMAGE_MODEL draws, IMAGE_PROMPT_MODEL writes the
+// prompt from the character sheet and the story.
+const IMAGE_MODEL =
+  process.env.IMAGE_MODEL ||
+  "google/gemini-2.5-flash-image";
+
+const IMAGE_PROMPT_MODEL =
+  process.env.IMAGE_PROMPT_MODEL ||
+  CHATI_MODEL;
 
 
 const MEMORY_MODEL = process.env.OPENROUTER_API_KEY
@@ -510,6 +526,18 @@ const chatiRateLimiter =
   });
 
 
+const imageRateLimiter =
+  createRateLimiter({
+    name:
+      "image",
+
+    maxRequests:
+      Number(process.env.IMAGE_RATE_LIMIT_MAX) > 0
+        ? Number(process.env.IMAGE_RATE_LIMIT_MAX)
+        : 20
+  });
+
+
 const rateLimitCleanupTimer =
   setInterval(
 
@@ -649,6 +677,7 @@ const PUBLIC_ROOT_FILES =
     "i18n-v8.js",
     "explore-v8.js",
     "chati-v8.js",
+    "image-gen-v8.js",
     "chati-v8.css",
     "script.js",
     "supabase-auth-v4.js",
@@ -4232,6 +4261,178 @@ const CHATI_IMAGE_PATTERN =
 
 const CHATI_MAX_IMAGE_CHARS =
   6 * 1024 * 1024;
+
+
+// ============================================================
+// CHARACTER IMAGES
+// ============================================================
+
+app.post(
+
+  "/api/image",
+
+  imageRateLimiter,
+
+  async (
+    req,
+    res
+  ) => {
+
+    if (
+      typeof chatProvider.image !==
+        "function" ||
+      typeof chatProvider.assistant !==
+        "function"
+    ) {
+
+      return res
+        .status(503)
+        .json({
+          error:
+            "Image generation needs OpenRouter. Set OPENROUTER_API_KEY on the server."
+        });
+
+    }
+
+
+    const character =
+      req.body?.character &&
+      typeof req.body.character === "object"
+        ? req.body.character
+        : {};
+
+    const request =
+      String(req.body?.request || "").trim();
+
+
+    if (!String(character.name || "").trim()) {
+
+      return res
+        .status(400)
+        .json({
+          error:
+            "Missing character."
+        });
+
+    }
+
+
+    try {
+
+      const plan =
+        buildImagePromptMessages({
+          character,
+          request,
+          recent:
+            req.body?.recent,
+          matureContent:
+            req.body?.matureContent === true,
+          lang:
+            req.body?.lang === "es" ? "es" : "en"
+        });
+
+
+      const planned =
+        await chatProvider.assistant({
+          model:
+            IMAGE_PROMPT_MODEL,
+          messages:
+            plan.messages,
+          max_output_tokens:
+            900,
+          web:
+            false
+        });
+
+
+      const parsed =
+        parseImagePlan(
+          planned.text,
+          extractJsonObject
+        );
+
+
+      if (!parsed) {
+
+        return res
+          .status(502)
+          .json({
+            error:
+              "Couldn't prepare the image. Please try again."
+          });
+
+      }
+
+
+      if (!parsed.ok) {
+
+        return res.json({
+          image: "",
+          caption: parsed.caption
+        });
+
+      }
+
+
+      const reference =
+        usableReferenceImage(
+          character.image
+        );
+
+
+      const generated =
+        await chatProvider.image({
+          model:
+            IMAGE_MODEL,
+          prompt:
+            parsed.prompt,
+          referenceImages:
+            reference ? [reference] : [],
+          aspectRatio:
+            parsed.aspect
+        });
+
+
+      if (!generated.url) {
+
+        return res
+          .status(502)
+          .json({
+            error:
+              "The image model didn't return a picture. Try a different request."
+          });
+
+      }
+
+
+      res.json({
+        image:
+          generated.url,
+        caption:
+          parsed.caption
+      });
+
+    }
+
+    catch (error) {
+
+      console.error(
+        "❌ Image error:",
+        error
+      );
+
+      res
+        .status(502)
+        .json({
+          error:
+            "Couldn't create the image right now. Please try again."
+        });
+
+    }
+
+  }
+
+);
 
 
 app.post(
