@@ -13557,12 +13557,97 @@ function openChat(
 }
 
 
+// Some models narrate without asterisks but quote the dialogue:
+//   She smiles. "Hello."
+// In that case everything outside the quotes is action/narration, so show it
+// with the action style. Replies that already use asterisks are untouched.
+function normalizeRoleplayText(
+  text
+) {
+
+  const value =
+    String(
+      text || ""
+    );
+
+
+  if (
+    value.includes("*")
+  ) {
+
+    return value;
+
+  }
+
+
+  const quotePattern =
+    /("[^"\n]*"|“[^”\n]*”|«[^»\n]*»)/g;
+
+
+  if (
+    !quotePattern.test(
+      value
+    )
+  ) {
+
+    return value;
+
+  }
+
+
+  return value
+    .split(
+      quotePattern
+    )
+    .map(
+      (
+        segment,
+        index
+      ) => {
+
+        // Odd indexes are the quoted dialogue captured by the split.
+        if (
+          index % 2 === 1 ||
+          !/\p{L}/u.test(
+            segment
+          )
+        ) {
+
+          return segment;
+
+        }
+
+
+        return segment.replace(
+          /^(\s*)([\s\S]*?)(\s*)$/,
+          (
+            match,
+            lead,
+            body,
+            trail
+          ) =>
+            `${lead}*${body}*${trail}`
+        );
+
+      }
+    )
+    .join("");
+
+}
+
+
 function renderRichText(
   element,
   text
 ) {
 
   element.replaceChildren();
+
+
+  text =
+    normalizeRoleplayText(
+      text
+    );
 
 
   const pattern =
@@ -19251,6 +19336,9 @@ async function requestCharacterReply(
                 roleplayLevel
               ),
 
+            matureContent:
+              isMatureContentEnabled(),
+
             groupContinuation
 
           })
@@ -20820,6 +20908,114 @@ async function initializeChatiAI() {
   renderChatHistory();
 
 }
+
+
+// =========================
+// MATURE CONTENT (18+) SETTING
+// =========================
+
+const MATURE_CONTENT_KEY =
+  "chatiMatureContentV1";
+
+
+function isMatureContentEnabled() {
+
+  try {
+
+    return localStorage.getItem(
+      MATURE_CONTENT_KEY
+    ) === "on";
+
+  }
+
+  catch (_) {
+
+    return false;
+
+  }
+
+}
+
+
+function renderMatureContentToggle() {
+
+  const toggle =
+    document.getElementById(
+      "matureContentToggle"
+    );
+
+
+  if (!toggle) {
+
+    return;
+
+  }
+
+
+  const enabled =
+    isMatureContentEnabled();
+
+
+  toggle.setAttribute(
+    "aria-checked",
+    enabled
+      ? "true"
+      : "false"
+  );
+
+  toggle.classList.toggle(
+    "is-on",
+    enabled
+  );
+
+}
+
+
+document
+  .getElementById(
+    "matureContentToggle"
+  )
+  ?.addEventListener(
+    "click",
+    () => {
+
+      const turningOn =
+        !isMatureContentEnabled();
+
+
+      if (
+        turningOn &&
+        !window.confirm(
+          "Mature content allows explicit sexual content between adult characters and graphic violence.\n\nConfirm that you are 18 years or older."
+        )
+      ) {
+
+        return;
+
+      }
+
+
+      try {
+
+        localStorage.setItem(
+          MATURE_CONTENT_KEY,
+          turningOn
+            ? "on"
+            : "off"
+        );
+
+      }
+
+      catch (_) {}
+
+
+      renderMatureContentToggle();
+
+    }
+  );
+
+
+renderMatureContentToggle();
 
 
 // =========================

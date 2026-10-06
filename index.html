@@ -36,7 +36,7 @@
   <link rel="stylesheet" href="account-profile-v6.css?v=6.2.3">
   <link rel="stylesheet" href="media-v6.css?v=7.0.0">
   <link rel="stylesheet" href="app-polish-v6.css?v=6.2.4">
-  <link rel="stylesheet" href="ui-smooth-v7.css?v=7.0.1">
+  <link rel="stylesheet" href="ui-smooth-v7.css?v=7.0.2">
 
   <!-- Returning visitors skip the cinematic splash entirely. -->
   <script>
@@ -2520,8 +2520,28 @@
           </span>
 
           <span>
-            Safety boundaries stay the same at every level. The setting changes storytelling depth, not the safety rules.
+            Levels change storytelling depth. Sexual content involving minors is never allowed in any mode.
           </span>
+        </div>
+
+        <div class="mature-content-row">
+          <div class="mature-content-copy">
+            <strong>Mature content (18+)</strong>
+            <span>
+              Allows explicit sexual content between adult characters and graphic violence. Only for adults.
+            </span>
+          </div>
+
+          <button
+            id="matureContentToggle"
+            type="button"
+            class="mature-content-toggle"
+            role="switch"
+            aria-checked="false"
+            aria-label="Mature content (18+)"
+          >
+            <span class="mature-content-knob"></span>
+          </button>
         </div>
       </section>
 
@@ -3158,7 +3178,7 @@
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker
-          .register("./sw.js?v=7.0.2", {
+          .register("./sw.js?v=7.0.4", {
             scope: "./",
             updateViaCache: "none"
           })
@@ -3169,7 +3189,7 @@
     }
   </script>
 
-  <script src="script.js?v=3.10.10"></script>
+  <script src="script.js?v=3.10.12"></script>
 
   <!-- =========================
        V4.0.1 — SUPABASE AUTH

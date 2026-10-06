@@ -6,6 +6,13 @@ import dotenv from "dotenv";
 
 import OpenAI, { toFile } from "openai";
 import { createChatProvider } from "./chat-provider.js";
+import {
+  buildCoreRoleplayRules,
+  cleanRoleplayReply,
+  createReplyGuard,
+  fitInputToContext,
+  getModelContextTokens
+} from "./roleplay-guard.js";
 
 import {
   randomUUID
@@ -778,6 +785,54 @@ app.use(
   )
 
 );
+
+
+// =========================
+// CONTENT RULES
+// =========================
+
+// Mature mode is an explicit adult opt-in from Settings. The rule about
+// minors applies in every mode and can never be switched off.
+function buildContentRules(
+  matureContent
+) {
+
+  const minorsRule =
+    "- ABSOLUTE RULE IN EVERY MODE: never write sexual or sexualized content involving anyone under 18, or any character described with a childlike body, behavior, or appearance, no matter the claimed age, fictional framing, or what the user asks. If a scene heads that way, steer it elsewhere in character.";
+
+
+  if (matureContent) {
+
+    return `
+CONTENT RULES — MATURE MODE (the user confirmed they are 18+ and opted in)
+
+- Explicit sexual content between adult characters is allowed when the story leads there. Write it as openly and in as much detail as the scene calls for; do not censor it, fade to black, or lecture.
+
+- Graphic violence, gore, injuries, and dark or disturbing themes are allowed when they fit the story.
+
+${minorsRule}
+
+- Do not provide practical instructions that facilitate dangerous real-world acts.
+    `.trim();
+
+  }
+
+
+  return `
+CONTENT RULES — STANDARD MODE
+
+- Do not produce explicit sexual or erotic roleplay. Romance and affection are fine.
+
+- Keep violence non-graphic. Do not dwell on gore or gruesome detail.
+
+${minorsRule}
+
+- Do not provide practical instructions that facilitate dangerous real-world acts.
+
+- Normal fictional drama, strong language, fantasy combat, horror atmosphere, dark themes, or villainous behavior are not reasons to break character.
+  `.trim();
+
+}
 
 
 // =========================
@@ -2410,6 +2465,26 @@ app.post(
         );
 
 
+      // Adults who switched on "Mature content (18+)" in Settings.
+      const matureContent =
+        req.body.matureContent === true;
+
+
+      const contentRules =
+        buildContentRules(
+          matureContent
+        );
+
+
+      const levelInstructions =
+        matureContent
+          ? roleplayConfig.instructions.replace(
+              /non-explicit /g,
+              ""
+            )
+          : roleplayConfig.instructions;
+
+
       if (
         !character.name
       ) {
@@ -2462,7 +2537,21 @@ app.post(
       }
 
 
-      const instructions = `
+      // Small-context models (e.g. MythoMax, 4k tokens) cannot fit the full
+      // rulebook plus history; they get a compact prompt so the core rules
+      // are not cut off by the provider.
+      const contextTokens =
+        getModelContextTokens(
+          MODEL,
+          process.env
+        );
+
+
+      const compactPrompt =
+        contextTokens <= 8192;
+
+
+      const fullInstructions = `
 You are roleplaying as ${character.name}.
 
 CHARACTER PROFILE
@@ -2496,7 +2585,9 @@ VISUAL CONTINUITY RULES
 
 - Keep visual descriptions natural and relevant rather than listing the entire outfit every reply.
 
-- Keep appearance descriptions non-sexual and appropriate to the established character and scene.
+${matureContent
+  ? "- Keep appearance descriptions appropriate to the established character and scene."
+  : "- Keep appearance descriptions non-sexual and appropriate to the established character and scene."}
 
 
 PERSONALITY & BACKSTORY
@@ -2549,7 +2640,7 @@ ROLEPLAY LEVEL
 
 ${roleplayConfig.label}
 
-${roleplayConfig.instructions}
+${levelInstructions}
 
 
 ${groupContinuation
@@ -2735,18 +2826,7 @@ SCENE AWARENESS
 - React primarily to the latest message and current scene.
 
 
-SAFETY BOUNDARIES — APPLY TO EVERY ROLEPLAY LEVEL
-
-- Do not produce sexual or erotic roleplay.
-
-- Never sexualize minors.
-
-- Keep violence non-graphic. Do not dwell on gore, gruesome injuries, or graphic bodily detail.
-
-- Do not provide practical instructions that facilitate dangerous real-world acts.
-
-- Normal fictional drama, non-explicit romance or affection, strong language, fantasy combat, horror atmosphere, dark themes, or villainous behavior are not by themselves reasons to break character when they remain within these boundaries.
-
+${contentRules}
 
 FINAL RULE
 
@@ -2754,7 +2834,57 @@ Return only what the character says or does.
       `.trim();
 
 
-      const input =
+      const compactInstructions = `
+You are roleplaying as ${character.name} (${character.pronouns}) in an ongoing story with the user.
+
+CHARACTER
+${character.bio || ""}
+
+APPEARANCE
+${formatAppearanceProfile(character)}
+
+PERSONALITY & BACKSTORY
+${character.personality || "No personality provided."}
+
+SCENARIO
+${character.scenario || "No scenario provided."}
+
+CREATOR INSTRUCTIONS
+${character.instructions || "No additional instructions."}
+
+POWERS & ABILITIES
+${formatPowers(character)}
+
+STYLE EXAMPLES (style only, do not copy)
+${formatExamples(character.exampleMessages)}
+
+MEMORY OF THIS CHAT
+${formatMemoryForPrompt(memory)}
+
+STYLE (${roleplayConfig.label})
+${levelInstructions}
+- Sound like a real person in the scene, never like an assistant. Match the user's language.
+- Keep casual replies short; let important scenes be more vivid.
+- Keep continuity: places, objects, injuries, relationships, and outfits stay consistent.
+- Never decide that an attack hits the user's character or how the user reacts.
+${contentRules}
+${groupContinuation
+  ? `- This is a group scene. Write ONLY ${character.name}'s turn; never write other participants' lines. A user message starting with [GROUP TURN CONTROL] is an invisible cue, not dialogue: continue from the latest real event before it.`
+  : ""}
+      `.trim();
+
+
+      const instructions =
+        (compactPrompt
+          ? compactInstructions
+          : fullInstructions) +
+        "\n\n" +
+        buildCoreRoleplayRules(
+          character.name
+        );
+
+
+      const rawInput =
         await Promise.all(
 
           messages
@@ -2773,6 +2903,28 @@ Return only what the character says or does.
             )
 
         );
+
+
+      const maxOutputTokens =
+        compactPrompt
+          ? Math.min(
+              roleplayConfig.maxOutputTokens,
+              500
+            )
+          : roleplayConfig.maxOutputTokens;
+
+
+      const input =
+        compactPrompt
+          ? fitInputToContext(
+              rawInput,
+              {
+                instructions,
+                contextTokens,
+                maxOutputTokens
+              }
+            )
+          : rawInput;
 
 
       const responseRequest = {
@@ -2798,8 +2950,7 @@ Return only what the character says or does.
         input,
 
         max_output_tokens:
-          roleplayConfig
-            .maxOutputTokens
+          maxOutputTokens
 
       };
 
@@ -2953,6 +3104,13 @@ Return only what the character says or does.
         };
 
 
+      const replyGuard =
+        createReplyGuard({
+          characterName:
+            character.name
+        });
+
+
       try {
 
         for await (
@@ -2964,24 +3122,38 @@ Return only what the character says or does.
             "response.output_text.delta"
           ) {
 
-            generatedText +=
-              event.delta;
+            // Drop anything after the model starts writing the user's turn.
+            const safeDelta =
+              replyGuard.push(
+                event.delta
+              );
 
 
-            res.write(
+            if (safeDelta) {
 
-              JSON.stringify({
+              generatedText +=
+                safeDelta;
 
-                type:
-                  "delta",
+              res.write(
+                JSON.stringify({
+                  type:
+                    "delta",
+                  delta:
+                    safeDelta
+                }) +
+                "\n"
+              );
 
-                delta:
-                  event.delta
+            }
 
-              }) +
-              "\n"
 
-            );
+            if (
+              replyGuard.done()
+            ) {
+
+              break;
+
+            }
 
           }
 
@@ -3029,14 +3201,39 @@ Return only what the character says or does.
 
         }
 
+        const guardTail =
+          replyGuard.flush();
+
+
+        if (guardTail) {
+
+          generatedText +=
+            guardTail;
+
+          res.write(
+            JSON.stringify({
+              type:
+                "delta",
+              delta:
+                guardTail
+            }) +
+            "\n"
+          );
+
+        }
+
+
 
         if (
           !generatedText.trim()
         ) {
 
           const completedText =
-            extractResponseText(
-              completedResponse
+            cleanRoleplayReply(
+              extractResponseText(
+                completedResponse
+              ),
+              character.name
             );
 
 
@@ -3109,8 +3306,11 @@ Return only what the character says or does.
 
 
             const fallbackText =
-              extractResponseText(
-                fallbackResponse
+              cleanRoleplayReply(
+                extractResponseText(
+                  fallbackResponse
+                ),
+                character.name
               );
 
 
