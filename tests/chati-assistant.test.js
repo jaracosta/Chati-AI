@@ -78,3 +78,20 @@ test('instructions include the app guide and the safety rules', () => {
   assert.match(prompt, /under 18/);
   assert.match(prompt, /policies .* not published yet/i);
 });
+
+test('visual analysis always checks age first; mature detail only with 18+ mode', () => {
+  const off = buildChatiInstructions({ rootDir: '/nonexistent' });
+  const on = buildChatiInstructions({ rootDir: '/nonexistent', matureContent: true });
+
+  for (const text of [off, on]) {
+    assert.match(text, /VISUAL ANALYSIS/);
+    assert.match(text, /AGE CHECK FIRST/);
+    assert.match(text, /ANY doubt about them being an adult/);
+    assert.match(text, /under 18/);
+  }
+
+  assert.match(off, /18\+ mode is off/);
+  assert.doesNotMatch(off, /clinical/);
+  assert.match(on, /clearly adults/);
+  assert.match(on, /clinical/);
+});
