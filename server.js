@@ -11,7 +11,11 @@ import {
   cleanRoleplayReply,
   createReplyGuard,
   fitInputToContext,
-  getModelContextTokens
+  buildVoiceRules,
+  findRepeatedPhrases,
+  getModelContextTokens,
+  getSamplingSettings,
+  recentOpenings
 } from "./roleplay-guard.js";
 
 import {
@@ -2874,10 +2878,54 @@ ${groupContinuation
       `.trim();
 
 
+      // What this character said recently, to stop it repeating itself.
+      const recentCharacterReplies =
+        (Array.isArray(messages) ? messages : [])
+          .filter(
+            message =>
+              message?.sender === "character" &&
+              (
+                !message.characterName ||
+                message.characterName === character.name
+              )
+          )
+          .map(
+            message =>
+              String(message.text || "")
+                .replace(
+                  new RegExp(
+                    "^\\s*" +
+                      character.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") +
+                      "\\s*:\\s*",
+                    "i"
+                  ),
+                  ""
+                )
+          )
+          .slice(-8);
+
+
+      const voiceRules =
+        buildVoiceRules({
+          characterName:
+            character.name,
+          repeatedPhrases:
+            findRepeatedPhrases(
+              recentCharacterReplies
+            ),
+          openings:
+            recentOpenings(
+              recentCharacterReplies
+            )
+        });
+
+
       const instructions =
         (compactPrompt
           ? compactInstructions
           : fullInstructions) +
+        "\n\n" +
+        voiceRules +
         "\n\n" +
         buildCoreRoleplayRules(
           character.name
@@ -2950,7 +2998,17 @@ ${groupContinuation
         input,
 
         max_output_tokens:
-          maxOutputTokens
+          maxOutputTokens,
+
+        // Anti-repetition sampling; only the OpenRouter adapter uses it.
+        ...(process.env.OPENROUTER_API_KEY
+          ? {
+              sampling:
+                getSamplingSettings(
+                  process.env
+                )
+            }
+          : {})
 
       };
 
