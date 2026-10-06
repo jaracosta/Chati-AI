@@ -54,8 +54,10 @@ test('parses the plan, including a declined one', () => {
   assert.equal(parseImagePlan('{"ok":true,"prompt":"x","aspect":"7:1"}', extractJsonObject).aspect, '3:4');
 });
 
-test('only small inline images are used as a reference', () => {
+test('inline images and https links are used as a reference', () => {
   assert.equal(usableReferenceImage('data:image/png;base64,AAAA'), 'data:image/png;base64,AAAA');
-  assert.equal(usableReferenceImage('https://example.com/a.png'), '');
+  assert.equal(usableReferenceImage('https://example.com/a.png'), 'https://example.com/a.png');
+  assert.equal(usableReferenceImage('http://example.com/a.png'), '');
+  assert.equal(usableReferenceImage('blob:https://chati-ai.com/x'), '');
   assert.equal(usableReferenceImage('data:image/svg+xml,<svg/>'), '');
 });

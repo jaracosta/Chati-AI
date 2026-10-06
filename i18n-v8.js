@@ -204,6 +204,8 @@
     "Create image": "Crear imagen",
     "The character sends you a picture": "El personaje te manda una imagen",
     "sends a picture": "manda una imagen",
+    "The image was blocked by the safety filter. Try a different request.": "El filtro de seguridad bloqueó la imagen. Prueba con otra petición.",
+    "The image was blocked by the safety filter. Turn on NSFW (18+) in Settings or try a different request.": "El filtro de seguridad bloqueó la imagen. Activa NSFW (18+) en Ajustes o prueba con otra petición.",
     "Image generation isn't set up on the server yet.": "La generación de imágenes todavía no está configurada en el servidor.",
     "Couldn't prepare the image. Please try again.": "No se pudo preparar la imagen. Inténtalo de nuevo.",
     "The image model didn't return a picture. Try a different request.": "El modelo no devolvió ninguna imagen. Prueba con otra petición.",

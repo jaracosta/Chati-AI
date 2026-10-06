@@ -53,7 +53,7 @@ You write prompts for an image generator inside a roleplay app. The user is chat
 Return ONLY a JSON object:
 {"ok": true, "prompt": "...", "caption": "...", "aspect": "3:4"}
 
-prompt (English, 60-160 words): a detailed visual description for the image model. Keep the character's look consistent with the sheet (hair, eyes, build, outfit, accessories). Add pose, expression, setting, lighting, camera framing and art style. Default style: high-quality anime illustration, unless the user asks for another style or the character is clearly from a realistic setting. Use the recent story for context when the user refers to it. If a reference image is attached, the character must match it.
+prompt (English, 60-160 words): a detailed visual description for the image model. Keep the character's look consistent with the sheet (hair, eyes, build, outfit, accessories). If the character is from an existing series (anime, game, movie...), name them and the series in the prompt and describe their canon look precisely (hair style and color, eye color, face marks, build, signature outfit). Add pose, expression, setting, lighting, camera framing and art style. Default style: high-quality anime illustration, unless the user asks for another style or the character is clearly from a realistic setting. Use the recent story for context when the user refers to it. If a reference image is attached, the character must match it.
 caption: 1-2 short sentences IN CHARACTER, in the user's language (${lang === "es" ? "Spanish" : "the language the user writes in"}), as if the character is sending the picture. Actions go between double asterisks, e.g. **sends a photo** Here you go. Never speak or act for the user.
 aspect: 3:4 for portraits/selfies, 16:9 for wide scenes, 1:1 otherwise.
 
@@ -108,10 +108,11 @@ export function parseImagePlan(raw, extractJsonObject) {
   return { ok: true, prompt, caption, aspect };
 }
 
-// Only small inline images are sent as a reference for the look.
+// The character's picture, sent as a reference for the look: a small inline
+// image, or a public https link.
 export function usableReferenceImage(value) {
-  const text = String(value || "");
-  if (!/^data:image\/(png|jpe?g|webp);base64,/i.test(text)) return "";
-  if (text.length > 3_000_000) return "";
-  return text;
+  const text = String(value || "").trim();
+  if (/^data:image\/(png|jpe?g|webp);base64,/i.test(text)) return text.length > 3_000_000 ? "" : text;
+  if (/^https:\/\/[^\s"'<>]+$/i.test(text) && text.length < 2000) return text;
+  return "";
 }
