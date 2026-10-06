@@ -122,15 +122,32 @@ video.v6-loop-video {
 }
 
 
-/* Two decoded video layers overlap briefly at the seam. */
+/* Two decoded video layers overlap briefly at the seam. The host keeps its
+   own positioning (the chat background is absolute); JS adds relative only
+   when the host is static. Opacity transitions are set per fade from JS. */
 .v6-smooth-loop-host {
-  position: relative;
   overflow: hidden;
 }
 
 .v6-smooth-loop-host > video.v6-loop-video {
-  transition: opacity 180ms linear;
   will-change: opacity;
+}
+
+/* The standby copy always sits exactly over the visible one. */
+.v6-smooth-loop-host > video.v6-loop-twin {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.character-card .v6-avatar-video-proxy {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .v6-profile-avatar.v6-smooth-loop-host,
