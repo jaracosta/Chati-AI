@@ -1,5 +1,7 @@
 import express from "express";
 
+import compression from "compression";
+
 import dotenv from "dotenv";
 
 import OpenAI, { toFile } from "openai";
@@ -564,6 +566,155 @@ app.get(
       version:
         APP_VERSION
     });
+
+  }
+
+);
+
+
+// Compress HTML/CSS/JS for faster loads on mobile data. API responses are
+// skipped so streamed chat replies reach the browser token by token.
+app.use(
+
+  compression({
+    filter:
+      (
+        req,
+        res
+      ) =>
+        !req.path.startsWith(
+          "/api/"
+        ) &&
+        compression.filter(
+          req,
+          res
+        )
+  })
+
+);
+
+
+// Only the browser app is public. Server code, package files, migrations,
+// tests and node_modules live in the same folder and must never be served.
+const PUBLIC_ROOT_FILES =
+  new Set([
+    "index.html",
+    "manifest.webmanifest",
+    "sw.js",
+    "style.css",
+    "account-ui.css",
+    "account-profile-v6.css",
+    "media-v6.css",
+    "app-polish-v6.css",
+    "script.js",
+    "supabase-auth-v4.js",
+    "account-profile-v6.js",
+    "cloud-db.js",
+    "conversation-db.js",
+    "conversation-sync.js",
+    "conversation-sync-v5-final.js",
+    "cloud-media.js",
+    "cloud-sync.js",
+    "account-ui.js",
+    "media-v6.js",
+    "app-polish-v6.js"
+  ]);
+
+
+function isPublicStaticPath(
+  rawPath
+) {
+
+  let requestPath;
+
+
+  try {
+
+    requestPath =
+      decodeURIComponent(
+        rawPath
+      );
+
+  }
+
+  catch {
+
+    return false;
+
+  }
+
+
+  // Block "/assets/../server.js" and similar escapes out of /assets/.
+  if (
+    requestPath.includes("..") ||
+    requestPath.includes("\\") ||
+    requestPath.includes("\0")
+  ) {
+
+    return false;
+
+  }
+
+
+  if (
+    requestPath === "/"
+  ) {
+
+    return true;
+
+  }
+
+
+  if (
+    requestPath.startsWith(
+      "/assets/"
+    )
+  ) {
+
+    return true;
+
+  }
+
+
+  return PUBLIC_ROOT_FILES.has(
+    requestPath.slice(1)
+  );
+
+}
+
+
+app.use(
+
+  (
+    req,
+    res,
+    next
+  ) => {
+
+    if (
+      (req.method === "GET" ||
+        req.method === "HEAD") &&
+      !req.path.startsWith(
+        "/api/"
+      ) &&
+      !isPublicStaticPath(
+        req.path
+      )
+    ) {
+
+      res
+        .status(404)
+        .type("text/plain")
+        .send(
+          "Not found"
+        );
+
+      return;
+
+    }
+
+
+    next();
 
   }
 

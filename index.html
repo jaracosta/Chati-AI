@@ -20,12 +20,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Chati-AI">
 
-  <link rel="manifest" href="manifest.webmanifest?v=3.7.5">
-  <link rel="apple-touch-icon" href="assets/icons/chati-ai-192.png?v=3.7.5">
+  <link rel="manifest" href="manifest.webmanifest?v=3.7.6">
+  <link rel="apple-touch-icon" href="assets/icons/chati-ai-192.png?v=3.7.6">
 
   <link
     rel="stylesheet"
-    href="style.css?v=3.10.7"
+    href="style.css?v=3.10.8"
   >
 
   <!-- V4.0.1 — Account UI -->
@@ -36,6 +36,15 @@
   <link rel="stylesheet" href="account-profile-v6.css?v=6.2.3">
   <link rel="stylesheet" href="media-v6.css?v=6.2.3">
   <link rel="stylesheet" href="app-polish-v6.css?v=6.2.4">
+
+  <!-- Returning visitors skip the cinematic splash entirely. -->
+  <script>
+    try {
+      if (localStorage.getItem("chatiSplashSeenV1") === "1") {
+        document.documentElement.classList.add("splash-skip");
+      }
+    } catch (_) {}
+  </script>
 </head>
 
 
@@ -3148,7 +3157,7 @@
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker
-          .register("./sw.js?v=6.2.0", {
+          .register("./sw.js?v=6.2.5", {
             scope: "./",
             updateViaCache: "none"
           })
@@ -3159,7 +3168,7 @@
     }
   </script>
 
-  <script src="script.js?v=3.10.7"></script>
+  <script src="script.js?v=3.10.8"></script>
 
   <!-- =========================
        V4.0.1 — SUPABASE AUTH
@@ -3181,7 +3190,7 @@
   ========================== -->
   <script src="conversation-db.js?v=5.0.1b"></script>
   <script src="conversation-sync.js?v=5.0.5b"></script>
-  <script src="conversation-sync-v5-final.js?v=6.2.0"></script>
+  <script src="conversation-sync-v5-final.js?v=6.2.1"></script>
 
   <!-- =========================
        V4.0.6 — CLOUD MEDIA
