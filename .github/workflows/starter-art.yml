@@ -2,7 +2,8 @@ name: Starter art
 
 # Run from the Actions tab. Generates anime profile pictures and chat
 # backgrounds for the Explore characters and pushes them to the
-# "starter-art" branch, ready to merge. Needs the OPENROUTER_API_KEY secret.
+# "starter-art" branch, ready to merge. Needs the FAL_KEY secret (fal.ai)
+# or OPENROUTER_API_KEY.
 on:
   workflow_dispatch:
     inputs:
@@ -11,9 +12,9 @@ on:
         required: false
         default: ""
       model:
-        description: "OpenRouter image model"
+        description: "fal.ai model (with FAL_KEY) or OpenRouter image model. Empty = default."
         required: false
-        default: "google/gemini-2.5-flash-image"
+        default: ""
 
 permissions:
   contents: write
@@ -34,7 +35,9 @@ jobs:
 
       - name: Generate images
         env:
+          FAL_KEY: ${{ secrets.FAL_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          FAL_MODEL: ${{ inputs.model }}
           IMAGE_MODEL: ${{ inputs.model }}
           CHARACTERS: ${{ inputs.characters }}
         run: node scripts/generate-starter-art.mjs $CHARACTERS

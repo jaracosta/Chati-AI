@@ -11,6 +11,7 @@ import {
   parseImagePlan,
   usableReferenceImage
 } from "./character-image.js";
+import { createImageGenerator } from "./image-provider.js";
 import {
   buildChatiInstructions,
   extractCharacterDraft,
@@ -64,11 +65,11 @@ const CHATI_MODEL =
   "google/gemini-2.5-flash";
 
 
-// Character pictures: IMAGE_MODEL draws, IMAGE_PROMPT_MODEL writes the
-// prompt from the character sheet and the story.
-const IMAGE_MODEL =
-  process.env.IMAGE_MODEL ||
-  "google/gemini-2.5-flash-image";
+// Character pictures: IMAGE_PROMPT_MODEL writes the prompt from the
+// character sheet and the story; the image provider draws it (fal.ai with
+// FAL_KEY/FAL_MODEL, or OpenRouter with IMAGE_MODEL — see image-provider.js).
+const imageGenerator =
+  createImageGenerator(process.env);
 
 const IMAGE_PROMPT_MODEL =
   process.env.IMAGE_PROMPT_MODEL ||
@@ -4279,8 +4280,7 @@ app.post(
   ) => {
 
     if (
-      typeof chatProvider.image !==
-        "function" ||
+      !imageGenerator.provider ||
       typeof chatProvider.assistant !==
         "function"
     ) {
@@ -4289,7 +4289,7 @@ app.post(
         .status(503)
         .json({
           error:
-            "Image generation needs OpenRouter. Set OPENROUTER_API_KEY on the server."
+            "Image generation isn't set up on the server yet."
         });
 
     }
@@ -4380,20 +4380,20 @@ app.post(
         );
 
 
-      const generated =
-        await chatProvider.image({
-          model:
-            IMAGE_MODEL,
+      const image =
+        await imageGenerator.generate({
           prompt:
             parsed.prompt,
+          aspect:
+            parsed.aspect,
+          mature:
+            plan.mature,
           referenceImages:
-            reference ? [reference] : [],
-          aspectRatio:
-            parsed.aspect
+            reference ? [reference] : []
         });
 
 
-      if (!generated.url) {
+      if (!image) {
 
         return res
           .status(502)
@@ -4406,8 +4406,7 @@ app.post(
 
 
       res.json({
-        image:
-          generated.url,
+        image,
         caption:
           parsed.caption
       });

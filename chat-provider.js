@@ -37,23 +37,6 @@ export function createChatProvider(env, openai) {
         }));
       return { text: message.content || "", citations };
     },
-    // Image generation through OpenRouter's image-output models. Returns a
-    // data URL (or https URL) of the first generated image.
-    async image({ model, prompt, referenceImages = [], aspectRatio }) {
-      const content = [
-        { type: "text", text: prompt },
-        ...referenceImages.map(url => ({ type: "image_url", image_url: { url } }))
-      ];
-      const result = await router.chat.completions.create({
-        model,
-        messages: [{ role: "user", content }],
-        modalities: ["image", "text"],
-        ...(aspectRatio ? { image_config: { aspect_ratio: aspectRatio } } : {})
-      });
-      const message = result.choices?.[0]?.message || {};
-      const url = message.images?.[0]?.image_url?.url || "";
-      return { url, text: typeof message.content === "string" ? message.content : "" };
-    },
     async completeJson({ model, instructions, input, schema, max_output_tokens }) {
       const result = await router.chat.completions.create({
         model,
