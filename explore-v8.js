@@ -129,6 +129,27 @@
   ];
 
   const lang = () => (window.ChatiI18n?.lang === "es" ? "es" : "en");
+
+  // Anime profile pictures and chat backgrounds made by the "Starter art"
+  // workflow. Until they exist, the gradient covers below are used.
+  const ART_DIR = "assets/starters/";
+  let art = { version: 0, keys: new Set() };
+
+  const hasArt = starter => art.keys.has(starter.key);
+  const profileArt = starter => ART_DIR + starter.key + ".webp?v=" + art.version;
+  const backgroundArt = starter => ART_DIR + starter.key + "-bg.webp?v=" + art.version;
+
+  async function loadArt() {
+    try {
+      const response = await fetch(ART_DIR + "manifest.json", { cache: "no-cache" });
+      if (!response.ok) return;
+      const data = await response.json();
+      art = {
+        version: Number(data.version) || 0,
+        keys: new Set(Array.isArray(data.keys) ? data.keys : [])
+      };
+    } catch {}
+  }
   const t = text => window.ChatiI18n?.t?.(text) ?? text;
 
   // Abstract gradient cover with the character's initial (no external files).
@@ -165,12 +186,16 @@
       personality: starter.personality,
       scenario: copy.scenario,
       instructions: "",
-      image: coverArt(starter),
+      image: hasArt(starter) ? profileArt(starter) : coverArt(starter),
+      background: hasArt(starter) ? backgroundArt(starter) : "",
       hasPowers: Boolean(starter.powers),
       abilities: starter.powers || "",
       createdAt: Date.now()
     };
   }
+
+  const isOldCover = character =>
+    typeof character.image === "string" && character.image.startsWith("data:image/svg+xml");
 
   function openStarter(starter) {
     if (typeof characters === "undefined" || typeof openChat !== "function") return;
@@ -180,6 +205,14 @@
     if (!character) {
       character = normalizeCharacter(toCharacter(starter));
       characters.push(character);
+      saveCharacters();
+      renderCharacters();
+      renderChatHistory();
+    } else if (hasArt(starter) && isOldCover(character)) {
+      // Added before the art existed: swap the gradient for the new art,
+      // unless the user already chose their own picture/background.
+      character.image = profileArt(starter);
+      if (!character.background) character.background = backgroundArt(starter);
       saveCharacters();
       renderCharacters();
       renderChatHistory();
@@ -220,7 +253,9 @@
       const image = document.createElement("img");
       image.className = "character-image";
       image.alt = "";
-      image.src = coverArt(starter);
+      image.src = hasArt(starter) ? profileArt(starter) : coverArt(starter);
+      image.loading = "lazy";
+      image.addEventListener("error", () => { image.src = coverArt(starter); }, { once: true });
 
       const info = document.createElement("div");
       info.className = "character-info";
@@ -238,6 +273,7 @@
 
   function initialize() {
     render();
+    loadArt().then(() => { if (art.keys.size) render(); });
     window.addEventListener("chati:languagechange", render);
   }
 
