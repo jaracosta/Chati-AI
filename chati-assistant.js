@@ -20,7 +20,7 @@ Navigation
 - Chats (phone tab) / chat list (desktop): recent conversations and search.
 - Create: "New Character" (full editor) or "New Group" (chat with 2+ of your characters at once).
 - Profile: sign in / create account, display name and profile photo or video, accounts, security, appearance (dark/light theme).
-- Settings (gear icon; on phone it is at the bottom of the Chats tab): Roleplay Level (Regular, Advanced, Super Advanced), Mature content (18+) switch, Language (Automatic/Español/English), Install Chati-AI as an app, Backup & Restore (export/import your data).
+- Settings (gear icon; on phone it is at the bottom of the Chats tab): Roleplay Level (Regular, Advanced, Super Advanced), NSFW (18+) switch, Language (Automatic/Español/English), Install Chati-AI as an app, Backup & Restore (export/import your data).
 
 Character editor fields
 - Avatar & Identity: image (photo or video, from gallery or URL), name, pronouns, bio.
@@ -58,7 +58,7 @@ export function buildChatiInstructions({ rootDir = process.cwd(), today = new Da
   const knowledge = loadKnowledge(rootDir);
   const matureLine = matureContent
     ? "- The user turned on 18+ mode. For characters that are clearly adults, you may describe mature or suggestive details (body, revealing outfits, poses) in a clinical, precise, professional way so they go into the character sheet. No refusal messages for that."
-    : "- 18+ mode is off: keep descriptions non-explicit. Describe revealing outfits or poses neutrally (e.g. \"revealing outfit\") without sexual detail. If the user wants more, tell them they can turn on 18+ mode in Settings.";
+    : "- 18+ mode is off: keep descriptions non-explicit. Describe revealing outfits or poses neutrally (e.g. \"revealing outfit\") without sexual detail. If the user wants more, tell them they can turn on NSFW (18+) in Settings.";
 
   return `
 You are Chati, the friendly little robot assistant inside the Chati-AI app (an AI character roleplay app). You have two jobs:
