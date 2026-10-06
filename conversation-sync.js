@@ -1947,7 +1947,9 @@
   ) {
 
     return (
-      `chatiConversationAutoBaselineV504A2_${String(userId)}`
+      // V5.1: rebuilt so chats that existed before the first sync are
+      // uploaded/restored instead of being marked "known" and skipped.
+      `chatiConversationAutoBaselineV51_${String(userId)}`
     );
 
   }
@@ -2215,6 +2217,62 @@
   }
 
 
+  // Redraw in place when the app exposes a refresh hook; fall back to a
+  // full reload only if that hook is missing or fails.
+  function refreshUiAfterSync(
+    retryLater
+  ) {
+
+    const refresh =
+      window.ChatiRefreshFromStorage;
+
+
+    if (
+      typeof refresh !==
+      "function"
+    ) {
+
+      setTimeout(
+        () => location.reload(),
+        700
+      );
+
+      return;
+
+    }
+
+
+    Promise.resolve()
+      .then(
+        () => refresh()
+      )
+      .then(
+        refreshed => {
+
+          if (!refreshed) {
+
+            retryLater();
+
+          }
+
+        }
+      )
+      .catch(
+        error => {
+
+          console.warn(
+            "[Chati-AI Conversations] In-place refresh failed; reloading.",
+            error
+          );
+
+          location.reload();
+
+        }
+      );
+
+  }
+
+
   function maybeReloadAfterConversationRestore() {
 
     if (
@@ -2254,15 +2312,22 @@
 
 
     console.log(
-      "🔥 [Chati-AI Conversations] New cloud chat restored. Reloading UI..."
+      "🔥 [Chati-AI Conversations] Cloud chats applied. Refreshing UI..."
     );
 
 
-    setTimeout(
+    refreshUiAfterSync(
       () => {
-        location.reload();
-      },
-      700
+
+        autoConversationReloadPending =
+          true;
+
+        setTimeout(
+          maybeReloadAfterConversationRestore,
+          1500
+        );
+
+      }
     );
 
 
@@ -2342,33 +2407,36 @@
     const state = {
       initializedAt:
         Date.now(),
-
       knownLocal:
         {},
-
       knownCloud:
         {}
     };
 
 
-    for (
-      const row
-      of localRows
-    ) {
+    // Only chats already present on BOTH sides start as "known".
+    // Local-only chats with messages are then uploaded, and cloud-only
+    // chats are restored on this device by the regular sync pass.
+    const localKeys =
+      new Set(
+        localRows.map(
+          row =>
+            makeConversationSyncKey(
+              row.ownerType,
+              row.ownerLocalId,
+              row.chatId
+            )
+        )
+      );
 
-      const key =
-        makeConversationSyncKey(
-          row.ownerType,
-          row.ownerLocalId,
-          row.chatId
-        );
 
-
-      state.knownLocal[
-        key
-      ] = true;
-
-    }
+    // A cloud chat this device already synced before (it has an update
+    // baseline entry) but no longer has locally was deleted here: leave it
+    // to delete sync instead of restoring it.
+    const previouslySynced =
+      readUpdateBaseline(
+        session.user.id
+      ).conversations;
 
 
     for (
@@ -2381,9 +2449,7 @@
           row
         )
       ) {
-
         continue;
-
       }
 
 
@@ -2395,9 +2461,33 @@
         );
 
 
-      state.knownCloud[
-        key
-      ] = true;
+      if (
+        localKeys.has(
+          key
+        )
+      ) {
+
+        state.knownLocal[
+          key
+        ] = true;
+
+        state.knownCloud[
+          key
+        ] = true;
+
+      }
+
+      else if (
+        previouslySynced[
+          key
+        ]
+      ) {
+
+        state.knownCloud[
+          key
+        ] = true;
+
+      }
 
     }
 
@@ -2545,15 +2635,22 @@
           );
 
 
-        lastAutoConversationResult = {
+        // Keep going in this same pass so pre-existing chats sync now.
+        result.baselineCreated =
+          true;
+
+      }
+
+
+      if (!state) {
+
+        return {
           ...result,
-
+          ok:
+            false,
           reason:
-            "baseline-created"
+            "baseline-unavailable"
         };
-
-
-        return lastAutoConversationResult;
 
       }
 
