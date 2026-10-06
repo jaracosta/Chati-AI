@@ -319,6 +319,10 @@
     schedule("auth-change", 180, false);
   }
 
+  function charactersChange() {
+    schedule("characters-change", LOCAL_DELAY, true);
+  }
+
   function visibility() {
     if (document.visibilityState === "visible") {
       schedule("visible", 100, false);
@@ -419,6 +423,7 @@
 
     window.removeEventListener("online", online);
     window.removeEventListener("chati:authchange", authChange);
+    window.removeEventListener("chati:characterschange", charactersChange);
     document.removeEventListener("visibilitychange", visibility);
     document.removeEventListener("click", localUiActivity, true);
     document.removeEventListener("keydown", keydown, true);

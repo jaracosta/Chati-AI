@@ -8477,6 +8477,20 @@ body.splash-active .app {
   transform: scale(.992);
 }
 
+html.splash-skip .cinematic-splash {
+  display: none;
+}
+
+html.splash-skip body.splash-active {
+  overflow: auto;
+}
+
+html.splash-skip body.splash-active .app {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
 .app {
   opacity: 1;
   transform: scale(1);

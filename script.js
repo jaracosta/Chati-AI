@@ -14910,6 +14910,18 @@ function scrollToBottom() {
 }
 
 
+function isMessagesNearBottom() {
+
+  return (
+    messages.scrollHeight -
+      messages.scrollTop -
+      messages.clientHeight <
+    120
+  );
+
+}
+
+
 function showTypingIndicator() {
 
   removeTypingIndicator();
@@ -15130,6 +15142,63 @@ async function readAIStream(
     null;
 
 
+  // Paint at most once per frame and only follow the reply while the reader
+  // is already at the bottom, so scrolling up to read earlier messages works.
+  let streamPaintFrame = 0;
+
+
+  const paintStream = () => {
+
+    streamPaintFrame = 0;
+
+
+    if (!streamingBubble) {
+
+      return;
+
+    }
+
+
+    const followReply =
+      isMessagesNearBottom();
+
+
+    renderRichText(
+      streamingBubble,
+      finalText
+    );
+
+
+    if (followReply) {
+
+      // Instant, not smooth: a half-finished smooth scroll would read as
+      // "user scrolled up" on the next frame and stop following the reply.
+      messages.scrollTo({
+        top:
+          messages.scrollHeight,
+        behavior:
+          "instant"
+      });
+
+    }
+
+  };
+
+
+  const scheduleStreamPaint = () => {
+
+    if (!streamPaintFrame) {
+
+      streamPaintFrame =
+        requestAnimationFrame(
+          paintStream
+        );
+
+    }
+
+  };
+
+
   while (true) {
 
     const {
@@ -15250,16 +15319,7 @@ async function readAIStream(
           packet.delta;
 
 
-        renderRichText(
-
-          streamingBubble,
-
-          finalText
-
-        );
-
-
-        scrollToBottom();
+        scheduleStreamPaint();
 
       }
 
@@ -15279,6 +15339,17 @@ async function readAIStream(
       }
 
     }
+
+  }
+
+
+  if (streamPaintFrame) {
+
+    cancelAnimationFrame(
+      streamPaintFrame
+    );
+
+    paintStream();
 
   }
 
@@ -20533,16 +20604,50 @@ function initializeCinematicSplash() {
   }
 
 
+  if (
+    document.documentElement
+      .classList
+      .contains(
+        "splash-skip"
+      )
+  ) {
+
+    splash.remove();
+
+    document.body
+      .classList
+      .remove(
+        "splash-active"
+      );
+
+    return;
+
+  }
+
+
+  try {
+
+    localStorage.setItem(
+      "chatiSplashSeenV1",
+      "1"
+    );
+
+  }
+
+  catch (_) {}
+
+
   const reducedMotion =
     window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
 
 
+  // First visit only: a short brand moment, never a long wait.
   const holdDuration =
     reducedMotion
-      ? 560
-      : 3380;
+      ? 400
+      : 1400;
 
 
   const exitDuration =
@@ -20601,6 +20706,13 @@ function initializeCinematicSplash() {
   );
 
 
+  splash.addEventListener(
+    "pointerdown",
+    dismissSplash,
+    { once: true }
+  );
+
+
   // Safety escape: never let a splash animation trap the app.
   window.setTimeout(
 
@@ -20620,7 +20732,7 @@ function initializeCinematicSplash() {
 
     },
 
-    5400
+    2600
 
   );
 
