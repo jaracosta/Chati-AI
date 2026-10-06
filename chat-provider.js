@@ -15,6 +15,27 @@ export function createChatProvider(env, openai) {
     }
   });
   return {
+    // Structured JSON (chat memory) through OpenRouter. Not every provider
+    // supports strict JSON schemas, so the schema goes in the instructions
+    // and the JSON object is pulled out of the reply.
+    async completeJson({ model, instructions, input, schema, max_output_tokens }) {
+      const result = await router.chat.completions.create({
+        model,
+        messages: [
+          {
+            role: "system",
+            content:
+              instructions +
+              "\n\nReply with ONLY one JSON object (no markdown, no commentary) that matches this JSON schema:\n" +
+              JSON.stringify(schema)
+          },
+          { role: "user", content: input }
+        ],
+        max_tokens: max_output_tokens,
+        temperature: 0.2
+      });
+      return extractJsonObject(result.choices?.[0]?.message?.content || "");
+    },
     responses: {
       async create(request) {
         const messages = [{ role: "system", content: request.instructions || "" },
@@ -60,4 +81,14 @@ export function createChatProvider(env, openai) {
       }
     }
   };
+}
+
+// Returns the JSON object text inside a model reply (handles ```json fences
+// and leading/trailing chatter), or "" when there is none.
+export function extractJsonObject(text) {
+  const value = String(text || "").replace(/```(?:json)?/gi, "");
+  const start = value.indexOf("{");
+  const end = value.lastIndexOf("}");
+  if (start === -1 || end <= start) return "";
+  return value.slice(start, end + 1).trim();
 }

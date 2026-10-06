@@ -46,8 +46,9 @@ const MODEL = process.env.OPENROUTER_API_KEY
   : (process.env.OPENAI_MODEL || "gpt-5.6-terra");
 
 
-const MEMORY_MODEL =
-  process.env.OPENAI_MEMORY_MODEL ||
+const MEMORY_MODEL = process.env.OPENROUTER_API_KEY
+  ? (process.env.OPENROUTER_MEMORY_MODEL || MODEL)
+  : process.env.OPENAI_MEMORY_MODEL ||
   "gpt-5.6-luna";
 
 
@@ -3748,74 +3749,8 @@ RULES
       `.trim();
 
 
-      let updatedMemory =
-        null;
-
-
-      let lastMemoryError =
-        null;
-
-
-      for (
-        let attempt = 1;
-        attempt <= 2;
-        attempt += 1
-      ) {
-
-        try {
-
-          console.log(
-
-            `🧠 Memory generation attempt ${attempt}/2 for ${character.name}`
-
-          );
-
-
-          const response =
-            await openai
-              .responses
-              .create({
-
-                model:
-                  MEMORY_MODEL,
-
-                store:
-                  false,
-
-                reasoning: {
-                  effort:
-                    "none"
-                },
-
-                instructions:
-                  memoryInstructions,
-
-                input:
-                  "Update the automatic memory using the supplied messages.",
-
-                /*
-                  More room prevents long memories
-                  from being cut off before the JSON
-                  object is finished.
-                */
-
-                max_output_tokens:
-                  6000,
-
-                text: {
-
-                  format: {
-
-                    type:
-                      "json_schema",
-
-                    name:
-                      "chat_memory",
-
-                    strict:
-                      true,
-
-                    schema: {
+      const MEMORY_JSON_SCHEMA =
+        {
 
                       type:
                         "object",
@@ -3979,7 +3914,97 @@ RULES
 
                       ]
 
-                    }
+                    };
+
+
+      let updatedMemory =
+        null;
+
+
+      let lastMemoryError =
+        null;
+
+
+      for (
+        let attempt = 1;
+        attempt <= 2;
+        attempt += 1
+      ) {
+
+        try {
+
+          console.log(
+
+            `🧠 Memory generation attempt ${attempt}/2 for ${character.name}`
+
+          );
+
+
+          // With OpenRouter the memory uses the same uncensored provider as the
+          // chat, so explicit or dark chats are summarized instead of refused.
+          const response =
+            typeof chatProvider.completeJson === "function"
+              ? {
+                  status:
+                    "completed",
+                  output_text:
+                    await chatProvider.completeJson({
+                      model:
+                        MEMORY_MODEL,
+                      instructions:
+                        memoryInstructions,
+                      input:
+                        "Update the automatic memory using the supplied messages.",
+                      schema:
+                        MEMORY_JSON_SCHEMA,
+                      max_output_tokens:
+                        6000
+                    })
+                }
+              : await openai
+              .responses
+              .create({
+
+                model:
+                  MEMORY_MODEL,
+
+                store:
+                  false,
+
+                reasoning: {
+                  effort:
+                    "none"
+                },
+
+                instructions:
+                  memoryInstructions,
+
+                input:
+                  "Update the automatic memory using the supplied messages.",
+
+                /*
+                  More room prevents long memories
+                  from being cut off before the JSON
+                  object is finished.
+                */
+
+                max_output_tokens:
+                  6000,
+
+                text: {
+
+                  format: {
+
+                    type:
+                      "json_schema",
+
+                    name:
+                      "chat_memory",
+
+                    strict:
+                      true,
+
+                    schema: MEMORY_JSON_SCHEMA
 
                   }
 

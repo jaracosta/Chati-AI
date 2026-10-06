@@ -38,3 +38,10 @@ test('OpenRouter maps images and streaming chunks into existing app events', asy
     assert.equal((await fallbackProvider.responses.create({model:'openai/gpt-4o',instructions:'',input:[],stream:false})).output_text, 'Fallback');
   } finally { globalThis.fetch = originalFetch; }
 });
+
+import { extractJsonObject } from '../chat-provider.js';
+
+test('pulls the JSON object out of a chatty or fenced model reply', () => {
+  assert.equal(extractJsonObject('Here it is:\n```json\n{"a":1,"b":{"c":2}}\n```\nDone!'), '{"a":1,"b":{"c":2}}');
+  assert.equal(extractJsonObject('no json here'), '');
+});
