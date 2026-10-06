@@ -13557,12 +13557,97 @@ function openChat(
 }
 
 
+// Some models narrate without asterisks but quote the dialogue:
+//   She smiles. "Hello."
+// In that case everything outside the quotes is action/narration, so show it
+// with the action style. Replies that already use asterisks are untouched.
+function normalizeRoleplayText(
+  text
+) {
+
+  const value =
+    String(
+      text || ""
+    );
+
+
+  if (
+    value.includes("*")
+  ) {
+
+    return value;
+
+  }
+
+
+  const quotePattern =
+    /("[^"\n]*"|“[^”\n]*”|«[^»\n]*»)/g;
+
+
+  if (
+    !quotePattern.test(
+      value
+    )
+  ) {
+
+    return value;
+
+  }
+
+
+  return value
+    .split(
+      quotePattern
+    )
+    .map(
+      (
+        segment,
+        index
+      ) => {
+
+        // Odd indexes are the quoted dialogue captured by the split.
+        if (
+          index % 2 === 1 ||
+          !/\p{L}/u.test(
+            segment
+          )
+        ) {
+
+          return segment;
+
+        }
+
+
+        return segment.replace(
+          /^(\s*)([\s\S]*?)(\s*)$/,
+          (
+            match,
+            lead,
+            body,
+            trail
+          ) =>
+            `${lead}*${body}*${trail}`
+        );
+
+      }
+    )
+    .join("");
+
+}
+
+
 function renderRichText(
   element,
   text
 ) {
 
   element.replaceChildren();
+
+
+  text =
+    normalizeRoleplayText(
+      text
+    );
 
 
   const pattern =

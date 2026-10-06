@@ -2,6 +2,8 @@ import OpenAI from "openai";
 
 // Keep the provider secret on the server. The app consumes the same response
 // events regardless of whether chat uses OpenAI or OpenRouter.
+const ROLEPLAY_STOP_SEQUENCES = ["\nUser:", "\nYou:", "\nUsuario:", "\n### Instruction"];
+
 export function createChatProvider(env, openai) {
   if (!env.OPENROUTER_API_KEY) return openai;
   const router = new OpenAI({
@@ -33,6 +35,8 @@ export function createChatProvider(env, openai) {
           model: request.model,
           messages,
           max_tokens: request.max_output_tokens,
+          // Stop if the model starts writing the user's turn.
+          stop: ROLEPLAY_STOP_SEQUENCES,
           stream: Boolean(request.stream)
         });
         if (!request.stream) return { output_text: result.choices?.[0]?.message?.content || "" };

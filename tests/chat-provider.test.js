@@ -28,6 +28,7 @@ test('OpenRouter maps images and streaming chunks into existing app events', asy
     assert.equal(payload.messages[0].content, 'Stay in character.');
     assert.equal(payload.messages[1].content[1].image_url.detail, 'high');
     assert.equal(payload.max_tokens, 100);
+    assert.ok(payload.stop.includes('\nUser:'), 'stops before writing the user turn');
     assert.equal(events.at(-1).response.output_text, 'Hello there');
     assert.equal(events[0].type, 'response.output_text.delta');
     globalThis.fetch = async () => new Response(JSON.stringify({choices:[{message:{content:'Fallback'}}]}), {headers:{'content-type':'application/json'}});

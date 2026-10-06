@@ -6,6 +6,13 @@ import dotenv from "dotenv";
 
 import OpenAI, { toFile } from "openai";
 import { createChatProvider } from "./chat-provider.js";
+import {
+  buildCoreRoleplayRules,
+  cleanRoleplayReply,
+  createReplyGuard,
+  fitInputToContext,
+  getModelContextTokens
+} from "./roleplay-guard.js";
 
 import {
   randomUUID
@@ -2462,7 +2469,21 @@ app.post(
       }
 
 
-      const instructions = `
+      // Small-context models (e.g. MythoMax, 4k tokens) cannot fit the full
+      // rulebook plus history; they get a compact prompt so the core rules
+      // are not cut off by the provider.
+      const contextTokens =
+        getModelContextTokens(
+          MODEL,
+          process.env
+        );
+
+
+      const compactPrompt =
+        contextTokens <= 8192;
+
+
+      const fullInstructions = `
 You are roleplaying as ${character.name}.
 
 CHARACTER PROFILE
@@ -2754,7 +2775,57 @@ Return only what the character says or does.
       `.trim();
 
 
-      const input =
+      const compactInstructions = `
+You are roleplaying as ${character.name} (${character.pronouns}) in an ongoing story with the user.
+
+CHARACTER
+${character.bio || ""}
+
+APPEARANCE
+${formatAppearanceProfile(character)}
+
+PERSONALITY & BACKSTORY
+${character.personality || "No personality provided."}
+
+SCENARIO
+${character.scenario || "No scenario provided."}
+
+CREATOR INSTRUCTIONS
+${character.instructions || "No additional instructions."}
+
+POWERS & ABILITIES
+${formatPowers(character)}
+
+STYLE EXAMPLES (style only, do not copy)
+${formatExamples(character.exampleMessages)}
+
+MEMORY OF THIS CHAT
+${formatMemoryForPrompt(memory)}
+
+STYLE (${roleplayConfig.label})
+${roleplayConfig.instructions}
+- Sound like a real person in the scene, never like an assistant. Match the user's language.
+- Keep casual replies short; let important scenes be more vivid.
+- Keep continuity: places, objects, injuries, relationships, and outfits stay consistent.
+- Never decide that an attack hits the user's character or how the user reacts.
+- No sexual content, nothing sexual involving minors, no graphic gore.
+${groupContinuation
+  ? `- This is a group scene. Write ONLY ${character.name}'s turn; never write other participants' lines. A user message starting with [GROUP TURN CONTROL] is an invisible cue, not dialogue: continue from the latest real event before it.`
+  : ""}
+      `.trim();
+
+
+      const instructions =
+        (compactPrompt
+          ? compactInstructions
+          : fullInstructions) +
+        "\n\n" +
+        buildCoreRoleplayRules(
+          character.name
+        );
+
+
+      const rawInput =
         await Promise.all(
 
           messages
@@ -2773,6 +2844,28 @@ Return only what the character says or does.
             )
 
         );
+
+
+      const maxOutputTokens =
+        compactPrompt
+          ? Math.min(
+              roleplayConfig.maxOutputTokens,
+              500
+            )
+          : roleplayConfig.maxOutputTokens;
+
+
+      const input =
+        compactPrompt
+          ? fitInputToContext(
+              rawInput,
+              {
+                instructions,
+                contextTokens,
+                maxOutputTokens
+              }
+            )
+          : rawInput;
 
 
       const responseRequest = {
@@ -2798,8 +2891,7 @@ Return only what the character says or does.
         input,
 
         max_output_tokens:
-          roleplayConfig
-            .maxOutputTokens
+          maxOutputTokens
 
       };
 
@@ -2953,6 +3045,13 @@ Return only what the character says or does.
         };
 
 
+      const replyGuard =
+        createReplyGuard({
+          characterName:
+            character.name
+        });
+
+
       try {
 
         for await (
@@ -2964,24 +3063,38 @@ Return only what the character says or does.
             "response.output_text.delta"
           ) {
 
-            generatedText +=
-              event.delta;
+            // Drop anything after the model starts writing the user's turn.
+            const safeDelta =
+              replyGuard.push(
+                event.delta
+              );
 
 
-            res.write(
+            if (safeDelta) {
 
-              JSON.stringify({
+              generatedText +=
+                safeDelta;
 
-                type:
-                  "delta",
+              res.write(
+                JSON.stringify({
+                  type:
+                    "delta",
+                  delta:
+                    safeDelta
+                }) +
+                "\n"
+              );
 
-                delta:
-                  event.delta
+            }
 
-              }) +
-              "\n"
 
-            );
+            if (
+              replyGuard.done()
+            ) {
+
+              break;
+
+            }
 
           }
 
@@ -3029,14 +3142,39 @@ Return only what the character says or does.
 
         }
 
+        const guardTail =
+          replyGuard.flush();
+
+
+        if (guardTail) {
+
+          generatedText +=
+            guardTail;
+
+          res.write(
+            JSON.stringify({
+              type:
+                "delta",
+              delta:
+                guardTail
+            }) +
+            "\n"
+          );
+
+        }
+
+
 
         if (
           !generatedText.trim()
         ) {
 
           const completedText =
-            extractResponseText(
-              completedResponse
+            cleanRoleplayReply(
+              extractResponseText(
+                completedResponse
+              ),
+              character.name
             );
 
 
@@ -3109,8 +3247,11 @@ Return only what the character says or does.
 
 
             const fallbackText =
-              extractResponseText(
-                fallbackResponse
+              cleanRoleplayReply(
+                extractResponseText(
+                  fallbackResponse
+                ),
+                character.name
               );
 
 
