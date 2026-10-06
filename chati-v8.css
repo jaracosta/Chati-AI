@@ -1,0 +1,600 @@
+/* =========================================================
+   CHATI — assistant robot (floating button + chat panel)
+   ========================================================= */
+
+.v8-chati-fab,
+.v8-chati-panel {
+  --chati-bg: #111118;
+  --chati-surface: #191924;
+  --chati-border: rgba(140, 136, 170, .22);
+  --chati-text: #ecebf5;
+  --chati-muted: rgba(236, 235, 245, .62);
+  --chati-accent: #7d6bff;
+  --chati-user: #ecebf5;
+  --chati-user-text: #111118;
+}
+
+html[data-chati-theme="light"] .v8-chati-fab,
+html[data-chati-theme="light"] .v8-chati-panel {
+  --chati-bg: #ffffff;
+  --chati-surface: #f3f2f8;
+  --chati-border: rgba(40, 36, 70, .12);
+  --chati-text: #1b1a24;
+  --chati-muted: rgba(27, 26, 36, .6);
+  --chati-user: #1b1a24;
+  --chati-user-text: #ffffff;
+}
+
+/* ---------- Floating robot button ---------- */
+
+@keyframes v8-chati-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.v8-chati-fab {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(22px, env(safe-area-inset-bottom));
+  z-index: 8600;
+  width: 58px;
+  height: 58px;
+  padding: 7px;
+  border: 1px solid var(--chati-border);
+  border-radius: 20px;
+  background: var(--chati-bg);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .38), 0 0 0 4px rgba(125, 107, 255, .12);
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease;
+  animation: v8-chati-float 3.2s ease-in-out infinite;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.v8-chati-fab:hover {
+  box-shadow: 0 14px 38px rgba(0, 0, 0, .42), 0 0 0 6px rgba(125, 107, 255, .2);
+}
+
+.v8-chati-fab:active {
+  transform: scale(.94);
+}
+
+.v8-chati-fab svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+body.v8-chati-open .v8-chati-fab {
+  display: none;
+}
+
+/* Never cover the message box or menus. */
+body.splash-active .v8-chati-fab,
+body.v6-auth-flow .v8-chati-fab {
+  display: none;
+}
+
+@media (min-width: 1025px) {
+  /* Sits above the composer's right edge in a chat. */
+  body:has(#chatView:not(.hidden)) .v8-chati-fab {
+    bottom: 104px;
+  }
+}
+
+@media (max-width: 760px) {
+  .v8-chati-fab {
+    width: 50px;
+    height: 50px;
+    padding: 6px;
+    border-radius: 17px;
+    right: max(14px, env(safe-area-inset-right));
+    /* Above the bottom navigation dock. */
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* In a chat there is no dock; stay above the message box. */
+  body.mobile-chat-active .v8-chati-fab {
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    opacity: .9;
+  }
+
+  body.mobile-sidebar-open .v8-chati-fab,
+  body.v6-creator-active .v8-chati-fab,
+  body.mobile-keyboard-open .v8-chati-fab {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v8-chati-fab {
+    animation: none;
+  }
+}
+
+/* ---------- Panel ---------- */
+
+@keyframes v8-chati-in {
+  from { opacity: 0; transform: translateY(16px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.v8-chati-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 9600;
+  display: flex;
+  flex-direction: column;
+  width: min(430px, calc(100vw - 40px));
+  height: min(720px, calc(100vh - 40px));
+  color: var(--chati-text);
+  background: var(--chati-bg);
+  border: 1px solid var(--chati-border);
+  border-radius: 24px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .5);
+  overflow: hidden;
+  animation: v8-chati-in .22s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.v8-chati-panel[hidden] {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .v8-chati-panel {
+    inset: 0;
+    width: 100%;
+    height: var(--app-height, 100dvh);
+    border-radius: 0;
+    border: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation-name: v8-sheet-up;
+  }
+}
+
+.v8-chati-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid var(--chati-border);
+}
+
+.v8-chati-header-bot {
+  width: 40px;
+  height: 40px;
+  flex: none;
+}
+
+.v8-chati-header-bot svg,
+.v8-chati-msg-avatar svg,
+.v8-chati-welcome-bot svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.v8-chati-title {
+  flex: 1;
+  display: grid;
+  min-width: 0;
+}
+
+.v8-chati-title strong {
+  font-size: 16px;
+}
+
+.v8-chati-title small {
+  font-size: 12px;
+  color: var(--chati-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.v8-chati-icon-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  color: var(--chati-text);
+  background: transparent;
+  border: 1px solid var(--chati-border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.v8-chati-icon-btn svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.v8-chati-web[aria-pressed="true"] {
+  color: #fff;
+  background: var(--chati-accent);
+  border-color: var(--chati-accent);
+}
+
+/* ---------- Messages ---------- */
+
+.v8-chati-messages {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.v8-chati-welcome {
+  margin: auto 0;
+  text-align: center;
+  padding: 10px 6px;
+}
+
+.v8-chati-welcome-bot {
+  width: 86px;
+  height: 86px;
+  margin: 0 auto 10px;
+  animation: v8-chati-float 3.2s ease-in-out infinite;
+}
+
+.v8-chati-welcome h3 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.v8-chati-welcome p {
+  margin: 0 auto 16px;
+  max-width: 330px;
+  color: var(--chati-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.v8-chati-chips {
+  display: grid;
+  gap: 8px;
+}
+
+.v8-chati-chips button {
+  padding: 11px 14px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--chati-text);
+  text-align: left;
+  background: var(--chati-surface);
+  border: 1px solid var(--chati-border);
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.v8-chati-msg {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.v8-chati-msg.is-user {
+  justify-content: flex-end;
+}
+
+.v8-chati-msg-avatar {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+.v8-chati-bubble {
+  max-width: 82%;
+  padding: 10px 13px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  background: var(--chati-surface);
+  border: 1px solid var(--chati-border);
+  border-radius: 18px 18px 18px 6px;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.v8-chati-msg.is-user .v8-chati-bubble {
+  color: var(--chati-user-text);
+  background: var(--chati-user);
+  border-color: transparent;
+  border-radius: 18px 18px 6px 18px;
+}
+
+.v8-chati-bubble a {
+  color: #9f92ff;
+}
+
+.v8-chati-li {
+  display: block;
+  padding-left: 14px;
+  position: relative;
+}
+
+.v8-chati-li::before {
+  content: "•";
+  position: absolute;
+  left: 2px;
+}
+
+.v8-chati-bubble-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.v8-chati-bubble-photos img {
+  width: 92px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.v8-chati-photo-note {
+  font-size: 12px;
+  opacity: .7;
+  margin-bottom: 4px;
+}
+
+.v8-chati-sources {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--chati-border);
+  font-size: 12px;
+  color: var(--chati-muted);
+}
+
+@keyframes v8-chati-dot {
+  0%, 80%, 100% { opacity: .25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+
+.v8-chati-dots i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: v8-chati-dot 1.2s infinite;
+}
+
+.v8-chati-dots i:nth-child(2) { animation-delay: .15s; }
+.v8-chati-dots i:nth-child(3) { animation-delay: .3s; }
+
+/* ---------- Character draft card ---------- */
+
+.v8-chati-draft {
+  margin-left: 36px;
+  padding: 14px;
+  background: linear-gradient(160deg, rgba(125, 107, 255, .16), rgba(91, 140, 255, .06)), var(--chati-surface);
+  border: 1px solid rgba(125, 107, 255, .35);
+  border-radius: 18px;
+}
+
+.v8-chati-draft-badge {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  color: #fff;
+  background: var(--chati-accent);
+  border-radius: 999px;
+}
+
+.v8-chati-draft h4 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.v8-chati-draft p {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--chati-muted);
+}
+
+.v8-chati-draft-more summary {
+  cursor: pointer;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.v8-chati-photo-pick {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 10px;
+  font-size: 13px;
+}
+
+.v8-chati-photo-pick label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.v8-chati-photo-pick select {
+  padding: 6px 8px;
+  font: inherit;
+  color: var(--chati-text);
+  background: var(--chati-bg);
+  border: 1px solid var(--chati-border);
+  border-radius: 10px;
+}
+
+.v8-chati-thumbs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.v8-chati-thumbs figure {
+  position: relative;
+  margin: 0;
+  flex: none;
+}
+
+.v8-chati-thumbs img {
+  width: 58px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.v8-chati-thumbs figcaption {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  min-width: 18px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+  background: rgba(0, 0, 0, .6);
+  border-radius: 6px;
+}
+
+.v8-chati-hint {
+  font-size: 12.5px !important;
+}
+
+.v8-chati-draft-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.v8-chati-primary,
+.v8-chati-secondary {
+  flex: 1;
+  min-height: 42px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.v8-chati-primary {
+  color: #fff;
+  background: var(--chati-accent);
+  border: 0;
+}
+
+.v8-chati-secondary {
+  color: var(--chati-text);
+  background: transparent;
+  border: 1px solid var(--chati-border);
+}
+
+.v8-chati-created {
+  flex: 1;
+  font-weight: 700;
+  color: #6ee7a8;
+}
+
+/* ---------- Composer ---------- */
+
+.v8-chati-pending {
+  display: flex;
+  gap: 8px;
+  padding: 8px 14px 0;
+}
+
+.v8-chati-pending[hidden] {
+  display: none;
+}
+
+.v8-chati-pending-item {
+  position: relative;
+}
+
+.v8-chati-pending-item img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.v8-chati-pending-item button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  color: #fff;
+  background: #333;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.v8-chati-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--chati-border);
+}
+
+.v8-chati-input {
+  flex: 1;
+  min-height: 40px;
+  max-height: 140px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--chati-text);
+  background: var(--chati-surface);
+  border: 1px solid var(--chati-border);
+  border-radius: 14px;
+  resize: none;
+  outline: none;
+}
+
+.v8-chati-send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: #fff;
+  background: var(--chati-accent);
+  border: 0;
+  border-radius: 13px;
+  cursor: pointer;
+}
+
+.v8-chati-send svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

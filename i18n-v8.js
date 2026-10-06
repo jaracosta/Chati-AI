@@ -285,7 +285,38 @@
     "Save Profile": "Guardar perfil",
     "Accounts": "Cuentas",
     "Security": "Seguridad",
-    "Appearance": "Apariencia"
+    "Appearance": "Apariencia",
+
+    // Chati assistant
+    "Your character-building assistant": "Tu asistente para crear personajes",
+    "New conversation": "Nueva conversación",
+    "Ask Chati…": "Pregúntale a Chati…",
+    "Hi! I'm Chati": "¡Hola! Soy Chati",
+    "Tell me a character from any anime, game, movie or book and I'll research it and build the bot for you. You can also send me photos, or ask me how the app works.": "Dime un personaje de cualquier anime, juego, película o libro y lo investigo y te armo el bot. También puedes mandarme fotos o preguntarme cómo funciona la app.",
+    "Make me a character from an anime or game": "Hazme un personaje de un anime o juego",
+    "Help me create an original character": "Ayúdame a crear un personaje original",
+    "How does the app work?": "¿Cómo funciona la app?",
+    "Researching…": "Investigando…",
+    "Thinking…": "Pensando…",
+    "Sources": "Fuentes",
+    "Character ready": "Personaje listo",
+    "See details": "Ver detalles",
+    "Profile picture": "Foto de perfil",
+    "Chat background": "Fondo del chat",
+    "None": "Ninguna",
+    "Photo": "Foto",
+    "Tip: send me a photo of the character to use it as the profile picture or background.": "Tip: mándame una foto del personaje para usarla de perfil o de fondo.",
+    "Create & chat": "Crear y chatear",
+    "Create & edit": "Crear y editar",
+    "Created": "Creado",
+    "Open chat": "Abrir chat",
+    "Done! I created": "¡Listo! Creé a",
+    "You can adjust anything in the editor.": "Puedes ajustar lo que quieras en el editor.",
+    "Have fun chatting!": "¡Que te diviertas chateando!",
+    "Web research: on": "Investigar en la web: activado",
+    "Web research: off": "Investigar en la web: desactivado",
+    "Open Chati, your assistant": "Abrir a Chati, tu asistente",
+    "Chati couldn't answer right now. Please try again.": "Chati no pudo responder ahora. Inténtalo de nuevo."
   };
 
   // Interface strings that include a name or number.
@@ -324,7 +355,7 @@
   }
 
   // User content lives here; never translate inside it.
-  const SKIP = "#messages, .message, textarea, [contenteditable='true'], .character-info, .v8-explore";
+  const SKIP = "#messages, .message, textarea, [contenteditable='true'], .character-info, .v8-explore, .v8-chati-panel";
   const ATTRIBUTES = ["placeholder", "title", "aria-label", "data-tooltip"];
 
   function translateElementAttributes(element) {

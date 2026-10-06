@@ -18,6 +18,25 @@ export function createChatProvider(env, openai) {
     // Structured JSON (chat memory) through OpenRouter. Not every provider
     // supports strict JSON schemas, so the schema goes in the instructions
     // and the JSON object is pulled out of the reply.
+    // Chati assistant: plain chat completion, optionally with OpenRouter's
+    // web search plugin. Returns the reply text and the cited web pages.
+    async assistant({ model, messages, max_output_tokens, web }) {
+      const result = await router.chat.completions.create({
+        model,
+        messages,
+        max_tokens: max_output_tokens,
+        temperature: 0.4,
+        ...(web ? { plugins: [{ id: "web", max_results: 6 }] } : {})
+      });
+      const message = result.choices?.[0]?.message || {};
+      const citations = (Array.isArray(message.annotations) ? message.annotations : [])
+        .filter(annotation => annotation?.type === "url_citation" && annotation.url_citation?.url)
+        .map(annotation => ({
+          url: annotation.url_citation.url,
+          title: annotation.url_citation.title || ""
+        }));
+      return { text: message.content || "", citations };
+    },
     async completeJson({ model, instructions, input, schema, max_output_tokens }) {
       const result = await router.chat.completions.create({
         model,
