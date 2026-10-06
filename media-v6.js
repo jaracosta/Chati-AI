@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "6.2.0";
+  const VERSION = "7.0.0";
   const VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
   const videoFileMap = {
     characterImageFile: "characterImage",
@@ -49,16 +49,26 @@
 
     video.addEventListener("canplay", resume);
     video.addEventListener("loadedmetadata", resume);
-    installSmoothLoop(video);
+
+    // Callers append the video right after this returns.
+    queueMicrotask(() => installSmoothLoop(video));
 
     return video;
   }
 
+  // Seamless loop: two stacked copies of the same video. Shortly before the
+  // visible copy ends, the hidden copy (already decoded and parked on its
+  // first frame) starts playing and fades in ON TOP while the old copy keeps
+  // playing underneath to its last frame. Nothing is cut early and the
+  // picture never dips in brightness, so the seam is a soft dissolve.
   function installSmoothLoop(video) {
     if (!(video instanceof HTMLVideoElement)) return;
     if (video.dataset.v6SmoothLoop === "1") return;
 
     const parent = video.parentElement;
+
+    // Not in the page yet: native loop for now; the DOM observer installs
+    // the seamless loop as soon as the video is attached.
     if (!parent) {
       video.loop = true;
       return;
@@ -66,10 +76,18 @@
 
     video.dataset.v6SmoothLoop = "1";
     video.loop = false;
+    video.muted = true;
+    video.playsInline = true;
+
     parent.classList.add("v6-smooth-loop-host");
 
-    const twin = video.cloneNode(true);
+    if (getComputedStyle(parent).position === "static") {
+      parent.style.position = "relative";
+    }
+
+    const twin = video.cloneNode(false);
     twin.removeAttribute("id");
+    twin.removeAttribute("autoplay");
     twin.dataset.v6SmoothLoop = "1";
     twin.classList.add("v6-loop-twin");
     twin.loop = false;
@@ -78,85 +96,144 @@
     twin.defaultMuted = true;
     twin.playsInline = true;
     twin.preload = "auto";
-    twin.style.opacity = "0";
     twin.setAttribute("aria-hidden", "true");
     parent.appendChild(twin);
 
     let active = video;
     let standby = twin;
-    let blending = false;
-    let raf = 0;
+    let fading = false;
+    let stopped = false;
+    let fadeTimer = 0;
+    let pollTimer = 0;
 
-    const blendMs = 180;
-    const leadSeconds = 0.22;
-
-    const resume = () => {
-      if (document.visibilityState === "hidden") return;
-      if (active.paused) active.play().catch(() => {});
+    const setLayer = (element, opacity, top, fadeMs) => {
+      element.style.transition =
+        fadeMs > 0 ? "opacity " + fadeMs + "ms ease-in-out" : "none";
+      element.style.zIndex = top ? "1" : "0";
+      element.style.opacity = String(opacity);
     };
 
-    const swap = async () => {
-      if (blending) return;
-      if (!Number.isFinite(active.duration) || active.duration <= 0) return;
+    setLayer(active, 1, false, 0);
+    setLayer(standby, 0, false, 0);
 
-      blending = true;
+    // Fade length scales with the clip: ~12% of it, between 0.25s and 0.8s.
+    const fadeSeconds = () => {
+      const duration = active.duration;
+      if (!Number.isFinite(duration) || duration <= 0) return 0.4;
+      return Math.min(0.8, Math.max(0.25, duration * 0.12), duration * 0.3);
+    };
 
-      try {
-        standby.currentTime = 0;
-      } catch {}
+    // Keep the hidden copy decoded and waiting on its first frame.
+    const park = element => {
+      try { element.pause(); } catch {}
+      try { element.currentTime = 0; } catch {}
+    };
 
-      try {
-        await standby.play();
-      } catch {}
+    const playWhenReady = element => new Promise(resolve => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        element.removeEventListener("playing", finish);
+        resolve();
+      };
+      element.addEventListener("playing", finish);
+      // Never wait long; a slow decoder should not stall the loop.
+      setTimeout(finish, 350);
+      element.play().catch(finish);
+    });
 
-      standby.style.opacity = "1";
-      active.style.opacity = "0";
+    const crossfade = async immediate => {
+      if (fading || stopped) return;
+      fading = true;
 
-      setTimeout(() => {
+      const incoming = standby;
+      const outgoing = active;
+      const fadeMs = immediate ? 0 : Math.round(fadeSeconds() * 1000);
+
+      // Something else may have played the hidden copy; always restart it
+      // from the first frame.
+      if (incoming.currentTime > 0.05) {
+        try { incoming.currentTime = 0; } catch {}
+      }
+
+      await playWhenReady(incoming);
+      if (stopped) return;
+
+      setLayer(outgoing, 1, false, 0);
+      setLayer(incoming, 1, true, fadeMs);
+
+      clearTimeout(fadeTimer);
+      fadeTimer = setTimeout(() => {
+        setLayer(outgoing, 0, false, 0);
+        park(outgoing);
+        active = incoming;
+        standby = outgoing;
+        fading = false;
+      }, fadeMs + 40);
+    };
+
+    const check = () => {
+      if (stopped || fading) return;
+      const duration = active.duration;
+      if (!Number.isFinite(duration) || duration <= 0) return;
+
+      // Start a little early so the incoming copy is already moving when
+      // the dissolve begins.
+      const lead = fadeSeconds() + 0.12;
+      if (duration - active.currentTime <= lead) {
+        crossfade(false).catch(() => {});
+      }
+    };
+
+    const onEnded = event => {
+      // Missed the window (tab was hidden, slow device): swap right away.
+      if (event.target === active) crossfade(true).catch(() => {});
+    };
+
+    const onVisibility = () => {
+      if (stopped) return;
+      if (document.visibilityState === "hidden") {
         try { active.pause(); } catch {}
-        try { active.currentTime = 0; } catch {}
-
-        const oldActive = active;
-        active = standby;
-        standby = oldActive;
-        standby.style.opacity = "0";
-        active.style.opacity = "1";
-        blending = false;
-      }, blendMs);
-    };
-
-    const tick = () => {
-      if (!parent.isConnected) {
-        cancelAnimationFrame(raf);
-        document.removeEventListener("visibilitychange", resume);
         return;
       }
+      if (active.paused && !fading) active.play().catch(() => {});
+    };
 
-      if (
-        !blending &&
-        Number.isFinite(active.duration) &&
-        active.duration > 0 &&
-        active.currentTime > 0 &&
-        active.duration - active.currentTime <= leadSeconds
-      ) {
-        swap().catch(() => {});
+    const stop = () => {
+      stopped = true;
+      clearTimeout(fadeTimer);
+      clearInterval(pollTimer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      twin.remove();
+    };
+
+    video.addEventListener("ended", onEnded);
+    twin.addEventListener("ended", onEnded);
+    // iOS only decodes a video once it has played: warm the standby copy up
+    // the first time the visible one starts, then park it on frame one.
+    video.addEventListener("playing", () => {
+      if (twin.dataset.v6Warm === "1") return;
+      twin.dataset.v6Warm = "1";
+      twin.play()
+        .then(() => {
+          if (!fading && standby === twin) park(twin);
+        })
+        .catch(() => {});
+    }, { once: true });
+    document.addEventListener("visibilitychange", onVisibility);
+
+    // Watch the clock (and clean up when the video leaves the page).
+    pollTimer = setInterval(() => {
+      if (!parent.isConnected || !video.isConnected) {
+        stop();
+        return;
       }
+      check();
+    }, 50);
 
-      raf = requestAnimationFrame(tick);
-    };
-
-    const endedFallback = () => {
-      swap().catch(() => {});
-    };
-
-    video.addEventListener("ended", endedFallback);
-    twin.addEventListener("ended", endedFallback);
-    video.addEventListener("canplay", resume);
-    twin.addEventListener("canplay", () => {});
-    document.addEventListener("visibilitychange", resume);
-
-    resume();
-    raf = requestAnimationFrame(tick);
+    park(twin);
+    if (active.paused) active.play().catch(() => {});
   }
 
   function enhanceAvatarImage(img) {
@@ -247,7 +324,7 @@
     if (!host) return;
 
     const inlineSource = extractCssUrl(host.style.backgroundImage);
-    let media = host.querySelector(":scope > .v6-chat-background-media");
+    let media = host.querySelector(":scope > .v6-chat-background-media:not(.v6-loop-twin)");
 
     // Static images use exactly ONE rendering layer: the host background.
     if (inlineSource && !isVideoSource(inlineSource)) {
@@ -287,11 +364,15 @@
     }
 
     if (same) {
-      if (media.paused) media.play().catch(() => {});
+      // The seamless-loop controller owns playback once it is installed.
+      if (media.dataset.v6SmoothLoop !== "1" && media.paused) {
+        media.play().catch(() => {});
+      }
       return;
     }
 
     media?.remove();
+    host.querySelectorAll(":scope > .v6-loop-twin").forEach(node => node.remove());
     media = makeVideo(source, "v6-chat-background-media");
     media.dataset.source = source;
     host.appendChild(media);
