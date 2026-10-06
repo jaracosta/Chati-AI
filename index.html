@@ -36,6 +36,7 @@
   <link rel="stylesheet" href="account-profile-v6.css?v=6.2.3">
   <link rel="stylesheet" href="media-v6.css?v=6.2.3">
   <link rel="stylesheet" href="app-polish-v6.css?v=6.2.4">
+  <link rel="stylesheet" href="ui-smooth-v7.css?v=7.0.1">
 
   <!-- Returning visitors skip the cinematic splash entirely. -->
   <script>
@@ -3157,7 +3158,7 @@
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker
-          .register("./sw.js?v=6.2.6", {
+          .register("./sw.js?v=7.0.1", {
             scope: "./",
             updateViaCache: "none"
           })
@@ -3168,7 +3169,7 @@
     }
   </script>
 
-  <script src="script.js?v=3.10.9"></script>
+  <script src="script.js?v=3.10.10"></script>
 
   <!-- =========================
        V4.0.1 — SUPABASE AUTH

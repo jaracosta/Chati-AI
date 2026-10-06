@@ -1,0 +1,235 @@
+/* =========================================================
+   V7 — SMOOTH UI
+   Loaded last. Phone-first layout that feels like a native app on
+   phones and a roomy, centered layout on desktop.
+   ========================================================= */
+
+/* ---------- Global touch feel ---------- */
+
+button,
+a,
+[role="button"],
+.character-card,
+.group-card {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ---------- View transitions ---------- */
+
+@keyframes chati-view-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.view:not(.hidden) {
+  animation: chati-view-in .22s cubic-bezier(.2, .7, .2, 1) both;
+}
+
+/* ---------- Character cards (Botify-style portrait cards) ---------- */
+
+.characters-grid {
+  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+  gap: 16px;
+}
+
+.character-card {
+  position: relative;
+  display: block;
+  max-width: none;
+  min-height: 0;
+  aspect-ratio: 3 / 4;
+  border-radius: 18px;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    transform .18s cubic-bezier(.2, .7, .2, 1),
+    border-color .18s ease,
+    box-shadow .18s ease;
+}
+
+.character-card .character-image,
+.character-card .character-placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.character-card .character-placeholder {
+  align-items: center;
+  padding-bottom: 28%;
+  font-size: 56px;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(150, 140, 200, .16), transparent 60%),
+    #1a1a22;
+}
+
+.character-card .character-info {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 1;
+  padding: 44px 14px 14px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(6, 6, 10, 0) 0%,
+      rgba(6, 6, 10, .72) 38%,
+      rgba(6, 6, 10, .94) 100%
+    );
+}
+
+.character-card .character-info h3 {
+  margin: 0 0 4px;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.character-card .character-info p {
+  margin: 0;
+  color: rgba(235, 233, 245, .72);
+  font-size: 13px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .character-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .38);
+  }
+}
+
+.character-card:active {
+  transform: scale(.98);
+}
+
+/* ---------- Chat: only the latest reply shows its controls ---------- */
+
+#messages .message-row.character .message-tools {
+  display: none;
+}
+
+#messages .message-row.character:last-child .message-tools,
+#messages .message-row.character .message-tools.has-variants {
+  display: flex;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #messages .message-row.character:hover .message-tools {
+    display: flex;
+  }
+}
+
+/* ---------- Desktop: centered reading column ---------- */
+
+@media (min-width: 1025px) and (hover: hover) and (pointer: fine) {
+  #messages > * {
+    width: 100%;
+    max-width: 860px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .chat-form.chat-layer {
+    width: 100%;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .characters-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+  }
+}
+
+/* ---------- Phone ---------- */
+
+@media (max-width: 760px) {
+  /* Keep the last row of cards clear of the bottom navigation dock. */
+  #homeView {
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .characters-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .character-card {
+    display: block;
+    border-radius: 16px;
+  }
+
+  .character-card .character-image,
+  .character-card .character-placeholder {
+    width: 100%;
+    height: 100%;
+  }
+
+  .character-card .character-info {
+    padding: 40px 12px 12px;
+  }
+
+  .character-card .character-info h3 {
+    font-size: 15px;
+  }
+
+  .character-card .character-info p {
+    font-size: 12.5px;
+  }
+
+  /* One compact line for the conversation name instead of a labelled bar. */
+  .current-chat-bar {
+    padding-top: 4px !important;
+    padding-bottom: 6px !important;
+  }
+
+  .current-chat-label > span {
+    display: none;
+  }
+
+  .current-chat-label strong {
+    font-size: 12.5px;
+    font-weight: 600;
+    opacity: .8;
+  }
+
+  /* iOS zooms the page when a focused field is under 16px. */
+  #messageInput {
+    font-size: 16px !important;
+  }
+
+  .message {
+    max-width: 88%;
+  }
+}
+
+/* ---------- Respect reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .view:not(.hidden) {
+    animation: none;
+  }
+
+  .character-card {
+    transition: none;
+  }
+}

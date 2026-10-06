@@ -14549,6 +14549,17 @@ function createMessageRow(
       "message-tools";
 
 
+    if (
+      normalized.variants.length > 1
+    ) {
+
+      tools.classList.add(
+        "has-variants"
+      );
+
+    }
+
+
     const left =
       document.createElement(
         "button"
