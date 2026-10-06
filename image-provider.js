@@ -18,6 +18,13 @@ const NEGATIVE_PROMPT =
   "child, children, kid, minor, underage, teen, loli, shota, young-looking, school uniform, " +
   "lowres, bad anatomy, bad hands, extra fingers, blurry, watermark, text, logo";
 
+export class ImageBlockedError extends Error {
+  constructor() {
+    super("The image was blocked by the safety filter.");
+    this.name = "ImageBlockedError";
+  }
+}
+
 export function imageProviderName(env = process.env) {
   const chosen = String(env.IMAGE_PROVIDER || "").toLowerCase();
   if (chosen === "fal" || chosen === "openrouter") return chosen;
@@ -53,20 +60,47 @@ async function toDataUrl(url, fetchImpl) {
 export function createImageGenerator(env = process.env, fetchImpl = globalThis.fetch) {
   const provider = imageProviderName(env);
 
-  async function viaFal({ prompt, aspect, mature }) {
-    const model = env.FAL_MODEL || "fal-ai/flux/dev";
+  async function callFal(model, body) {
     const response = await fetchImpl(`https://fal.run/${model}`, {
       method: "POST",
       headers: {
         Authorization: `Key ${env.FAL_KEY}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(falRequestBody({ prompt, aspect, mature, model, modelName: env.FAL_MODEL_NAME || "" }))
+      body: JSON.stringify(body)
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(`fal.ai error ${response.status}: ${JSON.stringify(data).slice(0, 300)}`);
+    // fal.ai returns a black picture when its safety checker flags it.
+    if (Array.isArray(data.has_nsfw_concepts) && data.has_nsfw_concepts[0] === true) {
+      throw new ImageBlockedError();
+    }
     const url = data.images?.[0]?.url || "";
     return url ? toDataUrl(url, fetchImpl) : "";
+  }
+
+  async function viaFal({ prompt, aspect, mature, referenceImages = [] }) {
+    // With the character's picture, an image-editing model keeps their real
+    // look (face, hair, outfit, art style). Falls back to text-to-image.
+    const referenceModel = env.FAL_REFERENCE_MODEL ?? "fal-ai/flux-kontext/dev";
+    const reference = referenceImages[0];
+    if (reference && referenceModel && referenceModel !== "off") {
+      try {
+        return await callFal(referenceModel, {
+          prompt: `Keep this exact character from the reference image (same face, hair, eyes, body, outfit and art style). ${prompt}`,
+          image_url: reference,
+          num_images: 1,
+          output_format: "jpeg",
+          enable_safety_checker: !mature
+        });
+      } catch (error) {
+        if (error instanceof ImageBlockedError) throw error;
+        console.warn("Reference image generation failed, using text-to-image:", error.message);
+      }
+    }
+
+    const model = env.FAL_MODEL || "fal-ai/flux/dev";
+    return callFal(model, falRequestBody({ prompt, aspect, mature, model, modelName: env.FAL_MODEL_NAME || "" }));
   }
 
   async function viaOpenRouter({ prompt, aspect, referenceImages = [] }) {

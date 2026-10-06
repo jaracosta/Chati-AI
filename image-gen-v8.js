@@ -34,6 +34,28 @@
     );
   }
 
+  // The profile picture as shown in the chat header (works for inline,
+  // cloud-stored and linked pictures), shrunk to a small JPEG.
+  function referencePicture(character) {
+    const fallback = typeof character.image === "string" &&
+      (character.image.startsWith("data:image/") || character.image.startsWith("https://"))
+      ? character.image
+      : "";
+    const shown = document.getElementById("chatCharacterImage");
+    if (!shown || !shown.complete || !shown.naturalWidth || shown.style.display === "none") return fallback;
+    try {
+      const ratio = Math.min(768 / shown.naturalWidth, 768 / shown.naturalHeight, 1);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(shown.naturalWidth * ratio));
+      canvas.height = Math.max(1, Math.round(shown.naturalHeight * ratio));
+      canvas.getContext("2d").drawImage(shown, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", 0.88);
+    } catch {
+      // Cross-origin picture without CORS: use the link itself.
+      return fallback || (shown.src.startsWith("https://") ? shown.src : "");
+    }
+  }
+
   function characterPayload(character) {
     const appearance = character.appearance || {};
     return {
@@ -47,9 +69,7 @@
         appearance.startingOutfit || appearance.defaultOutfit,
         appearance.accessories
       ].filter(Boolean).join("\n"),
-      image: typeof character.image === "string" && character.image.startsWith("data:image/")
-        ? character.image
-        : ""
+      image: referencePicture(character)
     };
   }
 

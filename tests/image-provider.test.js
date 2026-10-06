@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createImageGenerator, falRequestBody, imageProviderName } from '../image-provider.js';
+import { createImageGenerator, falRequestBody, imageProviderName, ImageBlockedError } from '../image-provider.js';
 
 test('picks fal.ai when FAL_KEY is set, unless told otherwise', () => {
   assert.equal(imageProviderName({ FAL_KEY: 'k', OPENROUTER_API_KEY: 'o' }), 'fal');
@@ -44,4 +44,42 @@ test('fal.ai errors are reported', async () => {
   const fetchImpl = async () => new Response(JSON.stringify({ detail: 'bad key' }), { status: 401 });
   const generator = createImageGenerator({ FAL_KEY: 'x' }, fetchImpl);
   await assert.rejects(generator.generate({ prompt: 'p' }), /fal.ai error 401/);
+});
+
+const imageResponse = () => new Response(Buffer.from('img'), { status: 200, headers: { 'content-type': 'image/jpeg' } });
+
+test('a picture flagged by the safety checker is reported, not shown black', async () => {
+  const fetchImpl = async url => url.startsWith('https://fal.run/')
+    ? new Response(JSON.stringify({ images: [{ url: 'https://v3.fal.media/x.jpg' }], has_nsfw_concepts: [true] }), { status: 200 })
+    : imageResponse();
+  const generator = createImageGenerator({ FAL_KEY: 'k' }, fetchImpl);
+  await assert.rejects(generator.generate({ prompt: 'p' }), ImageBlockedError);
+});
+
+test('with a reference picture, the editing model keeps the character; falls back on failure', async () => {
+  const seen = [];
+  let kontextFails = false;
+  const fetchImpl = async (url, options) => {
+    if (url.startsWith('https://fal.run/')) {
+      seen.push({ url, body: JSON.parse(options.body) });
+      if (url.includes('kontext') && kontextFails) return new Response('{}', { status: 422 });
+      return new Response(JSON.stringify({ images: [{ url: 'https://v3.fal.media/x.jpg' }] }), { status: 200 });
+    }
+    return imageResponse();
+  };
+  const generator = createImageGenerator({ FAL_KEY: 'k' }, fetchImpl);
+
+  await generator.generate({ prompt: 'fighting in a volcano', referenceImages: ['data:image/jpeg;base64,AAAA'], mature: true });
+  assert.equal(seen[0].url, 'https://fal.run/fal-ai/flux-kontext/dev');
+  assert.equal(seen[0].body.image_url, 'data:image/jpeg;base64,AAAA');
+  assert.match(seen[0].body.prompt, /reference image/);
+  assert.equal(seen[0].body.enable_safety_checker, false);
+
+  seen.length = 0;
+  kontextFails = true;
+  const original = console.warn;
+  console.warn = () => {};
+  await generator.generate({ prompt: 'p', referenceImages: ['data:image/jpeg;base64,AAAA'] });
+  console.warn = original;
+  assert.deepEqual(seen.map(call => call.url), ['https://fal.run/fal-ai/flux-kontext/dev', 'https://fal.run/fal-ai/flux/dev']);
 });

@@ -11,7 +11,7 @@ import {
   parseImagePlan,
   usableReferenceImage
 } from "./character-image.js";
-import { createImageGenerator } from "./image-provider.js";
+import { createImageGenerator, ImageBlockedError } from "./image-provider.js";
 import {
   buildChatiInstructions,
   extractCharacterDraft,
@@ -4414,6 +4414,22 @@ app.post(
     }
 
     catch (error) {
+
+      if (
+        error instanceof ImageBlockedError
+      ) {
+
+        return res
+          .status(422)
+          .json({
+            error:
+              req.body?.matureContent === true
+                ? "The image was blocked by the safety filter. Try a different request."
+                : "The image was blocked by the safety filter. Turn on NSFW (18+) in Settings or try a different request."
+          });
+
+      }
+
 
       console.error(
         "❌ Image error:",
