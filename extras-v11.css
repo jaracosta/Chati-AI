@@ -671,3 +671,35 @@ html.v11-tint #chatView .chat-avatar {
     transition: none !important;
   }
 }
+
+/* ---------- Smoothness: no backdrop blur over the animated background ----------
+   backdrop-filter has to be recomputed every frame when the layer behind it
+   moves, which made streaming replies stutter. Solid-ish fills instead. */
+html.v11-fx-on #messages .message.character,
+html.v11-fx-on #messages .typing-bubble,
+html.v11-fx-on .chat-empty .v9-scenario {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.v11-fx-on:not([data-chati-theme="light"]) #messages .message.character,
+html.v11-fx-on:not([data-chati-theme="light"]) #messages .typing-bubble,
+html.v11-fx-on:not([data-chati-theme="light"]) .chat-empty .v9-scenario {
+  background: rgba(22, 20, 32, 0.9) !important;
+}
+
+html.v11-fx-on[data-chati-theme="light"] #messages .message.character,
+html.v11-fx-on[data-chati-theme="light"] #messages .typing-bubble {
+  background: rgba(255, 255, 255, 0.94) !important;
+}
+
+html.v11-fx-on #chatView .chat-header,
+html.v11-fx-on #chatForm,
+html.v11-fx-on #chatForm .chat-input-row {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.v11-fx {
+  contain: strict;
+}

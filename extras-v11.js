@@ -179,10 +179,14 @@
     fx.frame = 0;
     if (!canvas || !canvas.isConnected || document.hidden || !canvas.offsetParent) return;
     fx.frame = requestAnimationFrame(drawFx);
+    // ~30 fps is plenty for ambience; drop to ~20 fps while a reply streams
+    // so the text and scrolling get the frame budget.
+    const busy = typeof isSending !== "undefined" && isSending;
+    if (time - (fx.last || 0) < (busy ? 48 : 32)) return;
     const dt = Math.min(3, (time - (fx.last || time)) / 16.7 || 1);
     fx.last = time;
 
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     if (canvas.width !== Math.round(w * ratio) || canvas.height !== Math.round(h * ratio)) {
@@ -218,10 +222,11 @@
           break;
         case "embers":
           p.phase += 0.04 * dt; p.y += p.vy * dt; p.x += Math.sin(p.phase) * 0.6 * dt; p.life -= 0.0025 * dt;
+          // Cheap glow: a faint larger circle instead of shadowBlur.
+          context.fillStyle = `rgba(255,120,40,${Math.max(0, p.a * p.life * 0.25)})`;
+          context.beginPath(); context.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2); context.fill();
           context.fillStyle = `rgba(255,${120 + Math.round(p.life * 80)},60,${Math.max(0, p.a * p.life)})`;
-          context.shadowColor = "rgba(255,120,40,0.8)"; context.shadowBlur = 6;
           context.beginPath(); context.arc(p.x, p.y, p.size, 0, Math.PI * 2); context.fill();
-          context.shadowBlur = 0;
           if (p.y < -10 || p.life <= 0) fx.particles[index] = makeParticle(effect, w, h, false);
           break;
         case "petals":
@@ -241,10 +246,13 @@
         case "fireflies":
           p.tw += 0.03 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
           if (Math.random() < 0.01) { p.vx = (Math.random() - 0.5) * 0.5; p.vy = (Math.random() - 0.5) * 0.5; }
-          context.fillStyle = `rgba(230,255,150,${0.25 + Math.max(0, Math.sin(p.tw)) * 0.65})`;
-          context.shadowColor = "rgba(210,255,120,0.9)"; context.shadowBlur = 10;
-          context.beginPath(); context.arc(p.x, p.y, p.size, 0, Math.PI * 2); context.fill();
-          context.shadowBlur = 0;
+          {
+            const glow = 0.25 + Math.max(0, Math.sin(p.tw)) * 0.65;
+            context.fillStyle = `rgba(210,255,120,${glow * 0.22})`;
+            context.beginPath(); context.arc(p.x, p.y, p.size * 3.5, 0, Math.PI * 2); context.fill();
+            context.fillStyle = `rgba(230,255,150,${glow})`;
+            context.beginPath(); context.arc(p.x, p.y, p.size, 0, Math.PI * 2); context.fill();
+          }
           if (p.x < -10 || p.x > w + 10 || p.y < -10 || p.y > h + 10) fx.particles[index] = makeParticle(effect, w, h, true);
           break;
         default:
@@ -262,8 +270,10 @@
     const enabled = pref(EFFECTS_KEY) && !reducedMotion() && character && !isGroup(character);
     if (!background || !enabled) {
       if (fx.canvas) fx.canvas.hidden = true;
+      document.documentElement.classList.remove("v11-fx-on");
       return;
     }
+    document.documentElement.classList.add("v11-fx-on");
     if (!fx.canvas || !fx.canvas.isConnected) {
       fx.canvas = document.createElement("canvas");
       fx.canvas.className = "v11-fx";
@@ -396,6 +406,8 @@
 
   function decorateVoices() {
     if (!window.speechSynthesis) return;
+    // Don't touch bubbles while a reply is streaming in.
+    if (typeof isSending !== "undefined" && isSending) return;
     document.querySelectorAll("#messages .message-row.character:not(.typing-row) .message.character").forEach(bubble => {
       if (bubble.querySelector(".v11-speak")) return;
       const button = document.createElement("button");
@@ -963,13 +975,18 @@
   // ---------------------------------------------------------------------
   // Wiring
   // ---------------------------------------------------------------------
-  let queued = false;
+  // Trailing debounce: while a reply streams, #messages changes every frame,
+  // so this waits until the text settles and then runs once.
+  let syncTimer = 0;
   let headerTimer = 0;
   function syncChat() {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(() => {
-      queued = false;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
+      if (typeof isSending !== "undefined" && isSending) {
+        // Still streaming: check again shortly instead of doing the heavy work.
+        syncChat();
+        return;
+      }
       ensureHeaderButtons();
       applyTint();
       syncEffects();
@@ -978,7 +995,7 @@
       decorateVoices();
       watchNewMessages();
       checkAchievements();
-    });
+    }, 150);
   }
 
   function initialize() {
@@ -989,15 +1006,14 @@
     const messages = document.getElementById("messages");
     if (messages) new MutationObserver(syncChat).observe(messages, { childList: true, subtree: true });
 
-    let bodyQueued = false;
-    new MutationObserver(() => {
-      if (bodyQueued) return;
-      bodyQueued = true;
-      requestAnimationFrame(() => {
-        bodyQueued = false;
+    let bodyTimer = 0;
+    new MutationObserver(records => {
+      if (messages && records.every(record => messages.contains(record.target))) return;
+      clearTimeout(bodyTimer);
+      bodyTimer = setTimeout(() => {
         decorateProfileBadges();
         ensureSettings();
-      });
+      }, 200);
     }).observe(document.body, { childList: true, subtree: true });
 
     document.addEventListener("visibilitychange", () => {

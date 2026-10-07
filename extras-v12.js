@@ -626,7 +626,10 @@
     }
     canvas.style.opacity = "1";
     seasonFx.frame = requestAnimationFrame(drawSeason);
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const now = performance.now();
+    if (now - (seasonFx.last || 0) < 32) return;
+    seasonFx.last = now;
+    const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
     const w = window.innerWidth, h = window.innerHeight;
     if (canvas.width !== Math.round(w * ratio)) { canvas.width = Math.round(w * ratio); canvas.height = Math.round(h * ratio); seasonFx.parts = []; }
     const c = canvas.getContext("2d");
@@ -808,18 +811,21 @@
     applySeason();
 
     const messages = document.getElementById("messages");
-    if (messages) new MutationObserver(() => { ensureChatButtons(); vnRefresh(); }).observe(messages, { childList: true, subtree: true });
+    let chatTimer = 0;
+    if (messages) new MutationObserver(() => {
+      clearTimeout(chatTimer);
+      chatTimer = setTimeout(() => { ensureChatButtons(); vnRefresh(); }, 250);
+    }).observe(messages, { childList: true, subtree: true });
 
-    let queued = false;
-    new MutationObserver(() => {
-      if (queued) return;
-      queued = true;
-      requestAnimationFrame(() => {
-        queued = false;
+    let bodyTimer = 0;
+    new MutationObserver(records => {
+      if (messages && records.every(record => messages.contains(record.target))) return;
+      clearTimeout(bodyTimer);
+      bodyTimer = setTimeout(() => {
         ensureHomeActions();
         ensureSeasonSetting();
         if (!document.getElementById("v12SeasonBanner") && seasonNow() && pref(SEASON_KEY)) applySeason();
-      });
+      }, 200);
     }).observe(document.body, { childList: true, subtree: true });
 
     window.addEventListener("chati:languagechange", () => {
