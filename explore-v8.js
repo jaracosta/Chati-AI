@@ -273,6 +273,7 @@
       '<div class="v8-explore-head">' +
         '<h2>' + t("Explore") + '</h2>' +
         '<p>' + t("Ready-made characters. Tap one to start chatting.") + '</p>' +
+        (art.keys.size ? '<button type="button" class="v11-discover-btn">✨ ' + t("Discover") + '</button>' : '') +
       '</div>' +
       '<div class="v9-tag-chips" role="tablist"></div>' +
       '<div class="v8-explore-row"></div>';
@@ -283,6 +284,8 @@
       hero.querySelector(".v9-hero-text").textContent = featured[lang()].scenario;
       hero.addEventListener("click", () => openStarter(featured));
     }
+
+    section.querySelector(".v11-discover-btn")?.addEventListener("click", () => window.ChatiExtras?.openDiscover());
 
     const chips = section.querySelector(".v9-tag-chips");
     Object.keys(TAGS).forEach(key => {
@@ -362,7 +365,7 @@
     if (grid) new MutationObserver(() => place()).observe(grid, { childList: true });
   }
 
-  window.ChatiExplore = Object.freeze({ starters: STARTERS, render, open: openStarter, hasArt, profileArt });
+  window.ChatiExplore = Object.freeze({ starters: STARTERS, render, open: openStarter, hasArt, profileArt, tagLabel: key => t(TAGS[key] || key) });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initialize, { once: true });

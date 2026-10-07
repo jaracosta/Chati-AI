@@ -688,6 +688,8 @@ const PUBLIC_ROOT_FILES =
     "polish-v9.js",
     "polish-v10.css",
     "polish-v10.js",
+    "extras-v11.css",
+    "extras-v11.js",
     "script.js",
     "supabase-auth-v4.js",
     "account-profile-v6.js",
