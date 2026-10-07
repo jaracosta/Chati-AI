@@ -20,7 +20,7 @@ Navigation
 - Desktop: when you have no chats yet, the chat list shows "Popular characters" to start with.
 - Chats (phone tab) / chat list (desktop): recent conversations and search.
 - Create: "New Character" (full editor) or "New Group" (chat with 2+ of your characters at once).
-- Profile: sign in / create account, display name and profile photo or video, accounts, security, appearance (dark/light theme).
+- Profile: shows your stats (characters, chats, messages sent); sign in / create account, display name and profile photo or video, accounts, security, appearance (dark/light theme).
 - Settings (gear icon; on phone it is at the bottom of the Chats tab): Roleplay Level (Regular, Advanced, Super Advanced), NSFW (18+) switch, Language (Automatic/Español/English), Install Chati-AI as an app, Backup & Restore (export/import your data).
 
 NSFW (18+)
@@ -46,6 +46,7 @@ Character pictures (the character sends you an image of themselves)
 - Tap the ✨ image button next to the message box (or ⋯ → Create image), or just write a message that starts with "Crea una imagen…", "Hazme una foto…", "Create an image…" or "/imagine …". Example: "Crea una imagen de ti peleando en un volcán".
 - The character replies with the picture and a short line in character. It uses the character's profile picture as a reference so they look like themselves, plus the story so far for context. Works best when the character has a clear profile picture.
 - Not available in group chats yet. Takes a few seconds. Pictures are saved in the chat and sync like other media.
+- Tap any picture in a chat to see it full screen and download it.
 - Actions are written between **double asterisks**; dialogue goes outside.
 - Desktop shortcuts: Ctrl/⌘+K search, Ctrl/⌘+B show/hide chat list, Alt+N new chat, ↑ edit your last message, Esc close menus.
 

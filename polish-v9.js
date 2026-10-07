@@ -167,7 +167,7 @@
         '<defs><linearGradient id="v9LogoGrad" x1="0" y1="0" x2="1" y2="1">' +
           '<stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#6366f1"/>' +
         '</linearGradient></defs>' +
-        '<line x1="32" y1="6" x2="32" y2="14" stroke="url(#v9LogoGrad)" stroke-width="3" stroke-linecap="round"/>' +
+        '<line x1="32" y1="6" x2="32" y2="14" stroke="#a78bfa" stroke-width="3" stroke-linecap="round"/>' +
         '<circle cx="32" cy="6" r="3.2" fill="#fbbf24"/>' +
         '<rect x="10" y="14" width="44" height="36" rx="13" fill="url(#v9LogoGrad)"/>' +
         '<rect x="16" y="21" width="32" height="20" rx="9" fill="#141428"/>' +
