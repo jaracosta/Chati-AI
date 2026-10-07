@@ -156,7 +156,7 @@
         attachment = { type: "image", dataUrl, mimeType: "image/jpeg", name: "character-image", note: "" };
       }
 
-      const caption = String(data.caption || "").trim() || (attachment ? "**" + t("sends a picture") + "**" : "…");
+      const caption = String(data.caption || "").trim() || (attachment ? "**" + t("sends you a picture") + "**" : "…");
 
       mutateStoredChat(character.id, chatId, chat => {
         chat.messages.push(normalizeMessage({ sender: "character", text: caption, attachment, time: Date.now() }));

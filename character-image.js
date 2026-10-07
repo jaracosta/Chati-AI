@@ -54,7 +54,7 @@ Return ONLY a JSON object:
 {"ok": true, "prompt": "...", "caption": "...", "aspect": "3:4"}
 
 prompt (English, 60-160 words): a detailed visual description for the image model. Keep the character's look consistent with the sheet (hair, eyes, build, outfit, accessories). If the character is from an existing series (anime, game, movie...), name them and the series in the prompt and describe their canon look precisely (hair style and color, eye color, face marks, build, signature outfit). Add pose, expression, setting, lighting, camera framing and art style. Default style: high-quality anime illustration, unless the user asks for another style or the character is clearly from a realistic setting. Use the recent story for context when the user refers to it. If a reference image is attached, the character must match it.
-caption: 1-2 short sentences IN CHARACTER, in the user's language (${lang === "es" ? "Spanish" : "the language the user writes in"}), as if the character is sending the picture. Actions go between double asterisks, e.g. **sends a photo** Here you go. Never speak or act for the user.
+caption: 1-2 short sentences IN CHARACTER, in the user's language (${lang === "es" ? "Spanish" : "the language the user writes in"}), as if the character is sending the picture. Actions go between double asterisks and are written in the third person, present tense, describing what the character does (never an order to the user): ${lang === "es" ? '"**te manda una foto con una sonrisa** Aquí estoy." — never "**Envía una foto**"' : '"**sends you a photo with a smile** Here I am." — never "**Send a photo**"'}. Never speak or act for the user.
 aspect: 3:4 for portraits/selfies, 16:9 for wide scenes, 1:1 otherwise.
 
 AGE RULE (always, checked first):
