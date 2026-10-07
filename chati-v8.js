@@ -283,7 +283,7 @@
         '<h3>' + escapeHtml(t("Hi! I'm Chati")) + '</h3>' +
         '<p>' + escapeHtml(t("Tell me a character from any anime, game, movie or book and I'll research it and build the bot for you. You can also send me photos, or ask me how the app works.")) + '</p>' +
         '<div class="v8-chati-chips">' +
-          ["Make me a character from an anime or game", "Help me create an original character", "How does the app work?"]
+          ["Make me a character from an anime or game", "Help me create an original character", "How does the app work?", "How do characters send me pictures?", "What is NSFW (18+)?"]
             .map(chip => '<button type="button" data-chip="' + escapeHtml(t(chip)) + '">' + escapeHtml(t(chip)) + '</button>').join("") +
         '</div>';
       welcome.addEventListener("click", event => {
@@ -291,7 +291,10 @@
         if (!chip) return;
         const input = panel.querySelector(".v8-chati-input");
         input.value = chip;
-        input.focus();
+        // Questions about the app are sent right away; the others are
+        // starters the user finishes.
+        if (/[?]$/.test(chip)) send();
+        else input.focus();
       });
       list.appendChild(welcome);
       return;

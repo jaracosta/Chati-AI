@@ -215,6 +215,14 @@
 
     button.addEventListener("click", () => {
       if (typeof closeMediaAttachMenu === "function") closeMediaAttachMenu();
+      openPrompt();
+    });
+
+    menu.prepend(button);
+  }
+
+  // Uses what is typed as the request, or starts one for the user to finish.
+  function openPrompt() {
       const typed = messageInput?.value?.trim() || "";
       if (typed && !isImageRequest(typed)) {
         createImage((lang() === "es" ? "Crea una imagen: " : "Create an image: ") + typed);
@@ -227,9 +235,6 @@
       messageInput.value = lang() === "es" ? "Crea una imagen de " : "Create an image of ";
       messageInput.focus();
       if (typeof autoGrowMessageInput === "function") autoGrowMessageInput();
-    });
-
-    menu.prepend(button);
   }
 
   function initialize() {
@@ -238,7 +243,7 @@
     document.getElementById("chatForm")?.addEventListener("submit", onSubmit, true);
   }
 
-  window.ChatiImages = Object.freeze({ isImageRequest, createImage });
+  window.ChatiImages = Object.freeze({ isImageRequest, createImage, openPrompt });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initialize, { once: true });

@@ -7,6 +7,7 @@
   const STARTERS = [
     {
       key: "luna",
+      tags: ["fantasy", "comedy"],
       colors: ["#5b3fa8", "#1d2b64", "#f7b267"],
       name: "Luna",
       pronouns: "SHE",
@@ -22,6 +23,7 @@
     },
     {
       key: "kai",
+      tags: ["scifi", "mystery"],
       colors: ["#00d2ff", "#3a1c71", "#ff2e63"],
       name: "Kai Moreno",
       pronouns: "HE",
@@ -37,6 +39,7 @@
     },
     {
       key: "aria",
+      tags: ["romance", "life"],
       colors: ["#ff9a9e", "#a18cd1", "#fad0c4"],
       name: "Aria",
       pronouns: "SHE",
@@ -52,6 +55,7 @@
     },
     {
       key: "draven",
+      tags: ["fantasy", "romance"],
       colors: ["#200122", "#6f0000", "#e94057"],
       name: "Draven",
       pronouns: "HE",
@@ -67,6 +71,7 @@
     },
     {
       key: "nova",
+      tags: ["scifi", "life"],
       colors: ["#0f2027", "#2c5364", "#7cffcb"],
       name: "NOVA-7",
       pronouns: "THEY",
@@ -82,6 +87,7 @@
     },
     {
       key: "sofia",
+      tags: ["comedy", "life"],
       colors: ["#f7971e", "#ffd200", "#ff5f6d"],
       name: "Sofía",
       pronouns: "SHE",
@@ -97,6 +103,7 @@
     },
     {
       key: "ren",
+      tags: ["action", "fantasy"],
       colors: ["#1e3c72", "#2a5298", "#c9d6ff"],
       name: "Ren Takeda",
       pronouns: "HE",
@@ -113,6 +120,7 @@
     },
     {
       key: "mia",
+      tags: ["life", "romance"],
       colors: ["#11998e", "#38ef7d", "#f9f871"],
       name: "Mia",
       pronouns: "SHE",
@@ -129,6 +137,18 @@
   ];
 
   const lang = () => (window.ChatiI18n?.lang === "es" ? "es" : "en");
+
+  const TAGS = {
+    all: "All",
+    fantasy: "Fantasy",
+    romance: "Romance",
+    scifi: "Sci-fi",
+    action: "Action",
+    mystery: "Mystery",
+    comedy: "Comedy",
+    life: "Slice of life"
+  };
+  let activeTag = "all";
 
   // Anime profile pictures and chat backgrounds made by the "Starter art"
   // workflow. Until they exist, the gradient covers below are used.
@@ -231,20 +251,60 @@
       section = document.createElement("section");
       section.id = "v8ExploreSection";
       section.className = "v8-explore";
-      // After your characters, the empty-state hint and your groups.
-      home.appendChild(section);
     }
+    place(section);
+
+    // Featured character of the day: big cover with its background art.
+    const featured = STARTERS[Math.floor(Date.now() / 86400000) % STARTERS.length];
+    const heroHtml = hasArt(featured)
+      ? '<button type="button" class="v9-hero" style="--v9-hero-bg:url(\'' + backgroundArt(featured) + '\')">' +
+          '<img class="v9-hero-portrait" alt="" src="' + profileArt(featured) + '">' +
+          '<span class="v9-hero-copy">' +
+            '<span class="v9-hero-badge">' + t("Featured") + '</span>' +
+            '<strong></strong>' +
+            '<span class="v9-hero-text"></span>' +
+            '<span class="v9-hero-cta">' + t("Chat now") + ' →</span>' +
+          '</span>' +
+        '</button>'
+      : "";
 
     section.innerHTML =
+      heroHtml +
       '<div class="v8-explore-head">' +
         '<h2>' + t("Explore") + '</h2>' +
         '<p>' + t("Ready-made characters. Tap one to start chatting.") + '</p>' +
       '</div>' +
+      '<div class="v9-tag-chips" role="tablist"></div>' +
       '<div class="v8-explore-row"></div>';
+
+    const hero = section.querySelector(".v9-hero");
+    if (hero) {
+      hero.querySelector("strong").textContent = featured.name;
+      hero.querySelector(".v9-hero-text").textContent = featured[lang()].scenario;
+      hero.addEventListener("click", () => openStarter(featured));
+    }
+
+    const chips = section.querySelector(".v9-tag-chips");
+    Object.keys(TAGS).forEach(key => {
+      if (key !== "all" && !STARTERS.some(starter => starter.tags.includes(key))) return;
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "v9-tag-chip" + (key === activeTag ? " active" : "");
+      chip.setAttribute("role", "tab");
+      chip.setAttribute("aria-selected", String(key === activeTag));
+      chip.textContent = t(TAGS[key]);
+      chip.addEventListener("click", () => {
+        activeTag = key;
+        render();
+      });
+      chips.appendChild(chip);
+    });
 
     const row = section.querySelector(".v8-explore-row");
 
-    STARTERS.forEach(starter => {
+    STARTERS
+      .filter(starter => activeTag === "all" || starter.tags.includes(activeTag))
+      .forEach(starter => {
       const card = document.createElement("button");
       card.type = "button";
       card.className = "character-card v8-explore-card";
@@ -259,11 +319,14 @@
 
       const info = document.createElement("div");
       info.className = "character-info";
+      const tagLine = document.createElement("span");
+      tagLine.className = "v9-card-tags";
+      tagLine.textContent = starter.tags.map(tag => t(TAGS[tag])).join(" · ");
       const title = document.createElement("h3");
       title.textContent = starter.name;
       const description = document.createElement("p");
       description.textContent = starter[lang()].description;
-      info.append(title, description);
+      info.append(tagLine, title, description);
 
       card.append(image, info);
       card.addEventListener("click", () => openStarter(starter));
@@ -271,13 +334,35 @@
     });
   }
 
-  function initialize() {
-    render();
-    loadArt().then(() => { if (art.keys.size) render(); });
-    window.addEventListener("chati:languagechange", render);
+  // New users see Explore first; once they have characters it moves below
+  // "Your Characters".
+  function place(section = document.getElementById("v8ExploreSection")) {
+    const home = document.getElementById("homeView");
+    const grid = document.getElementById("charactersGrid");
+    if (!home || !grid || !section) return;
+    const firstRun = typeof characters === "undefined" || !characters.length;
+    home.classList.toggle("v9-first-run", firstRun);
+    if (firstRun) {
+      const top = home.querySelector(".top-bar");
+      if (section.previousElementSibling !== top) (top || grid).insertAdjacentElement(top ? "afterend" : "beforebegin", section);
+    } else if (section.parentElement !== home || home.lastElementChild !== section) {
+      home.appendChild(section);
+    }
   }
 
-  window.ChatiExplore = Object.freeze({ starters: STARTERS, render });
+  function initialize() {
+    render();
+    loadArt().then(() => {
+      if (!art.keys.size) return;
+      render();
+      window.dispatchEvent(new Event("chati:exploreart"));
+    });
+    window.addEventListener("chati:languagechange", render);
+    const grid = document.getElementById("charactersGrid");
+    if (grid) new MutationObserver(() => place()).observe(grid, { childList: true });
+  }
+
+  window.ChatiExplore = Object.freeze({ starters: STARTERS, render, open: openStarter, hasArt, profileArt });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initialize, { once: true });

@@ -95,3 +95,13 @@ test('visual analysis always checks age first; mature detail only with 18+ mode'
   assert.match(on, /clearly adults/);
   assert.match(on, /clinical/);
 });
+
+test('the app guide covers pictures, NSFW (18+) and Explore', () => {
+  const text = buildChatiInstructions({ rootDir: '/nonexistent' });
+  assert.match(text, /Character pictures/);
+  assert.match(text, /Crea una imagen/);
+  assert.match(text, /NSFW \(18\+\)\n- A switch in Settings/);
+  assert.match(text, /never allowed, in any mode/);
+  assert.match(text, /Featured/);
+  assert.match(text, /Surprise me/);
+});
