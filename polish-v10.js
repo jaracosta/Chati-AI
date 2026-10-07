@@ -235,15 +235,17 @@
     const grid = document.getElementById("charactersGrid");
     if (grid) new MutationObserver(decorateCards).observe(grid, { childList: true });
 
-    let queued = false;
-    new MutationObserver(() => {
-      if (queued) return;
-      queued = true;
-      requestAnimationFrame(() => {
-        queued = false;
+    // Streaming replies change #messages on every frame; that is not what
+    // these decorations care about, so skip it and debounce the rest.
+    const messagesBox = document.getElementById("messages");
+    let timer = 0;
+    new MutationObserver(records => {
+      if (messagesBox && records.every(record => messagesBox.contains(record.target))) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
         decorateProfile();
         decorateEmptyStates();
-      });
+      }, 200);
     }).observe(document.body, { childList: true, subtree: true });
 
     window.addEventListener("chati:languagechange", decorateCards);
