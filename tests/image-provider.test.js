@@ -83,3 +83,11 @@ test('with a reference picture, the editing model keeps the character; falls bac
   console.warn = original;
   assert.deepEqual(seen.map(call => call.url), ['https://fal.run/fal-ai/flux-kontext/dev', 'https://fal.run/fal-ai/flux/dev']);
 });
+
+test('a prompt rejected by fal.ai content policy is reported as blocked', async () => {
+  const fetchImpl = async () => new Response(JSON.stringify({
+    detail: [{ loc: ['body', 'prompt'], type: 'content_policy_violation', msg: 'flagged' }]
+  }), { status: 422 });
+  const generator = createImageGenerator({ FAL_KEY: 'k' }, fetchImpl);
+  await assert.rejects(generator.generate({ prompt: 'p', referenceImages: ['data:image/jpeg;base64,AAAA'] }), ImageBlockedError);
+});
