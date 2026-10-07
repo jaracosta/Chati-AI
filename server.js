@@ -680,6 +680,8 @@ const PUBLIC_ROOT_FILES =
     "chati-v8.js",
     "image-gen-v8.js",
     "chati-v8.css",
+    "polish-v9.css",
+    "polish-v9.js",
     "script.js",
     "supabase-auth-v4.js",
     "account-profile-v6.js",

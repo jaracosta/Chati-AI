@@ -1,0 +1,621 @@
+/* CHATI-AI V9 — visual polish: brand accent, Explore hero and genre chips,
+   chat welcome card, image button, avatars beside replies, livelier chat
+   backgrounds, small motion, popular characters list and the robot logo. */
+
+:root {
+  --v9-accent: #8b5cf6;
+  --v9-accent-2: #6366f1;
+  --v9-accent-soft: rgba(139, 92, 246, 0.16);
+  --v9-accent-line: rgba(167, 139, 250, 0.38);
+  --v9-gradient: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 45%, #6366f1 100%);
+  --v9-surface: rgba(24, 22, 36, 0.78);
+  --v9-surface-line: rgba(255, 255, 255, 0.08);
+  --v9-text-soft: rgba(236, 234, 245, 0.72);
+  --v9-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html[data-chati-theme="light"] {
+  --v9-accent-soft: rgba(139, 92, 246, 0.12);
+  --v9-surface: rgba(255, 255, 255, 0.86);
+  --v9-surface-line: rgba(20, 20, 40, 0.1);
+  --v9-text-soft: rgba(40, 38, 60, 0.72);
+}
+
+/* ---------- 2. Brand accent ---------- */
+.chat-form .send-btn,
+.main-create-btn,
+.save-character-btn,
+.account-primary-btn {
+  background: var(--v9-gradient) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.32);
+  transition: transform 0.18s var(--v9-ease), box-shadow 0.18s var(--v9-ease), filter 0.18s ease;
+}
+
+.chat-form .send-btn:hover,
+.main-create-btn:hover,
+.save-character-btn:hover,
+.account-primary-btn:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 8px 26px rgba(124, 58, 237, 0.42);
+}
+
+.chat-form .send-btn:active,
+.main-create-btn:active,
+.save-character-btn:active,
+.account-primary-btn:active {
+  transform: scale(0.96);
+}
+
+.chat-form .send-btn:disabled {
+  filter: grayscale(0.4) brightness(0.8);
+  box-shadow: none;
+}
+
+#v6MobileDock button.active {
+  color: #c4b5fd !important;
+  background: var(--v9-accent-soft) !important;
+}
+
+html[data-chati-theme="light"] #v6MobileDock button.active {
+  color: #6d28d9 !important;
+}
+
+.sidebar-nav .nav-btn.active,
+.sidebar-nav button.active {
+  color: #c4b5fd;
+  background: var(--v9-accent-soft);
+}
+
+.mature-content-toggle.is-on {
+  background: var(--v9-gradient) !important;
+}
+
+.message-input:focus,
+.chati-search-input:focus {
+  border-color: var(--v9-accent-line) !important;
+  box-shadow: 0 0 0 3px var(--v9-accent-soft) !important;
+}
+
+/* ---------- 1. Explore first + featured hero ---------- */
+#homeView.v9-first-run #emptyState {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  min-height: 0;
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  text-align: left;
+  border-style: solid;
+  order: 10;
+}
+
+#homeView.v9-first-run #emptyState .empty-icon,
+#homeView.v9-first-run #emptyState #emptyStateText {
+  display: none;
+}
+
+#homeView.v9-first-run #emptyState #emptyStateTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+#homeView.v9-first-run #emptyState .main-create-btn {
+  margin: 0;
+  padding: 9px 16px;
+  font-size: 14px;
+}
+
+.v9-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  width: 100%;
+  min-height: 230px;
+  margin: 6px 0 26px;
+  padding: 22px;
+  overflow: hidden;
+  text-align: left;
+  color: #fff;
+  border: 1px solid var(--v9-surface-line);
+  border-radius: 24px;
+  background: #15121f;
+  cursor: pointer;
+  isolation: isolate;
+  transition: transform 0.25s var(--v9-ease), box-shadow 0.25s var(--v9-ease);
+}
+
+.v9-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: var(--v9-hero-bg) center / cover no-repeat;
+  transform: scale(1.02);
+  transition: transform 0.6s var(--v9-ease);
+}
+
+.v9-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgba(8, 6, 16, 0.05) 0%, rgba(8, 6, 16, 0.55) 55%, rgba(8, 6, 16, 0.92) 100%),
+    linear-gradient(90deg, rgba(8, 6, 16, 0.55) 0%, transparent 70%);
+}
+
+.v9-hero:hover {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+.v9-hero:hover::before {
+  transform: scale(1.06);
+}
+
+.v9-hero:active {
+  transform: scale(0.985);
+}
+
+.v9-hero-portrait {
+  flex: 0 0 auto;
+  width: 112px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.v9-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.v9-hero-badge {
+  align-self: flex-start;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  background: var(--v9-gradient);
+}
+
+.v9-hero-copy strong {
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.v9-hero-text {
+  display: -webkit-box;
+  max-width: 560px;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.82);
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.v9-hero-cta {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+  border-radius: 12px;
+  background: #fff;
+  transition: transform 0.18s var(--v9-ease);
+}
+
+.v9-hero:hover .v9-hero-cta {
+  transform: translateX(3px);
+}
+
+@media (max-width: 600px) {
+  .v9-hero {
+    min-height: 210px;
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .v9-hero-portrait {
+    width: 84px;
+    height: 112px;
+  }
+
+  .v9-hero-copy strong {
+    font-size: 21px;
+  }
+
+  .v9-hero-text {
+    font-size: 13px;
+  }
+}
+
+/* ---------- 5. Genre chips + card tags ---------- */
+.v9-tag-chips {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 2px 0 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.v9-tag-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.v9-tag-chip {
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--v9-text-soft);
+  border: 1px solid var(--v9-surface-line);
+  border-radius: 999px;
+  background: var(--v9-surface);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.15s var(--v9-ease);
+}
+
+.v9-tag-chip:hover {
+  border-color: var(--v9-accent-line);
+}
+
+.v9-tag-chip:active {
+  transform: scale(0.95);
+}
+
+.v9-tag-chip.active {
+  color: #fff;
+  border-color: transparent;
+  background: var(--v9-gradient);
+}
+
+.v9-card-tags {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+}
+
+/* ---------- 8. Card motion ---------- */
+.character-card,
+.v8-explore-card {
+  transition: transform 0.22s var(--v9-ease), box-shadow 0.22s var(--v9-ease), border-color 0.22s ease;
+}
+
+.character-card .character-image {
+  transition: transform 0.5s var(--v9-ease);
+}
+
+@media (hover: hover) {
+  .character-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--v9-accent-line);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--v9-accent-soft);
+  }
+
+  .character-card:hover .character-image {
+    transform: scale(1.05);
+  }
+}
+
+.character-card:active {
+  transform: scale(0.97);
+}
+
+#chatView.active,
+.chat-view.active {
+  animation: v9-view-in 0.28s var(--v9-ease) both;
+}
+
+@keyframes v9-view-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- 3. New chat: scenario card + quick starts ---------- */
+.chat-empty .v9-scenario {
+  max-width: 460px;
+  margin: 18px auto 0;
+  padding: 14px 16px;
+  text-align: left;
+  border: 1px solid var(--v9-surface-line);
+  border-radius: 18px;
+  background: var(--v9-surface);
+  backdrop-filter: blur(10px);
+  animation: v9-rise 0.4s var(--v9-ease) 0.05s both;
+}
+
+.v9-scenario-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+}
+
+html[data-chati-theme="light"] .v9-scenario-label,
+html[data-chati-theme="light"] .v9-card-tags {
+  color: #6d28d9;
+}
+
+.chat-empty .v9-scenario p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(240, 238, 250, 0.9);
+}
+
+html[data-chati-theme="light"] .chat-empty .v9-scenario p,
+html[data-chati-theme="light"] .v9-start-chip {
+  color: #2a2640;
+}
+
+.v9-starts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 460px;
+  margin: 14px auto 0;
+  animation: v9-rise 0.4s var(--v9-ease) 0.12s both;
+}
+
+.v9-start-chip {
+  padding: 9px 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #ede9fe;
+  border: 1px solid var(--v9-accent-line);
+  border-radius: 999px;
+  background: var(--v9-accent-soft);
+  cursor: pointer;
+  transition: transform 0.15s var(--v9-ease), background 0.18s ease;
+}
+
+.v9-start-chip:hover {
+  background: rgba(139, 92, 246, 0.26);
+}
+
+.v9-start-chip:active {
+  transform: scale(0.95);
+}
+
+@keyframes v9-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- 4. Image button in the composer ---------- */
+.chat-form .v9-image-btn {
+  padding: 0 !important;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  align-self: center;
+  color: #c4b5fd !important;
+  border: 1px solid var(--v9-accent-line) !important;
+  border-radius: 14px;
+  background: var(--v9-accent-soft) !important;
+  cursor: pointer;
+  transition: transform 0.15s var(--v9-ease), background 0.18s ease;
+}
+
+.v9-image-btn[hidden] {
+  display: none;
+}
+
+.v9-image-btn:hover {
+  background: rgba(139, 92, 246, 0.26);
+}
+
+.v9-image-btn:active {
+  transform: scale(0.92);
+}
+
+.v9-image-btn svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+html[data-chati-theme="light"] .chat-form .v9-image-btn {
+  color: #6d28d9 !important;
+}
+
+@media (max-width: 600px) {
+  .chat-form .v9-image-btn {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+}
+
+/* ---------- 7. Message bubbles + avatars ---------- */
+.message.user {
+  color: #fff !important;
+  background: var(--v9-gradient) !important;
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.22);
+}
+
+.message.user .action-text {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+#messages.v9-solo .message-row.character:not(.typing-row) {
+  position: relative;
+  padding-left: 40px;
+}
+
+#messages.v9-solo .message-row.character.group-start::before,
+#messages.v9-solo .message-row.character.group-solo::before,
+#messages.v9-solo .typing-row::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--v9-surface-line);
+  background: var(--v9-avatar) center / cover no-repeat, #24203a;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+#messages.v9-solo .typing-row {
+  position: relative;
+  padding-left: 40px;
+}
+
+.message-enter-row {
+  animation: v9-message-in 0.32s var(--v9-ease) both;
+}
+
+@keyframes v9-message-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- 6. Chat background more visible ---------- */
+.chat-background.active {
+  opacity: 0.62 !important;
+}
+
+.chat-background::after {
+  background:
+    linear-gradient(180deg, rgba(10, 10, 14, 0.45) 0%, rgba(10, 10, 14, 0.42) 25%, rgba(10, 10, 14, 0.62) 70%, rgba(10, 10, 14, 0.88) 100%),
+    radial-gradient(circle at center, transparent 40%, rgba(5, 5, 8, 0.4) 100%) !important;
+}
+
+html[data-chati-theme="light"] .chat-background.active {
+  opacity: 0.4 !important;
+}
+
+/* ---------- 9. Popular characters in the empty chat list ---------- */
+.v9-popular {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 14px;
+}
+
+.v9-popular-title {
+  padding: 0 8px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.v9-popular-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  text-align: left;
+  color: inherit;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.v9-popular-item:hover {
+  border-color: var(--v9-surface-line);
+  background: var(--v9-accent-soft);
+}
+
+.v9-popular-item img {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.v9-popular-item span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.v9-popular-item strong {
+  font-size: 13.5px;
+}
+
+.v9-popular-item small {
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0.6;
+}
+
+/* ---------- 10. Robot logo ---------- */
+.v9-has-logo .sidebar-shape-logo-svg {
+  display: none !important;
+}
+
+.v9-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.v9-logo svg {
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 4px 12px rgba(124, 58, 237, 0.45));
+  transition: transform 0.3s var(--v9-ease);
+}
+
+.v9-logo:hover svg {
+  transform: rotate(-8deg) scale(1.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v9-hero,
+  .v9-hero::before,
+  .character-card,
+  .character-card .character-image,
+  .message-enter-row,
+  .chat-empty .v9-scenario,
+  .v9-starts,
+  #chatView.active {
+    animation: none !important;
+    transition: none !important;
+  }
+}

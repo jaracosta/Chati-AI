@@ -16,11 +16,17 @@ CHATI-AI APP GUIDE (use this to explain where things are)
 
 Navigation
 - Phone: bottom bar with Home, Chats, Create, Profile. Desktop: a left icon rail (Chats, Create, profile, Settings) plus a chat list with search (Ctrl/⌘+K).
-- Home: "Your Characters" (tap one to chat), "Your Groups", and "Explore" (ready-made characters; tapping one adds it to your characters and opens the chat).
+- Home: "Your Characters" (tap one to chat), "Your Groups", and "Explore". New users see Explore first: a "Featured" character of the day with a big cover and a "Chat now" button, genre filters (Fantasy, Romance, Sci-fi, Action, Mystery, Comedy, Slice of life) and 8 ready-made original anime characters (Luna, Kai Moreno, Aria, Draven, NOVA-7, Sofía, Ren Takeda, Mia), each with its own profile picture and chat background. Tapping one adds it to your characters and opens the chat.
+- Desktop: when you have no chats yet, the chat list shows "Popular characters" to start with.
 - Chats (phone tab) / chat list (desktop): recent conversations and search.
 - Create: "New Character" (full editor) or "New Group" (chat with 2+ of your characters at once).
 - Profile: sign in / create account, display name and profile photo or video, accounts, security, appearance (dark/light theme).
 - Settings (gear icon; on phone it is at the bottom of the Chats tab): Roleplay Level (Regular, Advanced, Super Advanced), NSFW (18+) switch, Language (Automatic/Español/English), Install Chati-AI as an app, Backup & Restore (export/import your data).
+
+NSFW (18+)
+- A switch in Settings, off by default, only for adults: turning it on asks the user to confirm they are 18 or older.
+- With it on, chats and character pictures can include adult content and graphic violence — only with adult characters. Anything sexual with minors (or characters who look young) is never allowed, in any mode.
+- With it off, replies and pictures stay non-explicit. If a picture gets blocked by the safety filter, the app says so and suggests turning NSFW on or trying another request.
 
 Character editor fields
 - Avatar & Identity: image (photo or video, from gallery or URL), name, pronouns, bio.
@@ -29,11 +35,17 @@ Character editor fields
 - To edit an existing character: open its chat, tap ⋯ (top right) → Edit Character.
 
 Inside a chat
+- A new chat starts with a card showing the character's scenario (the starting situation) and quick buttons: 👋 Say hi, 📸 Ask for a photo, 🎲 Surprise me (the character starts the scene). They disappear after the first message.
 - ← back, + New Chat (normal or Private Chat that is never saved), ⋯ menu: Rename Chat, Edit Character, Clear Chat, Delete Chat, Delete Character.
 - 🧠 memory button (desktop header): story summary, important and pinned memories, current scene, appearance, relationship, unresolved threads. Memory updates automatically per chat.
 - Under the latest reply: ← 1/1 → to switch between versions and ↻ to regenerate.
 - Long-press a message (phone) or right-click (desktop): Copy, Edit, Rewind to here, Pin Memory, Delete.
-- ⋯ next to the message box: send a photo, audio (up to 30 s) or video (up to 60 s) with an optional scene note.
+- ⋯ next to the message box: Create image, send a photo, audio (up to 30 s) or video (up to 60 s) with an optional scene note.
+
+Character pictures (the character sends you an image of themselves)
+- Tap the ✨ image button next to the message box (or ⋯ → Create image), or just write a message that starts with "Crea una imagen…", "Hazme una foto…", "Create an image…" or "/imagine …". Example: "Crea una imagen de ti peleando en un volcán".
+- The character replies with the picture and a short line in character. It uses the character's profile picture as a reference so they look like themselves, plus the story so far for context. Works best when the character has a clear profile picture.
+- Not available in group chats yet. Takes a few seconds. Pictures are saved in the chat and sync like other media.
 - Actions are written between **double asterisks**; dialogue goes outside.
 - Desktop shortcuts: Ctrl/⌘+K search, Ctrl/⌘+B show/hide chat list, Alt+N new chat, ↑ edit your last message, Esc close menus.
 
