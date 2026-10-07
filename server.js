@@ -8,6 +8,7 @@ import OpenAI, { toFile } from "openai";
 import { createChatProvider, extractJsonObject } from "./chat-provider.js";
 import {
   buildImagePromptMessages,
+  buildSaferRetryMessages,
   parseImagePlan,
   usableReferenceImage
 } from "./character-image.js";
@@ -4382,10 +4383,9 @@ app.post(
         );
 
 
-      const image =
-        await imageGenerator.generate({
-          prompt:
-            parsed.prompt,
+      const draw = prompt =>
+        imageGenerator.generate({
+          prompt,
           aspect:
             parsed.aspect,
           mature:
@@ -4393,6 +4393,64 @@ app.post(
           referenceImages:
             reference ? [reference] : []
         });
+
+
+      let image;
+
+      try {
+
+        image =
+          await draw(parsed.prompt);
+
+      }
+
+      catch (error) {
+
+        if (
+          !(error instanceof ImageBlockedError)
+        ) {
+          throw error;
+        }
+
+        // The image service flagged the prompt: try once more with a fully
+        // safe-for-work version of the same picture.
+        console.warn(
+          "Image prompt blocked, retrying with a safer prompt:",
+          parsed.prompt.slice(0, 300)
+        );
+
+        const retried =
+          parseImagePlan(
+            (
+              await chatProvider.assistant({
+                model:
+                  IMAGE_PROMPT_MODEL,
+                messages:
+                  buildSaferRetryMessages(
+                    plan.messages,
+                    parsed.prompt
+                  ),
+                max_output_tokens:
+                  900,
+                web:
+                  false
+              })
+            ).text,
+            extractJsonObject
+          );
+
+        if (!retried?.ok) {
+          throw error;
+        }
+
+        image =
+          await draw(retried.prompt);
+
+        if (retried.caption) {
+          parsed.caption = retried.caption;
+        }
+
+      }
 
 
       if (!image) {

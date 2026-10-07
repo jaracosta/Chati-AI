@@ -64,7 +64,7 @@ AGE RULE (always, checked first):
 
 CONTENT
 ${mature
-    ? "- The user is a verified adult with NSFW (18+) on. For a clearly adult character you may describe nudity, sexual or suggestive content and graphic violence as asked. Be precise and descriptive, no moralizing, no refusals for adult content."
+    ? "- The user is a verified adult with NSFW (18+) on. For a clearly adult character you may describe nudity, sexual or suggestive content and graphic violence, but ONLY when the user's request explicitly asks for it. For an ordinary request (a selfie, a place, an outfit, an action) write a clean, non-suggestive prompt: no nudity, no sexual or seductive wording, no focus on the body, even if the character sheet is flirty. When adult content is asked for, be precise and descriptive, no moralizing."
     : "- NSFW is off: keep the picture non-explicit (no nudity, no sexual acts). Suggestive-but-clothed is fine for clearly adult characters. If the user asked for explicit content, make a tasteful version and mention in the caption that NSFW (18+) can be turned on in Settings."}
 - Real people: only well-known public figures, never sexual. Never depict a private real person.
 `.trim();
@@ -88,6 +88,20 @@ ${clip(request, 1000) || "A picture of yourself."}
       { role: "user", content: user }
     ]
   };
+}
+
+// After the image service rejects a prompt: ask for a fully non-suggestive
+// version of the same picture (same character, scene and style).
+export function buildSaferRetryMessages(messages, rejectedPrompt) {
+  return [
+    ...messages,
+    { role: "assistant", content: JSON.stringify({ ok: true, prompt: rejectedPrompt }) },
+    {
+      role: "user",
+      content:
+        "The image service rejected that prompt as unsafe. Rewrite it as a fully safe-for-work prompt: keep the same character look, scene, pose idea and art style, but no nudity, no sexual, seductive or suggestive words, no body-focused descriptions, no gore, and no mention of age. Return the same JSON shape."
+    }
+  ];
 }
 
 export function parseImagePlan(raw, extractJsonObject) {
