@@ -132,3 +132,13 @@ test('reply length: rules and token caps follow the character setting', async ()
   assert.match(buildLengthRules({ characterName: 'X', replyLength: 'short' }), /SHORT: 1-3 sentences/);
   assert.match(buildLengthRules({ characterName: 'X', replyLength: 'long' }), /LONG/);
 });
+
+test('core rules fix the "You" perspective and ask for the canon voice', async () => {
+  const { buildCoreRoleplayRules } = await import('../roleplay-guard.js');
+  const rules = buildCoreRoleplayRules('Sukuna');
+  assert.match(rules, /"you\/your" means Sukuna/);
+  assert.match(rules, /never "\*\*You crash…\*\*"/);
+  assert.match(rules, /BE THE REAL Sukuna/);
+  assert.match(rules, /canon wins/);
+  assert.match(rules, /you'll remember this day/);
+});
