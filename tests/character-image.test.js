@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { extractJsonObject } from '../chat-provider.js';
 import {
   buildImagePromptMessages,
+  buildSaferRetryMessages,
   parseImagePlan,
   sheetSaysMinor,
   usableReferenceImage
@@ -60,4 +61,14 @@ test('inline images and https links are used as a reference', () => {
   assert.equal(usableReferenceImage('http://example.com/a.png'), '');
   assert.equal(usableReferenceImage('blob:https://chati-ai.com/x'), '');
   assert.equal(usableReferenceImage('data:image/svg+xml,<svg/>'), '');
+});
+
+test('adult content only when asked for; a blocked prompt gets one safer rewrite', () => {
+  const plan = buildImagePromptMessages({ character: { name: 'Lenore' }, request: 'a selfie', matureContent: true });
+  assert.match(plan.messages[0].content, /ONLY when the user's request explicitly asks for it/);
+
+  const retry = buildSaferRetryMessages(plan.messages, 'old prompt');
+  assert.equal(retry.length, plan.messages.length + 2);
+  assert.match(retry.at(-2).content, /old prompt/);
+  assert.match(retry.at(-1).content, /fully safe-for-work/);
 });
