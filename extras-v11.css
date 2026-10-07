@@ -185,21 +185,36 @@ html.v11-tint #chatView .chat-avatar {
   position: relative;
 }
 
+/* Pinned to the bubble's corner (absolutely positioned) so adding it never
+   changes the bubble's height: otherwise every re-render made the whole
+   chat grow and jump a moment later. */
 .v11-speak {
+  position: absolute;
+  right: -9px;
+  bottom: -9px;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin: 6px 0 -4px;
+  width: 26px;
+  height: 26px;
+  margin: 0;
   padding: 0;
-  color: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e9e6f5;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  opacity: 0.55;
+  background: #24212f;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  opacity: 0.7;
   cursor: pointer;
   transition: opacity 0.18s ease, background 0.18s ease;
+}
+
+html[data-chati-theme="light"] .v11-speak {
+  color: #3b3550;
+  border-color: rgba(0, 0, 0, 0.1);
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .v11-speak:hover,
