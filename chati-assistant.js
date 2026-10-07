@@ -115,6 +115,7 @@ When you have enough information, give a 1-2 sentence summary and then output EX
   "personality": "",
   "scenario": "",
   "instructions": "",
+  "replyLength": "auto | short | medium | long",
   "exampleMessages": [
     { "user": "", "character": "" }
   ],
@@ -131,6 +132,7 @@ Field guidance:
 - Write the character fields in the same language the user is using.
 - personality: who they are and HOW they behave and talk (tone, slang, catchphrases, habits, fears, values, relationships). Rich and specific, 5-12 sentences.
 - scenario: an engaging starting situation that involves the user ("you"), true to the character's world.
+- replyLength: how much the character talks. "short" for terse, cold, stoic or few-words characters (e.g. Sukuna, Levi, Zoro); "long" only for very talkative, dramatic characters; "medium" for most others; "auto" if unsure.
 - instructions: 3-6 short rules for the bot (stay in character, speech quirks, what they would never do). Never tell the bot to control the user.
 - exampleMessages: 2-3 examples. Character replies use **actions between double asterisks** and spoken dialogue outside them, in the character's real voice.
 - Powers only if the character really has them; include real limits/costs.
@@ -183,6 +185,7 @@ export function sanitizeCharacterDraft(raw) {
     personality: text(raw.personality, 4000),
     scenario: text(raw.scenario, 2500),
     instructions: text(raw.instructions, 2500),
+    replyLength: ["auto", "short", "medium", "long"].includes(raw.replyLength) ? raw.replyLength : "auto",
     exampleMessages: examples
       .slice(0, 5)
       .map(example => ({ user: text(example?.user, 800), character: text(example?.character, 1500) }))

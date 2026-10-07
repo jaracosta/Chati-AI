@@ -105,3 +105,10 @@ test('the app guide covers pictures, NSFW (18+) and Explore', () => {
   assert.match(text, /Featured/);
   assert.match(text, /Surprise me/);
 });
+
+test('character drafts carry a reply length', () => {
+  const block = (extra) => 'ok\n```chati-character\n' + JSON.stringify({ name: 'Sukuna', ...extra }) + '\n```';
+  assert.equal(extractCharacterDraft(block({ replyLength: 'short' })).draft.replyLength, 'short');
+  assert.equal(extractCharacterDraft(block({ replyLength: 'giant' })).draft.replyLength, 'auto');
+  assert.match(buildChatiInstructions({ rootDir: '/nonexistent' }), /replyLength: how much the character talks/);
+});

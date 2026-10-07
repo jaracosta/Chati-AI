@@ -156,6 +156,7 @@
       personality: draft.personality,
       scenario: draft.scenario,
       instructions: draft.instructions,
+      replyLength: draft.replyLength || "auto",
       appearance: draft.appearance,
       exampleMessages: draft.exampleMessages,
       hasPowers: draft.hasPowers,

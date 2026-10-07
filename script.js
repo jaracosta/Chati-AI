@@ -94,6 +94,7 @@ const characterBio = $("characterBio");
 const characterPersonality = $("characterPersonality");
 const characterScenario = $("characterScenario");
 const characterInstructions = $("characterInstructions");
+const characterReplyLength = $("characterReplyLength");
 const characterBackground = $("characterBackground");
 const characterPhysicalAppearance = $("characterPhysicalAppearance");
 const characterDefaultOutfit = $("characterDefaultOutfit");
@@ -5048,6 +5049,13 @@ function normalizeCharacter(
         ? character.instructions
         : "",
 
+    replyLength:
+      ["auto", "short", "medium", "long"].includes(
+        character?.replyLength
+      )
+        ? character.replyLength
+        : "auto",
+
     appearance:
       normalizeAppearanceProfile(
         character?.appearance
@@ -6846,6 +6854,12 @@ function fillCharacterForm(
 
   characterInstructions.value =
     normalized.instructions;
+
+
+  if (characterReplyLength) {
+    characterReplyLength.value =
+      normalized.replyLength;
+  }
 
 
   characterPhysicalAppearance.value =
@@ -12215,6 +12229,10 @@ characterForm.addEventListener(
           characterInstructions
             .value
             .trim(),
+
+        replyLength:
+          characterReplyLength?.value ||
+          "auto",
 
         appearance: {
 

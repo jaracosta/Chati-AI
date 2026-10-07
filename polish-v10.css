@@ -406,3 +406,45 @@ html[data-chati-theme="light"] .v10-profile-stats div {
     animation: none !important;
   }
 }
+
+/* ---------- Reply length option in the character editor ---------- */
+.reply-length-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.reply-length-field label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.reply-length-field select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 15px;
+  color: inherit;
+  border: 1px solid var(--v9-surface-line, rgba(255, 255, 255, 0.1));
+  border-radius: 14px;
+  background: var(--v9-surface, rgba(24, 22, 36, 0.78));
+  cursor: pointer;
+}
+
+.reply-length-field select:focus {
+  outline: none;
+  border-color: var(--v9-accent-line, rgba(167, 139, 250, 0.38));
+  box-shadow: 0 0 0 3px var(--v9-accent-soft, rgba(139, 92, 246, 0.16));
+}
+
+.reply-length-field select option {
+  color: #111;
+}
+
+.reply-length-field small {
+  font-size: 12.5px;
+  line-height: 1.45;
+  opacity: 0.65;
+}
