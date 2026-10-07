@@ -70,6 +70,10 @@ export function createImageGenerator(env = process.env, fetchImpl = globalThis.f
       body: JSON.stringify(body)
     });
     const data = await response.json().catch(() => ({}));
+    // fal.ai also checks the prompt itself and answers 422
+    // content_policy_violation; that is a block, not a server failure.
+    const details = Array.isArray(data.detail) ? data.detail : [];
+    if (details.some(item => item?.type === "content_policy_violation")) throw new ImageBlockedError();
     if (!response.ok) throw new Error(`fal.ai error ${response.status}: ${JSON.stringify(data).slice(0, 300)}`);
     // fal.ai returns a black picture when its safety checker flags it.
     if (Array.isArray(data.has_nsfw_concepts) && data.has_nsfw_concepts[0] === true) {
