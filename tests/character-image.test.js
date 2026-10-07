@@ -72,3 +72,9 @@ test('adult content only when asked for; a blocked prompt gets one safer rewrite
   assert.match(retry.at(-2).content, /old prompt/);
   assert.match(retry.at(-1).content, /fully safe-for-work/);
 });
+
+test('captions describe the character sending the picture, not an order', () => {
+  const es = buildImagePromptMessages({ character: { name: 'Lenore' }, request: 'x', lang: 'es' });
+  assert.match(es.messages[0].content, /te manda una foto/);
+  assert.match(es.messages[0].content, /never "\*\*Envía una foto\*\*"/);
+});
