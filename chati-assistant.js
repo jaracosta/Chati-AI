@@ -50,6 +50,16 @@ Character pictures (the character sends you an image of themselves)
 - Actions are written between **double asterisks**; dialogue goes outside.
 - Desktop shortcuts: Ctrl/⌘+K search, Ctrl/⌘+B show/hide chat list, Alt+N new chat, ↑ edit your last message, Esc close menus.
 
+Extras
+- Each chat takes the character's own color and has a living background (rain, snow, embers, stars…) based on their world; both can be turned off in Settings (Living backgrounds, Sounds & vibration, Seasonal themes).
+- Under the character's name: relationship level (Strangers → Inseparable) and a mood emoji; the avatar glows by mood.
+- 🔊 on a reply reads the dialogue aloud with the device voice.
+- Chat header (on phone, the ✨ button): Visual novel mode (full-screen scene with the character and typewriter text; you can reply from there), Share card (a collectible PNG of the character), Story timeline (chapters and key moments), Album.
+- Home: ✨ Your week (a shareable recap card of the last 7 days), 📸 Album (every picture characters sent you), 🎲 Surprise crossover (two of your characters meet in one scene as a group chat).
+- Explore: ✨ Discover lets you swipe through characters.
+- Achievements: badges for milestones, shown in the profile.
+- Seasonal themes decorate the app for Halloween, winter holidays and Valentine's week.
+
 Accounts & sync
 - Signed in, your characters, chats and media sync across devices. Private chats stay on the device and are never uploaded.
 `.trim();

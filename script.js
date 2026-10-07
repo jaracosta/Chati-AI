@@ -4059,7 +4059,8 @@ You are currently inside the shared group conversation "${group.name}".
 Participants:
 ${roster || "No participants listed."}
 
-You are responding ONLY as ${responder.name}.
+${String(group.scenario || "").trim() ? `Scene / setting: ${String(group.scenario).trim()}
+` : ""}You are responding ONLY as ${responder.name}.
 The group is one shared in-world conversation. You are NOT automatically speaking only to the user.
 Treat prior assistant messages prefixed with another participant's name as things that participant already said or did in the shared scene.
 The user may choose speakers one after another without sending a new in-world message between them. When that happens, continue naturally from the latest in-world speaker or event.
