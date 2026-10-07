@@ -20,9 +20,15 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Chati-AI">
 
-  <link rel="manifest" href="manifest.webmanifest?v=8.0.0">
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon-180.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/chati-ai-192.png">
+  <link rel="manifest" href="manifest.webmanifest?v=10.0.0">
+  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg?v=10">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png?v=10">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon-180.png?v=10">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/chati-ai-192.png?v=10">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
 
   <!-- iPhone launch screens: no white flash when opening the installed app. -->
   <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash/splash-1290x2796.png">
@@ -65,6 +71,7 @@
   <link rel="stylesheet" href="app-shell-v8.css?v=8.2.2">
   <link rel="stylesheet" href="chati-v8.css?v=8.3.0">
   <link rel="stylesheet" href="polish-v9.css?v=9.0.0">
+  <link rel="stylesheet" href="polish-v10.css?v=10.0.0">
 
   <!-- Returning visitors skip the cinematic splash entirely. -->
   <script>
@@ -99,10 +106,8 @@
       <div class="cinematic-splash-halo"></div>
 
       <div class="cinematic-splash-logo" aria-hidden="true">
-        <div class="cinematic-splash-monogram">
-          <span class="cinematic-splash-letter cinematic-splash-letter-c">C</span>
-          <span class="cinematic-splash-letter cinematic-splash-letter-a">A</span>
-        </div>
+        <img class="v10-splash-robot" src="assets/icons/favicon.svg" alt="">
+        <div class="v10-splash-dots"><span></span><span></span><span></span></div>
 
         <div class="cinematic-splash-wordmark">
           <span class="cinematic-splash-word">CHATI-AI</span>
@@ -3207,7 +3212,7 @@
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker
-          .register("./sw.js?v=9.0.1", {
+          .register("./sw.js?v=10.0.0", {
             scope: "./",
             updateViaCache: "none"
           })
@@ -3253,11 +3258,12 @@
   <script src="media-v6.js?v=7.0.0"></script>
   <script src="app-polish-v6.js?v=6.3.0"></script>
   <script src="app-shell-v8.js?v=8.1.0"></script>
-  <script src="i18n-v8.js?v=9.0.1"></script>
+  <script src="i18n-v8.js?v=10.0.0"></script>
   <script src="explore-v8.js?v=9.0.0"></script>
   <script src="chati-v8.js?v=9.0.0"></script>
   <script src="image-gen-v8.js?v=9.0.1"></script>
   <script src="polish-v9.js?v=9.0.0"></script>
+  <script src="polish-v10.js?v=10.0.0"></script>
 
 </body>
 </html>
