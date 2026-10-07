@@ -3110,8 +3110,17 @@ function stabilizeMobileChatViewport() {
     requestAnimationFrame(
       () => {
 
-        messages.scrollTop =
-          messages.scrollHeight;
+        messages.scrollTo({
+
+          top:
+
+            messages.scrollHeight,
+
+          behavior:
+
+            "instant"
+
+        });
 
       }
     );
@@ -3439,8 +3448,17 @@ function restoreMobileChatViewport() {
         messageInput
     ) {
 
-      messages.scrollTop =
-        messages.scrollHeight;
+      messages.scrollTo({
+
+        top:
+
+          messages.scrollHeight,
+
+        behavior:
+
+          "instant"
+
+      });
 
     }
 
@@ -14844,7 +14862,30 @@ function createMessageRow(
 }
 
 
+// Which chat the message list last showed, so a re-render of the same chat
+// (regenerate, edit, variant switch, sync) can keep the reader's place.
+let lastRenderedChatKey =
+  "";
+
+
 function renderMessages() {
+
+  const chatKey =
+    `${currentCharacter?.id || ""}:${currentChatId || ""}`;
+
+  const sameChat =
+    chatKey ===
+    lastRenderedChatKey;
+
+  lastRenderedChatKey =
+    chatKey;
+
+  const keepScrollTop =
+    sameChat &&
+    messages.childElementCount &&
+    !isMessagesNearBottom()
+      ? messages.scrollTop
+      : null;
 
   messages.innerHTML =
     "";
@@ -15012,15 +15053,37 @@ function renderMessages() {
   );
 
 
-  scrollToBottom();
+  if (
+    keepScrollTop !== null
+  ) {
+
+    messages.scrollTo({
+      top:
+        keepScrollTop,
+      behavior:
+        "instant"
+    });
+
+  }
+  else {
+
+    scrollToBottom();
+
+  }
 
 }
 
 
 function scrollToBottom() {
 
-  messages.scrollTop =
-    messages.scrollHeight;
+  // Instant: the list has `scroll-behavior: smooth`, and a re-render starts
+  // from scrollTop 0, so a smooth scroll would visibly fly up and back down.
+  messages.scrollTo({
+    top:
+      messages.scrollHeight,
+    behavior:
+      "instant"
+  });
 
 }
 
@@ -16371,6 +16434,15 @@ async function updateMemoryForChat(
       "Memory update failed:",
       error
     );
+
+    // Don't fall through to the batch check below: it would schedule
+    // another attempt every 450 ms forever while the memory API fails.
+    // The next message sent tries again.
+    memoryUpdateLocks.delete(
+      lockKey
+    );
+
+    return;
 
   }
 
@@ -20372,6 +20444,22 @@ async function regenerateMessage(
   );
 
 
+  // Regenerating the latest reply: hide the old bubble so the new one
+  // streams into the same spot instead of below it (and then jumping up).
+  const replacedRow =
+    laterCount === 0
+      ? [...messages.querySelectorAll(".message-row[data-message-id]")]
+          .find(row => row.dataset.messageId === String(messageId)) || null
+      : null;
+
+  if (replacedRow) {
+
+    replacedRow.style.display =
+      "none";
+
+  }
+
+
   showTypingIndicator();
 
 
@@ -20532,6 +20620,14 @@ async function regenerateMessage(
   }
 
   catch (error) {
+
+    if (replacedRow) {
+
+      replacedRow.style.display =
+        "";
+
+    }
+
 
     removeTypingIndicator();
 
