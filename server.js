@@ -25,6 +25,9 @@ import {
   createReplyGuard,
   fitInputToContext,
   buildVoiceRules,
+  buildLengthRules,
+  capTokensForLength,
+  normalizeReplyLength,
   findRepeatedPhrases,
   getModelContextTokens,
   getSamplingSettings,
@@ -1922,6 +1925,11 @@ function normalizeCharacter(
       character.instructions ||
       "",
 
+    replyLength:
+      normalizeReplyLength(
+        character.replyLength
+      ),
+
     appearance:
       normalizeAppearanceProfile(
         character.appearance
@@ -2994,6 +3002,18 @@ ${groupContinuation
         "\n\n" +
         voiceRules +
         "\n\n" +
+        buildLengthRules({
+          characterName:
+            character.name,
+          replyLength:
+            character.replyLength,
+          lastUserMessage:
+            [...messages]
+              .reverse()
+              .find(message => message.sender === "user")
+              ?.text || ""
+        }) +
+        "\n\n" +
         buildCoreRoleplayRules(
           character.name
         );
@@ -3021,12 +3041,15 @@ ${groupContinuation
 
 
       const maxOutputTokens =
-        compactPrompt
-          ? Math.min(
-              roleplayConfig.maxOutputTokens,
-              500
-            )
-          : roleplayConfig.maxOutputTokens;
+        capTokensForLength(
+          compactPrompt
+            ? Math.min(
+                roleplayConfig.maxOutputTokens,
+                500
+              )
+            : roleplayConfig.maxOutputTokens,
+          character.replyLength
+        );
 
 
       const input =

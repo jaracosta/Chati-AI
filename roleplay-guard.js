@@ -376,3 +376,48 @@ export function getSamplingSettings(env = {}) {
     repetition_penalty: number(env.CHAT_REPETITION_PENALTY, 1.08)
   };
 }
+
+// ---------------------------------------------------------------------------
+// Reply length: "auto" follows how much the character talks in canon / in
+// their profile; "short" | "medium" | "long" are set by the user in the
+// character editor.
+// ---------------------------------------------------------------------------
+export const REPLY_LENGTHS = ["auto", "short", "medium", "long"];
+
+export function normalizeReplyLength(value) {
+  return REPLY_LENGTHS.includes(value) ? value : "auto";
+}
+
+const LENGTH_TOKEN_CAPS = { short: 320, medium: 650, auto: 900 };
+
+export function capTokensForLength(maxTokens, replyLength) {
+  const cap = LENGTH_TOKEN_CAPS[normalizeReplyLength(replyLength)];
+  return cap ? Math.min(maxTokens, cap) : maxTokens;
+}
+
+export function buildLengthRules({ characterName, replyLength, lastUserMessage = "" }) {
+  const name = String(characterName || "the character").trim();
+  const length = normalizeReplyLength(replyLength);
+  const userWords = String(lastUserMessage || "").trim().split(/\s+/).filter(Boolean).length;
+
+  const byLength = {
+    short:
+      `- The user set ${name}'s replies to SHORT: 1-3 sentences, usually under 50 words — one short action plus a line or two of dialogue. Only go a bit longer for a truly major moment.`,
+    medium:
+      `- The user set ${name}'s replies to MEDIUM: usually 3-6 sentences (about 50-120 words). A short action, the dialogue, maybe one more beat. No long paragraphs.`,
+    long:
+      `- The user set ${name}'s replies to LONG: rich, detailed replies (about 120-250 words) with atmosphere and several beats — but still no rambling, no repeated ideas, and no speeches that ignore the user.`,
+    auto:
+      `- Decide the length from WHO ${name} is. If they are known (canon) or written as terse, cold, arrogant, laconic, stoic or a person of few words, most replies must be SHORT: a brief action and one or two cutting lines. If they are chatty, energetic or dramatic by nature, they may talk more — but still keep casual replies to a few sentences.
+- Mirror the user: short messages get short replies.${userWords && userWords <= 12 ? " The user's last message was short, so answer briefly." : ""} Only big moments (a fight, a reveal, an emotional turning point) earn a longer reply.
+- Casual replies stay under about 120 words.`
+  };
+
+  return `
+REPLY LENGTH (VERY IMPORTANT — overrides any other length guidance)
+${byLength[length]}
+- Never deliver monologues or speeches. Real people say one thing, then let the other person answer.
+- Say each idea once. Do not restate the same threat, boast, feeling or description twice in one reply, and do not repeat what ${name} already said in earlier replies.
+- Stop as soon as the point is made. No summaries, no extra closing lines.
+  `.trim();
+}

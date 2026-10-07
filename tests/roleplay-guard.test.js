@@ -108,3 +108,27 @@ test('sampling defaults reduce repetition and can be tuned from env', () => {
 test('recent openings are listed once each', () => {
   assert.deepEqual(recentOpenings(['Hola, ¿qué tal estás hoy?', 'Hola, ¿qué tal estás hoy?']), ['hola qué tal estás hoy']);
 });
+
+test('reply length: rules and token caps follow the character setting', async () => {
+  const { buildLengthRules, capTokensForLength, normalizeReplyLength } = await import('../roleplay-guard.js');
+
+  assert.equal(normalizeReplyLength('short'), 'short');
+  assert.equal(normalizeReplyLength('huge'), 'auto');
+  assert.equal(normalizeReplyLength(undefined), 'auto');
+
+  assert.equal(capTokensForLength(1150, 'short'), 320);
+  assert.equal(capTokensForLength(1150, 'medium'), 650);
+  assert.equal(capTokensForLength(1150, 'auto'), 900);
+  assert.equal(capTokensForLength(1600, 'long'), 1600);
+  assert.equal(capTokensForLength(500, 'auto'), 500);
+
+  const auto = buildLengthRules({ characterName: 'Sukuna', replyLength: 'auto', lastUserMessage: 'hola' });
+  assert.match(auto, /from WHO Sukuna is/);
+  assert.match(auto, /terse, cold, arrogant/);
+  assert.match(auto, /last message was short/);
+  assert.match(auto, /Never deliver monologues/);
+  assert.match(auto, /Say each idea once/);
+
+  assert.match(buildLengthRules({ characterName: 'X', replyLength: 'short' }), /SHORT: 1-3 sentences/);
+  assert.match(buildLengthRules({ characterName: 'X', replyLength: 'long' }), /LONG/);
+});
