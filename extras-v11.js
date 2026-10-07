@@ -1009,7 +1009,7 @@
     checkAchievements();
   }
 
-  window.ChatiExtras = Object.freeze({ openCard, openTimeline, openDiscover, pickEffect, moodOf, bondOf, badgesElement });
+  window.ChatiExtras = Object.freeze({ openCard, openTimeline, openDiscover, pickEffect, moodOf, bondOf, badgesElement, characterHue, loadImage });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initialize, { once: true });

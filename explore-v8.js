@@ -217,6 +217,20 @@
   const isOldCover = character =>
     typeof character.image === "string" && character.image.startsWith("data:image/svg+xml");
 
+  // Adds the starter to "Your Characters" if needed and returns it.
+  function ensureStarter(starter) {
+    if (typeof characters === "undefined") return null;
+    let character = characters.find(item => item.id === "starter_" + starter.key);
+    if (!character) {
+      character = normalizeCharacter(toCharacter(starter));
+      characters.push(character);
+      saveCharacters();
+      renderCharacters();
+      renderChatHistory();
+    }
+    return character;
+  }
+
   function openStarter(starter) {
     if (typeof characters === "undefined" || typeof openChat !== "function") return;
 
@@ -365,7 +379,7 @@
     if (grid) new MutationObserver(() => place()).observe(grid, { childList: true });
   }
 
-  window.ChatiExplore = Object.freeze({ starters: STARTERS, render, open: openStarter, hasArt, profileArt, tagLabel: key => t(TAGS[key] || key) });
+  window.ChatiExplore = Object.freeze({ starters: STARTERS, render, open: openStarter, ensure: ensureStarter, hasArt, profileArt, tagLabel: key => t(TAGS[key] || key) });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initialize, { once: true });

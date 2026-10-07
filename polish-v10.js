@@ -217,6 +217,7 @@
       window.addSystemMessage = replacement;
     }
     window.ChatiToast = toast;
+    window.ChatiViewer = openViewer;
 
     document.addEventListener("click", event => {
       const image = event.target.closest?.("#messages .message-attachment.image img, #messages .message-attachment img");
