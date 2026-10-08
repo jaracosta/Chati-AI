@@ -55,6 +55,7 @@ Extras
 - Under the character's name: relationship level (Strangers → Inseparable) and a mood emoji; the avatar glows by mood.
 - 🔊 on a reply reads the dialogue aloud with the device voice.
 - Chat header (on phone, the ✨ button): Visual novel mode (full-screen scene with the character and typewriter text; you can reply from there), Share card (a collectible PNG of the character), Story timeline (chapters and key moments), Album.
+- Canon voice (📜 in the ✨ menu): when you chat with an existing character (anime, games, series, movies, books), Chati-AI studies how they really talk and act in their story — their words, attitude, catchphrases and what they would never do — and the character follows it in every reply. Original characters follow the profile you wrote. "Study again" rebuilds it after you edit the character.
 - Home: ✨ Your week (a shareable recap card of the last 7 days), 📸 Album (every picture characters sent you), 🎲 Surprise crossover (two of your characters meet in one scene as a group chat).
 - Explore: ✨ Discover lets you swipe through characters.
 - Achievements: badges for milestones, shown in the profile.

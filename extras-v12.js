@@ -764,6 +764,7 @@
     menu.className = "v12-more-menu";
     const items = [
       ["vn", "🎬", "Visual novel mode"],
+      window.ChatiCanon && ["canon", "📜", "Canon voice"],
       !isGroup(character) && ["card", "🃏", "Share card"],
       ["timeline", "📖", "Story timeline"],
       !isGroup(character) && ["album", "📸", "Album"]
@@ -777,6 +778,7 @@
       const id = event.target.closest("[data-m]")?.dataset.m;
       menu.remove();
       if (id === "vn") openVN();
+      if (id === "canon") window.ChatiCanon?.open();
       if (id === "card") window.ChatiExtras?.openCard();
       if (id === "timeline") window.ChatiExtras?.openTimeline();
       if (id === "album") openAlbum(character?.id);

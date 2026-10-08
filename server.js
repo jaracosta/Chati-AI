@@ -33,6 +33,13 @@ import {
   getSamplingSettings,
   recentOpenings
 } from "./roleplay-guard.js";
+import {
+  buildCanonProfileMessages,
+  buildCanonPromptSection,
+  canonFingerprint,
+  createCanonProfileStore,
+  sanitizeCanonProfile
+} from "./canon-profile.js";
 
 import {
   randomUUID
@@ -180,6 +187,22 @@ const openai =
 
 
 const chatProvider = createChatProvider(process.env, openai);
+
+// Canon voice cards (see canon-profile.js): written once per character by
+// CHATI_MODEL with web search, then reused in every roleplay prompt.
+const canonProfiles =
+  createCanonProfileStore({
+    generate: async character => {
+      if (typeof chatProvider.assistant !== "function") return "";
+      const result = await chatProvider.assistant({
+        model: CHATI_MODEL,
+        messages: buildCanonProfileMessages(character),
+        max_output_tokens: 1600,
+        web: process.env.CANON_WEB_SEARCH !== "false"
+      });
+      return result.text;
+    }
+  });
 
 const __filename =
   fileURLToPath(
@@ -692,6 +715,8 @@ const PUBLIC_ROOT_FILES =
     "extras-v11.js",
     "extras-v12.css",
     "extras-v12.js",
+    "canon-voice.css",
+    "canon-voice.js",
     "script.js",
     "supabase-auth-v4.js",
     "account-profile-v6.js",
@@ -2509,6 +2534,37 @@ async function buildChatInputMessage(
 // CHAT API
 // =========================
 
+// Canon voice card for one character. The app asks for it when a chat opens
+// and stores the answer, so it is written once, not on every message.
+app.post(
+  "/api/canon-profile",
+  chatRateLimiter,
+  async (req, res) => {
+    const character =
+      normalizeCharacter(
+        req.body?.character
+      );
+    if (!req.body?.character?.name || character.isGroup) {
+      return res.status(400).json({ error: "Character information is missing." });
+    }
+    try {
+      const card =
+        await canonProfiles.load(
+          character
+        );
+      res.json({
+        key: canonFingerprint(character),
+        card: card || ""
+      });
+    }
+    catch (error) {
+      console.error("Canon profile error:", error?.message || error);
+      res.status(502).json({ error: "Could not prepare the character's canon voice right now." });
+    }
+  }
+);
+
+
 app.post(
 
   "/api/chat",
@@ -2530,6 +2586,33 @@ app.post(
 
       const messages =
         req.body.messages;
+
+
+      // The card the app stored, else one this server already wrote. If
+      // neither exists, start writing it for the next message.
+      const canonCard =
+        character.isGroup
+          ? ""
+          : sanitizeCanonProfile(
+              req.body.character?.canonProfile
+            ) ||
+            sanitizeCanonProfile(
+              canonProfiles.get(
+                canonFingerprint(
+                  character
+                )
+              )
+            );
+
+      if (
+        !canonCard &&
+        !character.isGroup &&
+        character.name
+      ) {
+        canonProfiles
+          .load(character)
+          .catch(() => {});
+      }
 
 
       const memory =
@@ -3005,6 +3088,13 @@ ${groupContinuation
           : fullInstructions) +
         "\n\n" +
         voiceRules +
+        (canonCard
+          ? "\n\n" +
+            buildCanonPromptSection(
+              character.name,
+              canonCard
+            )
+          : "") +
         "\n\n" +
         buildLengthRules({
           characterName:

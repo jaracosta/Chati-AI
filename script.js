@@ -19394,6 +19394,18 @@ async function requestCharacterReply(
       : character;
 
 
+  // Canon voice card (canon-voice.js): how this character really talks in
+  // their story. In a group, each speaking member sends their own card.
+  const canonProfile =
+    await (
+      window.ChatiCanon
+        ?.cardFor(
+          character
+        )
+        .catch(() => "")
+    ) ||
+    "";
+
   const response =
     await fetch(
 
@@ -19412,7 +19424,18 @@ async function requestCharacterReply(
           JSON.stringify({
 
             character:
-              requestCharacter,
+
+              canonProfile
+
+                ? {
+
+                    ...requestCharacter,
+
+                    canonProfile
+
+                  }
+
+                : requestCharacter,
 
             messages:
               activeMessages,

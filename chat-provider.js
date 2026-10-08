@@ -8,7 +8,7 @@ export function createChatProvider(env, openai) {
   if (!env.OPENROUTER_API_KEY) return openai;
   const router = new OpenAI({
     apiKey: env.OPENROUTER_API_KEY,
-    baseURL: "https://openrouter.ai/api/v1",
+    baseURL: env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
     defaultHeaders: {
       "HTTP-Referer": "https://chati-ai.com",
       "X-OpenRouter-Title": "Chati-AI"
@@ -71,8 +71,12 @@ export function createChatProvider(env, openai) {
                 throw new Error("Unsupported chat attachment content.");
               })
           }))];
+        // OPENROUTER_FALLBACK_MODEL: if the main model is down or busy (e.g.
+        // its only provider fails), OpenRouter answers with this one instead.
+        const fallback = String(env.OPENROUTER_FALLBACK_MODEL || "").trim();
         const result = await router.chat.completions.create({
           model: request.model,
+          ...(fallback && fallback !== request.model ? { models: [request.model, fallback] } : {}),
           messages,
           max_tokens: request.max_output_tokens,
           ...(request.sampling || {}),
