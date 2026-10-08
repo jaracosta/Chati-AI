@@ -45,3 +45,22 @@ test('pulls the JSON object out of a chatty or fenced model reply', () => {
   assert.equal(extractJsonObject('Here it is:\n```json\n{"a":1,"b":{"c":2}}\n```\nDone!'), '{"a":1,"b":{"c":2}}');
   assert.equal(extractJsonObject('no json here'), '');
 });
+
+test('roleplay requests name the fallback model when one is configured', async () => {
+  const originalFetch = globalThis.fetch;
+  const payloads = [];
+  globalThis.fetch = async (url, options) => {
+    payloads.push(JSON.parse(options.body));
+    return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const request = { model: 'sao10k/l3.3-euryale-70b', instructions: '', input: [], stream: false };
+    await createChatProvider({ OPENROUTER_API_KEY: 'k', OPENROUTER_FALLBACK_MODEL: 'dolphin' }, {}).responses.create(request);
+    await createChatProvider({ OPENROUTER_API_KEY: 'k', OPENROUTER_FALLBACK_MODEL: 'sao10k/l3.3-euryale-70b' }, {}).responses.create(request);
+    await createChatProvider({ OPENROUTER_API_KEY: 'k' }, {}).responses.create(request);
+    assert.deepEqual(payloads[0].models, ['sao10k/l3.3-euryale-70b', 'dolphin']);
+    assert.equal(payloads[0].model, 'sao10k/l3.3-euryale-70b');
+    assert.equal(payloads[1].models, undefined);
+    assert.equal(payloads[2].models, undefined);
+  } finally { globalThis.fetch = originalFetch; }
+});
