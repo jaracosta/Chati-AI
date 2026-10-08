@@ -1004,7 +1004,12 @@
     syncChat();
 
     const messages = document.getElementById("messages");
-    if (messages) new MutationObserver(syncChat).observe(messages, { childList: true, subtree: true });
+    // Listen buttons go on new bubbles right away (observer callbacks run
+    // before the next paint), so they never blink in a moment later.
+    if (messages) new MutationObserver(records => {
+      if (records.some(record => record.target === messages && record.addedNodes.length)) decorateVoices();
+      syncChat();
+    }).observe(messages, { childList: true, subtree: true });
 
     let bodyTimer = 0;
     new MutationObserver(records => {

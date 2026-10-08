@@ -3774,30 +3774,21 @@ button:not(:disabled):active {
 
 /* Finished AI response animation */
 
+/* The reply was already visible while it streamed, so the finished row
+   must not move, blur or fade again (it read as a glitch). Only the tools
+   fade in. */
 .message-row.response-finished-row {
-  animation:
-    responseRowSettle
-    0.52s
-    cubic-bezier(0.16, 1, 0.3, 1)
-    both;
+  animation: none;
 }
 
 .message.character.response-finished {
   position: relative;
   isolation: isolate;
-  animation:
-    responseBubbleSettle
-    0.52s
-    cubic-bezier(0.16, 1, 0.3, 1)
-    both;
+  animation: none;
 }
 
 .message.character.response-finished .message-text {
-  animation:
-    responseTextReveal
-    0.62s
-    cubic-bezier(0.16, 1, 0.3, 1)
-    both;
+  animation: none;
 }
 
 .message-row.response-finished-row .message-tools {

@@ -14885,14 +14885,47 @@ function renderMessages() {
     messages.childElementCount &&
     !isMessagesNearBottom()
       ? messages.scrollTop
-      : null;
+            : null;
 
-  messages.innerHTML =
-    "";
+  // Rows already on screen for this chat, so unchanged messages keep their
+  // DOM node instead of being rebuilt (rebuilding every bubble on each
+  // send / finish / sync made them blink and lose their 🔊 button).
+  const previousRows =
+    new Map();
+
+  if (sameChat) {
+
+    messages
+      .querySelectorAll(
+        ":scope > .message-row[data-message-id]"
+      )
+      .forEach(
+        row => {
+          if (row.__chatiSignature) {
+            previousRows.set(
+              row.dataset.messageId,
+              row
+            );
+          }
+        }
+      );
+
+  }
 
 
   const chat =
     getCurrentChat();
+
+
+  if (
+    !chat ||
+    !chat.messages.length
+  ) {
+
+    messages.innerHTML =
+      "";
+
+  }
 
 
   updatePrivateChatUi(
@@ -15026,31 +15059,97 @@ function renderMessages() {
   }
 
 
-  chat.messages.forEach(
+    const rows =
+    chat.messages.map(
+      (
+        message,
+        index
+      ) => {
 
-    (
-      message,
-      index
-    ) => {
+        const row =
+          createMessageRow(
+            message,
+            {
+              groupPosition:
+                getMessageGroupPosition(
+                  chat.messages,
+                  index
+                )
+            }
+          ).row;
 
-      messages.appendChild(
+        const signature =
+          messageRowSignature(
+            row
+          );
 
-        createMessageRow(
-          message,
-          {
-            groupPosition:
-              getMessageGroupPosition(
-                chat.messages,
-                index
-              )
-          }
-        ).row
+        const previous =
+          previousRows.get(
+            row.dataset.messageId
+          );
 
+        if (
+          previous &&
+          previous.__chatiSignature ===
+            signature
+        ) {
+
+          // Same content: keep the node on screen, only update the
+          // one-time animation classes.
+          syncMessageRowClasses(
+            previous,
+            row
+          );
+
+          return previous;
+
+        }
+
+        row.__chatiSignature =
+          signature;
+
+        return row;
+
+      }
+    );
+
+
+  // Put the rows in place with as few DOM moves as possible; anything
+  // else (typing indicator, streaming row, old rows) is removed.
+  let cursor =
+    messages.firstChild;
+
+  rows.forEach(
+    row => {
+
+      if (cursor === row) {
+
+        cursor =
+          row.nextSibling;
+
+        return;
+
+      }
+
+      messages.insertBefore(
+        row,
+        cursor
       );
 
     }
-
   );
+
+  while (cursor) {
+
+    const next =
+      cursor.nextSibling;
+
+    cursor.remove();
+
+    cursor =
+      next;
+
+  }
 
 
   if (
@@ -15068,6 +15167,111 @@ function renderMessages() {
   else {
 
     scrollToBottom();
+
+  }
+
+}
+
+
+// One-time animation classes do not count as a change of content.
+const TRANSIENT_ROW_CLASSES =
+  /\s*\b(message-enter-row|message-enter|response-finished-row|response-finished)\b/g;
+
+
+function messageRowSignature(
+  row
+) {
+
+  // Tool buttons are disabled while a reply is being written; that state
+  // is kept up to date on the live buttons by setSendingState().
+  return row.outerHTML
+    .replace(
+      TRANSIENT_ROW_CLASSES,
+      ""
+    )
+    .replace(
+      / disabled=""/g,
+      ""
+    );
+
+}
+
+
+function syncMessageRowClasses(
+  target,
+  source
+) {
+
+  if (target.className !== source.className) {
+
+    target.className =
+      source.className;
+
+  }
+
+  // Enabled / disabled tool buttons follow the fresh row (they are only
+  // re-enabled by rendering after a reply finishes).
+  const freshButtons =
+    source.querySelectorAll(
+      ".message-tool-btn"
+    );
+
+  target
+    .querySelectorAll(
+      ".message-tool-btn"
+    )
+    .forEach(
+      (
+        button,
+        index
+      ) => {
+        const fresh =
+          freshButtons[index];
+        if (
+          fresh &&
+          button.disabled !== fresh.disabled
+        ) {
+          button.disabled =
+            fresh.disabled;
+        }
+      }
+    );
+
+  const targetBubble =
+    target.querySelector(
+      ".message[data-message-id]"
+    );
+
+  const sourceBubble =
+    source.querySelector(
+      ".message[data-message-id]"
+    );
+
+  if (
+    targetBubble &&
+    sourceBubble
+  ) {
+
+    // Keep classes that extensions (v11/v12) added to the live bubble.
+    const keep =
+      [...targetBubble.classList]
+        .filter(
+          name =>
+            /^v1\d-/.test(name)
+        );
+
+    const next =
+      [
+        ...sourceBubble.classList,
+        ...keep
+      ].join(" ");
+
+    if (targetBubble.className !== next) {
+
+      targetBubble.className =
+        next;
+
+    }
 
   }
 
