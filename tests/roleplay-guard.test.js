@@ -91,10 +91,11 @@ test('no repetition warnings for fresh conversations', () => {
   assert.deepEqual(findRepeatedPhrases(['Uno dos tres cuatro cinco.', 'Seis siete ocho nueve diez.']), []);
 });
 
-test('voice rules default to casual speech but defer to the character profile', () => {
+test('voice rules put the character\'s own voice first, casual speech second', () => {
   const rules = buildVoiceRules({ characterName: 'Kai', repeatedPhrases: ['well well well'], openings: recentOpenings(['Mira, no sé qué decirte ahora mismo.']) });
   assert.match(rules, /use "tú" \(not "usted"\)/);
-  assert.match(rules, /Only speak formally.*if Kai's personality/);
+  assert.match(rules, /Kai's OWN voice comes first/);
+  assert.match(rules, /CANON VOICE CARD/);
   assert.match(rules, /• "well well well"/);
   assert.match(rules, /• "mira no sé qué decirte…"/);
 });

@@ -8,7 +8,7 @@ export function createChatProvider(env, openai) {
   if (!env.OPENROUTER_API_KEY) return openai;
   const router = new OpenAI({
     apiKey: env.OPENROUTER_API_KEY,
-    baseURL: "https://openrouter.ai/api/v1",
+    baseURL: env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
     defaultHeaders: {
       "HTTP-Referer": "https://chati-ai.com",
       "X-OpenRouter-Title": "Chati-AI"
