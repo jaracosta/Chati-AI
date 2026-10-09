@@ -10,7 +10,15 @@
 
   const MIN_SECONDS = 10;
   const t = text => window.ChatiI18n?.t?.(text) ?? text;
-  const toast = (text, kind) => window.ChatiToast?.(t(text), kind);
+  const translateError = text => {
+    const missing = String(text).match(/^The ElevenLabs key is missing permissions(?: \(([a-z_]+)\))?/);
+    if (missing && window.ChatiI18n?.lang === "es") {
+      return "A la clave de ElevenLabs le faltan permisos" + (missing[1] ? ` (${missing[1]})` : "") +
+        ". Crea una clave con “Restrict key” apagado, o activa Voices: Write y Text to Speech: Access.";
+    }
+    return t(text);
+  };
+  const toast = (text, kind) => window.ChatiToast?.(translateError(text), kind);
   const escapeHtml = text => String(text ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 
   let status = null; // { enabled, voices }
@@ -131,7 +139,12 @@
     wave: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10.5v3"></path></svg>',
     play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"></path></svg>',
     library: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13a8 8 0 0 1 16 0"></path><rect x="3.5" y="13" width="4" height="6.5" rx="1.6"></rect><rect x="16.5" y="13" width="4" height="6.5" rx="1.6"></rect></svg>',
-    mic: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3.5" width="6" height="11" rx="3"></rect><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5"></path></svg>'
+    mic: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3.5" width="6" height="11" rx="3"></rect><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5"></path></svg>',
+    design: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l1.9 4.6 4.6 1.9-4.6 1.9L12 16.5l-1.9-4.6L5.5 10l4.6-1.9z"></path><path d="M18.5 15.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"></path></svg>',
+    close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"></path></svg>',
+    record: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5.5"></circle></svg>',
+    stop: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"></rect></svg>',
+    upload: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5V4.5M7.5 9L12 4.5 16.5 9M5 15.5v2.5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2.5"></path></svg>'
   };
 
   function renderSection() {
@@ -154,6 +167,8 @@
         : "") +
       "</div>" +
       '<div class="v14-options">' +
+      '<button type="button" class="v14-option" data-v14="design"><span class="v14-option-icon">' + ICONS.design + "</span><span><strong>" +
+      escapeHtml(t("Design a voice")) + "</strong><small>" + escapeHtml(t("Describe how they sound and get a brand-new voice made for them.")) + "</small></span></button>" +
       '<button type="button" class="v14-option" data-v14="pick"><span class="v14-option-icon">' + ICONS.library + "</span><span><strong>" +
       escapeHtml(t("Voice library")) + "</strong><small>" + escapeHtml(t("Ready-made ElevenLabs voices: deep, young, villain, narrator…")) + "</small></span></button>" +
       '<button type="button" class="v14-option" data-v14="clone"><span class="v14-option-icon">' + ICONS.mic + "</span><span><strong>" +
@@ -186,7 +201,7 @@
     sheet.setAttribute("aria-modal", "true");
     sheet.innerHTML =
       '<div class="v14-sheet-panel"><div class="v14-sheet-head"><strong>' + escapeHtml(title) +
-      '</strong><button type="button" class="v14-sheet-close" aria-label="' + escapeHtml(t("Close")) + '">✕</button></div>' +
+      '</strong><button type="button" class="v14-sheet-close" aria-label="' + escapeHtml(t("Close")) + '">' + ICONS.close + "</button></div>" +
       '<div class="v14-sheet-body">' + body + "</div></div>";
     document.body.appendChild(sheet);
     sheet.addEventListener("click", event => { if (event.target === sheet) closeSheet(); });
@@ -208,7 +223,7 @@
         return words.every(word => text.includes(word));
       });
       if (data.error) {
-        list.innerHTML = '<p class="v14-muted">' + escapeHtml(t(data.error)) + "</p>";
+        list.innerHTML = '<p class="v14-muted">' + escapeHtml(translateError(data.error)) + "</p>";
         return;
       }
       list.innerHTML = voices.length
@@ -217,7 +232,7 @@
           "<div><strong>" + escapeHtml(voice.name) + "</strong><small>" +
           escapeHtml([voice.category === "cloned" ? t("Cloned") : "", ...Object.values(voice.labels || {})].filter(Boolean).join(" · ")) +
           "</small></div>" +
-          (voice.previewUrl ? '<button type="button" data-preview="' + escapeHtml(voice.previewUrl) + '">▶</button>' : "") +
+          (voice.previewUrl ? '<button type="button" class="v14-round" data-preview="' + escapeHtml(voice.previewUrl) + '" aria-label="' + escapeHtml(t("Test")) + '">' + ICONS.play + "</button>" : "") +
           '<button type="button" class="v14-use">' + escapeHtml(t("Use")) + "</button></div>").join("")
         : '<p class="v14-muted">' + escapeHtml(t("No voices found.")) + "</p>";
     };
@@ -238,6 +253,127 @@
         setChoice(voice.id, voice.name);
         closeSheet();
         toast("Voice selected. Save the character to keep it.");
+      }
+    });
+  }
+
+  // Voice design -----------------------------------------------------------
+  // [label, English description, Spanish description]
+  const STYLE_PRESETS = [
+    ["Young and energetic", "Teenage boy, around 17, bright and slightly high voice, energetic, fast talker, jokes a lot, nervous laugh when embarrassed.", "Chico adolescente de unos 17 años, voz clara y algo aguda, energético, habla rápido, bromea mucho y se ríe nervioso cuando se avergüenza."],
+    ["Deep villain", "Adult man, very deep and calm voice, slow and menacing delivery, cold and confident, a hint of amusement.", "Hombre adulto, voz muy grave y tranquila, habla lento y amenazante, frío y seguro, con un toque burlón."],
+    ["Sweet and soft", "Young woman, soft and warm voice, gentle and kind, speaks calmly with a smile in her voice.", "Mujer joven, voz suave y cálida, dulce y amable, habla con calma y se le nota la sonrisa."],
+    ["Cocky and playful", "Young adult man, smooth and relaxed voice, cocky and teasing tone, playful and carefree, confident.", "Hombre joven, voz suave y relajada, tono arrogante y burlón, juguetón, despreocupado y muy seguro de sí."],
+    ["Rough warrior", "Adult man, rough and gravelly voice, strong and loud, short direct sentences, battle-hardened.", "Hombre adulto, voz ronca y áspera, fuerte, frases cortas y directas, curtido en batalla."],
+    ["Elegant and cold", "Adult woman, elegant and composed voice, cool and distant tone, precise and refined diction.", "Mujer adulta, voz elegante y serena, tono frío y distante, dicción precisa y refinada."]
+  ];
+
+  function defaultSampleLine() {
+    const name = field("characterName")?.value.trim() || "";
+    return window.ChatiI18n?.lang === "es"
+      ? `¿Así que por fin llegaste? Soy ${name || "yo"}, y te estaba esperando. No te preocupes, no muerdo… bueno, no siempre. Ven, siéntate, que tenemos mucho de qué hablar.`
+      : `So you finally made it? I'm ${name || "the one you were looking for"}, and I've been waiting for you. Relax, I don't bite… well, not always. Come on, sit down, we have a lot to talk about.`;
+  }
+
+  function openDesigner() {
+    const name = (field("characterName")?.value.trim() || t("New voice")).slice(0, 60);
+    const sheet = openSheet(t("Design a voice"),
+      '<p class="v14-muted">' + escapeHtml(t("Describe the voice: age, gender, tone, speed, accent and personality. ElevenLabs creates three versions for you to pick from.")) + "</p>" +
+      '<label class="v14-clone-label">' + escapeHtml(t("Voice description")) +
+      '<textarea class="v14-textarea v14-design-desc" rows="3" maxlength="1000" placeholder="' + escapeHtml(t("Example: teenage boy, slightly high voice, energetic and joking, talks fast")) + '"></textarea></label>' +
+      '<div class="v14-presets">' + STYLE_PRESETS.map(([label], index) => '<button type="button" class="v14-preset" data-preset="' + index + '">' + escapeHtml(t(label)) + "</button>").join("") + "</div>" +
+      '<label class="v14-clone-label">' + escapeHtml(t("Test line")) +
+      '<textarea class="v14-textarea v14-design-text" rows="3" maxlength="1000">' + escapeHtml(defaultSampleLine()) + "</textarea>" +
+      '<small class="v14-hint">' + escapeHtml(t("At least 100 characters. It's what the previews will say.")) + "</small></label>" +
+      '<button type="button" class="v14-primary v14-design-go">' + ICONS.design + "<span>" + escapeHtml(t("Create voices")) + "</span></button>" +
+      '<div class="v14-design-results"></div>');
+
+    const description = sheet.querySelector(".v14-design-desc");
+    const line = sheet.querySelector(".v14-design-text");
+    const go = sheet.querySelector(".v14-design-go");
+    const results = sheet.querySelector(".v14-design-results");
+
+    sheet.querySelector(".v14-presets").addEventListener("click", event => {
+      const preset = event.target.closest("[data-preset]");
+      if (!preset) return;
+      const presetRow = STYLE_PRESETS[Number(preset.dataset.preset)];
+      description.value = window.ChatiI18n?.lang === "es" ? presetRow[2] : presetRow[1];
+      sheet.querySelectorAll(".v14-preset").forEach(node => node.classList.toggle("active", node === preset));
+    });
+
+    go.addEventListener("click", async () => {
+      const text = line.value.trim();
+      if (description.value.trim().length < 20) { toast("Describe the voice in a bit more detail (20+ characters).", "error"); return; }
+      if (text.length < 100) { toast("The sample line must be at least 100 characters.", "error"); return; }
+      go.disabled = true;
+      go.classList.add("busy");
+      go.querySelector("span").textContent = t("Creating voices…");
+      results.innerHTML = "";
+      try {
+        const response = await fetch("/api/voices/design", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description: description.value.trim(), text, language: window.ChatiI18n?.lang === "es" ? "es" : "en" })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || "Couldn't create the voices.");
+        results.innerHTML =
+          '<p class="v14-results-title">' + escapeHtml(t("Pick the one you like")) + "</p>" +
+          data.previews.map((preview, index) =>
+            '<div class="v14-preview" data-id="' + escapeHtml(preview.id) + '">' +
+            '<button type="button" class="v14-play" data-audio="' + index + '" aria-label="' + escapeHtml(t("Test")) + '">' + ICONS.play + "</button>" +
+            '<div class="v14-current-text"><strong>' + escapeHtml(t("Option")) + " " + (index + 1) + "</strong><small>" + (preview.seconds ? Math.round(preview.seconds) + " s" : "") + "</small></div>" +
+            '<button type="button" class="v14-secondary v14-keep">' + escapeHtml(t("Use this voice")) + "</button></div>").join("");
+        results.__previews = data.previews;
+      } catch (error) {
+        toast(error.message, "error");
+      } finally {
+        go.disabled = false;
+        go.classList.remove("busy");
+        go.querySelector("span").textContent = t("Create again");
+      }
+    });
+
+    results.addEventListener("click", async event => {
+      const previews = results.__previews || [];
+      const playButton = event.target.closest("[data-audio]");
+      if (playButton) {
+        const preview = previews[Number(playButton.dataset.audio)];
+        if (previewAudio && previewAudio.__button === playButton && !previewAudio.paused) {
+          previewAudio.pause();
+          playButton.classList.remove("playing");
+          return;
+        }
+        previewAudio?.pause();
+        results.querySelectorAll(".v14-play.playing").forEach(node => node.classList.remove("playing"));
+        previewAudio = new Audio(preview.audio);
+        previewAudio.__button = playButton;
+        playButton.classList.add("playing");
+        previewAudio.onended = () => playButton.classList.remove("playing");
+        previewAudio.play().catch(() => playButton.classList.remove("playing"));
+        return;
+      }
+      const keep = event.target.closest(".v14-keep");
+      if (!keep) return;
+      const row = keep.closest(".v14-preview");
+      keep.disabled = true;
+      keep.textContent = t("Saving…");
+      try {
+        const response = await fetch("/api/voices/design/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, description: description.value.trim(), generatedVoiceId: row.dataset.id })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || "Couldn't save the voice.");
+        status = null;
+        setChoice(data.id, data.name);
+        closeSheet();
+        toast("Voice created. Save the character to keep it.");
+      } catch (error) {
+        toast(error.message, "error");
+        keep.disabled = false;
+        keep.textContent = t("Use this voice");
       }
     });
   }
@@ -327,8 +463,8 @@
     const sheet = openSheet(t("Clone a voice"),
       '<p class="v14-muted">' + escapeHtml(t("Record or upload at least 10 seconds of clear speech, with no music or other voices. More audio (30–60 s) sounds better.")) + "</p>" +
       '<div class="v14-clone-actions">' +
-      '<button type="button" class="v14-record">⏺ ' + escapeHtml(t("Record")) + "</button>" +
-      '<label class="v14-upload">⬆ ' + escapeHtml(t("Upload audio")) + '<input type="file" accept="audio/*,video/webm" multiple hidden></label>' +
+      '<button type="button" class="v14-record">' + ICONS.record + "<span>" + escapeHtml(t("Record")) + "</span></button>" +
+      '<label class="v14-upload">' + ICONS.upload + "<span>" + escapeHtml(t("Upload audio")) + "</span>" + '<input type="file" accept="audio/*,video/webm" multiple hidden></label>' +
       "</div>" +
       '<div class="v14-samples"></div>' +
       '<label class="v14-clone-label">' + escapeHtml(t("Voice name")) + '<input type="text" class="v14-clone-name" maxlength="60" value="' + escapeHtml(defaultName) + '"></label>' +
@@ -345,7 +481,7 @@
     const refresh = () => {
       const seconds = Math.round(totalSeconds());
       list.innerHTML = samples.map((sample, index) =>
-        '<div class="v14-sample"><span>' + escapeHtml(sample.label) + " · " + Math.round(sample.seconds) + ' s</span><button type="button" data-remove="' + index + '">✕</button></div>').join("") +
+        '<div class="v14-sample"><span>' + escapeHtml(sample.label) + " · " + Math.round(sample.seconds) +  ' s</span><button type="button" class="v14-round" data-remove="' + index + '" aria-label="' + escapeHtml(t("Remove")) + '">' + ICONS.close + "</button></div>").join("") +
         '<p class="v14-total' + (seconds >= MIN_SECONDS ? " ok" : "") + '">' + seconds + " / " + MIN_SECONDS + " s</p>";
       go.disabled = !(seconds >= MIN_SECONDS && consent.checked && !recorder);
     };
@@ -377,7 +513,7 @@
         stream.getTracks().forEach(track => track.stop());
         const seconds = (Date.now() - started) / 1000;
         const raw = new Blob(chunks, { type: chunks[0]?.type || "audio/webm" });
-        recordButton.textContent = "⏺ " + t("Record");
+        recordButton.innerHTML = ICONS.record + "<span>" + escapeHtml(t("Record")) + "</span>";
         recordButton.classList.remove("recording");
         if (!raw.size) { refresh(); return; }
         toWav(raw)
@@ -388,7 +524,7 @@
       recorder.start();
       recordButton.classList.add("recording");
       recordTimer = setInterval(() => {
-        recordButton.textContent = "⏹ " + t("Stop") + " · " + Math.floor((Date.now() - started) / 1000) + " s";
+        recordButton.innerHTML = ICONS.stop + "<span>" + escapeHtml(t("Stop")) + " · " + Math.floor((Date.now() - started) / 1000) + " s</span>";
       }, 250);
       refresh();
     });
@@ -448,6 +584,7 @@
       event.preventDefault();
       if (action === "pick") openPicker();
       if (action === "clone") openCloner();
+      if (action === "design") openDesigner();
       if (action === "clear") setChoice("", "");
       if (action === "test") testVoice(event.target.closest("button"));
     });

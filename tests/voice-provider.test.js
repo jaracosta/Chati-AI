@@ -68,5 +68,27 @@ test('turns ElevenLabs errors into clear messages', async () => {
   await assert.rejects(unauthorized.listVoices(), /rejected the API key/);
   const limited = createVoiceProvider({ ELEVENLABS_API_KEY: 'k' }, async () =>
     new Response(JSON.stringify({ detail: { status: 'missing_permissions', message: 'The API key you used is missing the permission voices_read to execute this operation.' } }), { status: 401 }));
-  await assert.rejects(limited.listVoices(), /missing permissions/);
+  await assert.rejects(limited.listVoices(), /missing permissions \(voices_read\)/);
+});
+
+test('designs a voice from a description and saves the chosen preview', async () => {
+  const { impl, calls } = fakeFetch(url => url.endsWith('/text-to-voice/design')
+    ? new Response(JSON.stringify({ text: 'x'.repeat(120), previews: [
+        { generated_voice_id: 'gen_1', audio_base_64: 'AAA=', media_type: 'audio/mpeg', duration_secs: 6.2 },
+        { generated_voice_id: 'gen_2', audio_base_64: 'BBB=', media_type: 'audio/mpeg', duration_secs: 6.0 }
+      ] }), { headers: { 'content-type': 'application/json' } })
+    : new Response(JSON.stringify({ voice_id: 'DesignedVoice0001' }), { headers: { 'content-type': 'application/json' } }));
+  const provider = createVoiceProvider({ ELEVENLABS_API_KEY: 'k' }, impl);
+  const result = await provider.designVoice({ description: 'Teenage boy, energetic and joking, slightly high voice', text: 'Hola '.repeat(25), language: 'es' });
+  assert.equal(result.previews.length, 2);
+  assert.equal(result.previews[0].audio, 'data:audio/mpeg;base64,AAA=');
+  const body = JSON.parse(calls[0].options.body);
+  assert.equal(body.model_id, 'eleven_ttv_v3');
+  assert.equal(body.language, 'es');
+  const saved = await provider.saveDesignedVoice({ name: 'Subaru (diseñada)', description: 'Teenage boy, energetic', generatedVoiceId: 'gen_2' });
+  assert.deepEqual(saved, { id: 'DesignedVoice0001', name: 'Subaru (diseñada)' });
+  assert.match(calls[1].url, /\/v1\/text-to-voice$/);
+  assert.equal(JSON.parse(calls[1].options.body).generated_voice_id, 'gen_2');
+  await assert.rejects(provider.designVoice({ description: 'short', text: 'x'.repeat(120) }), /more detail/);
+  await assert.rejects(provider.designVoice({ description: 'a long enough description', text: 'short' }), /100 characters/);
 });
