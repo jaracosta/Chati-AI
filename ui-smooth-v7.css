@@ -131,9 +131,28 @@ a,
   display: flex;
 }
 
+/* With a mouse, every reply keeps the space for its tools and only shows
+   them on hover. Toggling display on hover changed the row height, which
+   moved the message out from under the mouse, which hid the tools again:
+   the chat shook in a loop while the pointer rested on a reply. */
 @media (hover: hover) and (pointer: fine) {
-  #messages .message-row.character:hover .message-tools {
+  #messages .message-row.character:not(.typing-row) .message-tools {
     display: flex;
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  #messages .message-row.character:hover .message-tools,
+  #messages .message-row.character:last-child .message-tools,
+  #messages .message-row.character .message-tools.has-variants,
+  #messages .message-row.character .message-tools:focus-within {
+    visibility: visible;
+    opacity: 0.44;
+  }
+
+  #messages .message-row.character:hover .message-tools,
+  #messages .message-row.character .message-tools:focus-within {
+    opacity: 1;
   }
 }
 
