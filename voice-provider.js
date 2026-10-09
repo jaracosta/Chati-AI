@@ -33,6 +33,75 @@ export function spokenText(text) {
     .slice(0, MAX_TTS_CHARS);
 }
 
+// Emotion cues for Eleven v3 audio tags, picked from the character's
+// **actions** (English and Spanish). First match wins.
+const ACTION_CUES = [
+  [/\b(carcajada|laughs? (hard|loud)|bursts? (out )?laugh)/i, "[laughs harder]"],
+  [/\b(r[ií]e|r[ií]endo|risa|re[ií]r|laugh|laughs|laughing)\b/i, "[laughs]"],
+  [/\b(chuckl\w*|risita|ri[sz]ita|giggl\w*)/i, "[chuckles]"],
+  [/\b(susurr\w*|whisper\w*|en voz baja|murmur\w*|mutter\w*)/i, "[whispers]"],
+  [/\b(suspir\w*|sigh\w*)/i, "[sighs]"],
+  [/\b(llor\w*|sollo\w*|cr(y|ies|ying)|sob\w*|tears?|l[aá]grimas?)\b/i, "[crying]"],
+  [/\b(grit\w*|shout\w*|yell\w*|scream\w*|ruge|roars?)\b/i, "[shouting]"],
+  [/\b(furios\w*|enfadad\w*|enojad\w*|ira|rabia|angr\w*|furious\w*|glares?|frunce)/i, "[angry]"],
+  [/\b(sarc[aá]stic\w*|ir[oó]nic\w*|sarcastic\w*|rolls? (his|her|their) eyes|pone los ojos en blanco)/i, "[sarcastic]"],
+  [/\b(malicia|malicios\w*|sonrisa (torcida|burlona|siniestra)|smirk\w*|sly\w*|mischiev\w*|evil grin|wicked)/i, "[mischievously]"],
+  [/\b(fr[ií]o|fr[ií]a|fr[ií]amente|frialdad|cold\w*|icy|helad\w*)\b/i, "[coldly]"],
+  [/\b(triste|tristeza|sad\w*|sorrow\w*|melanc\w*)/i, "[sad]"],
+  [/\b(nervios\w*|tartamude\w*|stammer\w*|stutter\w*|nervous\w*)/i, "[nervously]"],
+  [/\b(emocionad\w*|entusiasm\w*|excited\w*|eager\w*)/i, "[excited]"],
+  [/\b(curios\w*|intrigad\w*|ladea la cabeza|tilts? (his|her|their) head|curious\w*)/i, "[curious]"],
+  [/\b(exhal\w*|resopla|scoffs?|bufa)/i, "[exhales]"]
+];
+
+export function actionCue(action) {
+  const text = String(action || "");
+  for (const [pattern, cue] of ACTION_CUES) if (pattern.test(text)) return cue;
+  return "";
+}
+
+// Turns a roleplay reply into what the voice should perform. **Actions** are
+// not read aloud, but they become pauses — and, for expressive models
+// (Eleven v3), emotion cues such as [whispers] or [laughs] — so the line is
+// not read as one flat run-on sentence.
+export function prepareSpeech(text, { expressive = true } = {}) {
+  const parts = [];
+  const pattern = /\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+  const source = String(text || "").replace(/[«»"“”]/g, "");
+  let last = 0;
+  let match;
+  const pushSpeech = chunk => {
+    const lines = chunk.split(/\n+/).map(line => line.replace(/\s+/g, " ").trim()).filter(Boolean);
+    // A line break ends a thought: make sure it ends like a sentence.
+    const spoken = lines.map(line => (/[.!?…,;:]$/.test(line) ? line : line + ".")).join(" ");
+    if (spoken) parts.push({ type: "speech", text: spoken });
+  };
+  while ((match = pattern.exec(source))) {
+    pushSpeech(source.slice(last, match.index));
+    parts.push({ type: "action", text: match[1] || match[2] });
+    last = pattern.lastIndex;
+  }
+  pushSpeech(source.slice(last));
+
+  let output = "";
+  let pendingCue = "";
+  let pendingPause = false;
+  for (const part of parts) {
+    if (part.type === "action") {
+      pendingCue = expressive ? actionCue(part.text) || pendingCue : "";
+      pendingPause = Boolean(output);
+      continue;
+    }
+    if (pendingPause) output += expressive ? " … " : ' <break time="0.6s" /> ';
+    else if (output) output += " ";
+    if (pendingCue) output += pendingCue + " ";
+    output += part.text;
+    pendingCue = "";
+    pendingPause = false;
+  }
+  return output.replace(/\s+/g, " ").trim().slice(0, MAX_TTS_CHARS);
+}
+
 export function isValidVoiceId(value) {
   return /^[A-Za-z0-9]{8,64}$/.test(String(value || ""));
 }
@@ -68,7 +137,8 @@ export function createVoiceProvider(env = {}, fetchImpl = globalThis.fetch) {
   const key = String(env.ELEVENLABS_API_KEY || "").trim();
   if (!key) return null;
 
-  const model = env.ELEVENLABS_MODEL || "eleven_multilingual_v2";
+  const model = env.ELEVENLABS_MODEL || "eleven_v3";
+  const fallbackModel = "eleven_multilingual_v2";
   const API = String(env.ELEVENLABS_BASE_URL || DEFAULT_API).replace(/\/$/, "");
   let voicesCache = null;
 
@@ -175,18 +245,35 @@ export function createVoiceProvider(env = {}, fetchImpl = globalThis.fetch) {
 
     async speak({ voiceId, text }) {
       if (!isValidVoiceId(voiceId)) throw new VoiceError("This character has no valid voice.", 400);
-      const spoken = spokenText(text);
-      if (!spoken) throw new VoiceError("Nothing to read aloud.", 400);
-      const response = await call(`/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "audio/mpeg" },
-        body: JSON.stringify({
-          text: spoken,
-          model_id: model,
-          voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.3, use_speaker_boost: true }
-        })
-      });
-      return Buffer.from(await response.arrayBuffer());
+      if (!spokenText(text)) throw new VoiceError("Nothing to read aloud.", 400);
+      const request = async modelId => {
+        // Eleven v3 performs emotion tags and only takes stability 0 / 0.5 / 1
+        // (creative / natural / robust).
+        const expressive = /v3/.test(modelId);
+        const stability = Number(env.ELEVENLABS_STABILITY);
+        const response = await call(`/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "audio/mpeg" },
+          body: JSON.stringify({
+            text: prepareSpeech(text, { expressive }),
+            model_id: modelId,
+            voice_settings: expressive
+              ? { stability: [0, 0.5, 1].includes(stability) ? stability : 0.5, similarity_boost: 0.8, use_speaker_boost: true }
+              : { stability: 0.35, similarity_boost: 0.8, style: 0.45, use_speaker_boost: true }
+          })
+        });
+        return Buffer.from(await response.arrayBuffer());
+      };
+      try {
+        return await request(model);
+      } catch (error) {
+        // An account or voice that can't use the expressive model still
+        // speaks, with pauses, on the multilingual one.
+        if (model !== fallbackModel && error instanceof VoiceError && error.status === 400) {
+          return request(fallbackModel);
+        }
+        throw error;
+      }
     }
   };
 }

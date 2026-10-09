@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createVoiceProvider, spokenText, isValidVoiceId, VoiceError } from '../voice-provider.js';
+import { createVoiceProvider, spokenText, prepareSpeech, actionCue, isValidVoiceId, VoiceError } from '../voice-provider.js';
 
 function fakeFetch(handler) {
   const calls = [];
@@ -37,6 +37,17 @@ test('lists voices with the key in the header and caches them', async () => {
   assert.deepEqual(voices.map(v => v.name), ['Rachel']);
 });
 
+test('actions become pauses and emotion cues instead of being dropped', () => {
+  const reply = '**Light sonríe con frialdad.** Así que lo descubriste.\n**Se inclina y susurra.** Pero nadie te creerá. **Ríe en voz baja.** Yo soy la justicia';
+  assert.equal(prepareSpeech(reply), '[coldly] Así que lo descubriste. … [whispers] Pero nadie te creerá. … [laughs] Yo soy la justicia.');
+  assert.equal(prepareSpeech(reply, { expressive: false }), 'Así que lo descubriste. <break time="0.6s" /> Pero nadie te creerá. <break time="0.6s" /> Yo soy la justicia.');
+  assert.equal(prepareSpeech('**Waits.** Fine.'), 'Fine.');
+  assert.equal(prepareSpeech('**Only an action.**'), '');
+  assert.equal(actionCue('He smirks'), '[mischievously]');
+  assert.equal(actionCue('Suspira con cansancio'), '[sighs]');
+  assert.equal(actionCue('Walks to the window'), '');
+});
+
 test('speaks with the voice and model, without the actions', async () => {
   const { impl, calls } = fakeFetch(() => new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-type': 'audio/mpeg' } }));
   const provider = createVoiceProvider({ ELEVENLABS_API_KEY: 'k', ELEVENLABS_MODEL: 'eleven_flash_v2_5' }, impl);
@@ -46,6 +57,7 @@ test('speaks with the voice and model, without the actions', async () => {
   const body = JSON.parse(calls[0].options.body);
   assert.equal(body.text, 'Hola.');
   assert.equal(body.model_id, 'eleven_flash_v2_5');
+  assert.equal(body.voice_settings.style, 0.45);
   await assert.rejects(provider.speak({ voiceId: 'x', text: 'hi' }), VoiceError);
 });
 
@@ -91,4 +103,21 @@ test('designs a voice from a description and saves the chosen preview', async ()
   assert.equal(JSON.parse(calls[1].options.body).generated_voice_id, 'gen_2');
   await assert.rejects(provider.designVoice({ description: 'short', text: 'x'.repeat(120) }), /more detail/);
   await assert.rejects(provider.designVoice({ description: 'a long enough description', text: 'short' }), /100 characters/);
+});
+
+test('uses Eleven v3 by default and falls back to multilingual v2', async () => {
+  const bodies = [];
+  const provider = createVoiceProvider({ ELEVENLABS_API_KEY: 'k' }, async (url, options) => {
+    const body = JSON.parse(options.body);
+    bodies.push(body);
+    if (body.model_id === 'eleven_v3') return new Response(JSON.stringify({ detail: { message: 'Model eleven_v3 is not available for this voice.' } }), { status: 400 });
+    return new Response(new Uint8Array([9]), { headers: { 'content-type': 'audio/mpeg' } });
+  });
+  const audio = await provider.speak({ voiceId: '21m00Tcm4TlvDq8ikWAM', text: '**Susurra.** Ven aquí.' });
+  assert.deepEqual([...audio], [9]);
+  assert.equal(bodies[0].model_id, 'eleven_v3');
+  assert.equal(bodies[0].text, '[whispers] Ven aquí.');
+  assert.equal(bodies[0].voice_settings.stability, 0.5);
+  assert.equal(bodies[1].model_id, 'eleven_multilingual_v2');
+  assert.equal(bodies[1].text, 'Ven aquí.');
 });
