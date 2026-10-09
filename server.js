@@ -2605,6 +2605,42 @@ app.post(
 );
 
 app.post(
+  "/api/voices/design",
+  chatRateLimiter,
+  async (req, res) => {
+    if (!voiceProvider) return res.status(503).json({ error: "Character voices are not set up on this server." });
+    try {
+      res.json(await voiceProvider.designVoice({
+        description: req.body?.description,
+        text: req.body?.text,
+        language: /^[a-z]{2}$/.test(String(req.body?.language || "")) ? req.body.language : ""
+      }));
+    }
+    catch (error) {
+      sendVoiceError(res, error);
+    }
+  }
+);
+
+app.post(
+  "/api/voices/design/save",
+  chatRateLimiter,
+  async (req, res) => {
+    if (!voiceProvider) return res.status(503).json({ error: "Character voices are not set up on this server." });
+    try {
+      res.json(await voiceProvider.saveDesignedVoice({
+        name: req.body?.name,
+        description: req.body?.description,
+        generatedVoiceId: req.body?.generatedVoiceId
+      }));
+    }
+    catch (error) {
+      sendVoiceError(res, error);
+    }
+  }
+);
+
+app.post(
   "/api/tts",
   chatRateLimiter,
   async (req, res) => {

@@ -124,6 +124,55 @@ export function createVoiceProvider(env = {}, fetchImpl = globalThis.fetch) {
       return { id: data.voice_id, name: cleanName };
     },
 
+    // Voice Design: a brand-new voice from a description (it belongs to no
+    // one). Returns a few previews; saveDesignedVoice() keeps the chosen one.
+    async designVoice({ description, text, language = "" }) {
+      const voiceDescription = String(description || "").trim().slice(0, 1000);
+      if (voiceDescription.length < 20) throw new VoiceError("Describe the voice in a bit more detail (20+ characters).", 400);
+      let sample = String(text || "").replace(/\s+/g, " ").trim().slice(0, 1000);
+      if (sample.length < 100) throw new VoiceError("The sample line must be at least 100 characters.", 400);
+      const data = await (await call("/text-to-voice/design", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          voice_description: voiceDescription,
+          text: sample,
+          model_id: env.ELEVENLABS_DESIGN_MODEL || "eleven_ttv_v3",
+          ...(language ? { language } : {}),
+          guidance_scale: 5,
+          should_enhance: true
+        })
+      })).json();
+      const previews = (Array.isArray(data?.previews) ? data.previews : [])
+        .filter(preview => preview?.generated_voice_id && preview?.audio_base_64)
+        .slice(0, 3)
+        .map(preview => ({
+          id: String(preview.generated_voice_id),
+          audio: `data:${preview.media_type || "audio/mpeg"};base64,${preview.audio_base_64}`,
+          seconds: Number(preview.duration_secs) || 0
+        }));
+      if (!previews.length) throw new VoiceError("ElevenLabs did not return any voice previews.", 502);
+      return { previews, text: data.text || sample };
+    },
+
+    async saveDesignedVoice({ name, description, generatedVoiceId }) {
+      const cleanName = String(name || "").trim().slice(0, 80);
+      if (!cleanName) throw new VoiceError("Give the voice a name.", 400);
+      if (!/^[A-Za-z0-9_-]{4,128}$/.test(String(generatedVoiceId || ""))) throw new VoiceError("Pick one of the previews first.", 400);
+      const data = await (await call("/text-to-voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          voice_name: cleanName,
+          voice_description: String(description || cleanName).trim().slice(0, 1000).padEnd(20, "."),
+          generated_voice_id: generatedVoiceId
+        })
+      })).json();
+      if (!isValidVoiceId(data?.voice_id)) throw new VoiceError("ElevenLabs did not return a voice.", 502);
+      voicesCache = null;
+      return { id: data.voice_id, name: cleanName };
+    },
+
     async speak({ voiceId, text }) {
       if (!isValidVoiceId(voiceId)) throw new VoiceError("This character has no valid voice.", 400);
       const spoken = spokenText(text);
