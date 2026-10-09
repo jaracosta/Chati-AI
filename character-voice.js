@@ -120,36 +120,45 @@
   }
 
   function ensureSection() {
-    const anchor = document.querySelector(".reply-length-field");
-    if (!anchor || field("v14VoiceField")) return;
-    const section = document.createElement("div");
-    section.id = "v14VoiceField";
-    section.className = "v14-voice-field";
-    anchor.insertAdjacentElement("afterend", section);
+    const section = field("v14VoiceField");
+    if (!section || section.dataset.ready) return;
+    section.dataset.ready = "1";
     renderSection();
     loadVoices().then(renderSection);
   }
 
+  const ICONS = {
+    wave: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10.5v3"></path></svg>',
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"></path></svg>',
+    library: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13a8 8 0 0 1 16 0"></path><rect x="3.5" y="13" width="4" height="6.5" rx="1.6"></rect><rect x="16.5" y="13" width="4" height="6.5" rx="1.6"></rect></svg>',
+    mic: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3.5" width="6" height="11" rx="3"></rect><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5"></path></svg>'
+  };
+
   function renderSection() {
     const section = field("v14VoiceField");
     if (!section) return;
-    if (status && !status.enabled) {
-      section.hidden = true;
-      return;
-    }
-    section.hidden = false;
+    const card = field("v14VoiceCard");
+    if (card) card.hidden = Boolean(status && !status.enabled);
     const choice = currentChoice();
+    const voice = choice.id ? (status?.voices || []).find(item => item.id === choice.id) : null;
+    const subtitle = choice.id
+      ? "ElevenLabs" + (voice?.category === "cloned" ? " · " + t("Cloned") : "")
+      : t("Basic voice from your browser");
     section.innerHTML =
-      '<label>' + escapeHtml(t("Character voice")) + "</label>" +
-      '<div class="v14-voice-current">' +
-      '<span class="v14-voice-chip">' + (choice.id ? "🔊 " + escapeHtml(choice.name) : escapeHtml(t("Device voice (default)"))) + "</span>" +
-      (choice.id ? '<button type="button" data-v14="test">▶ ' + escapeHtml(t("Test")) + '</button><button type="button" data-v14="clear">' + escapeHtml(t("Remove")) + "</button>" : "") +
+      '<div class="v14-current' + (choice.id ? " has-voice" : "") + '">' +
+      '<span class="v14-current-icon">' + ICONS.wave + "</span>" +
+      '<div class="v14-current-text"><strong>' + escapeHtml(choice.id ? choice.name : t("Device voice")) + "</strong><small>" + escapeHtml(subtitle) + "</small></div>" +
+      (choice.id
+        ? '<button type="button" class="v14-play" data-v14="test" aria-label="' + escapeHtml(t("Test")) + '" title="' + escapeHtml(t("Test")) + '">' + ICONS.play + "</button>" +
+          '<button type="button" class="v14-link" data-v14="clear">' + escapeHtml(t("Remove")) + "</button>"
+        : "") +
       "</div>" +
-      '<div class="v14-voice-actions">' +
-      '<button type="button" data-v14="pick">🎧 ' + escapeHtml(t("Choose an ElevenLabs voice")) + "</button>" +
-      '<button type="button" data-v14="clone">🎙️ ' + escapeHtml(t("Clone a voice")) + "</button>" +
-      "</div>" +
-      "<small>" + escapeHtml(t("The 🔊 button in the chat reads the character's lines with this voice.")) + "</small>";
+      '<div class="v14-options">' +
+      '<button type="button" class="v14-option" data-v14="pick"><span class="v14-option-icon">' + ICONS.library + "</span><span><strong>" +
+      escapeHtml(t("Voice library")) + "</strong><small>" + escapeHtml(t("Ready-made ElevenLabs voices: deep, young, villain, narrator…")) + "</small></span></button>" +
+      '<button type="button" class="v14-option" data-v14="clone"><span class="v14-option-icon">' + ICONS.mic + "</span><span><strong>" +
+      escapeHtml(t("Clone a voice")) + "</strong><small>" + escapeHtml(t("From 10+ seconds of your voice, or of someone who gave you permission.")) + "</small></span></button>" +
+      "</div>";
   }
 
   async function testVoice(button) {
@@ -272,6 +281,46 @@
     });
   }
 
+  function guessAudioType(name) {
+    const extension = String(name || "").toLowerCase().split(".").pop();
+    return { mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", oga: "audio/ogg", webm: "audio/webm", flac: "audio/flac", aac: "audio/aac", m4a: "audio/mp4", mp4: "audio/mp4", mov: "video/quicktime" }[extension] || "audio/mp4";
+  }
+
+  // Any audio the browser can play (iPhone voice memos, mp3, recordings…)
+  // becomes a mono 22 kHz WAV, so ElevenLabs always gets a format it reads
+  // and the length is exact.
+  async function toWav(blob) {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return { blob, seconds: await blobDuration(blob) };
+    const context = new AudioCtx();
+    try {
+      const decoded = await context.decodeAudioData(await blob.arrayBuffer());
+      const rate = 22050;
+      const length = Math.ceil(decoded.duration * rate);
+      const offline = new OfflineAudioContext(1, length, rate);
+      const source = offline.createBufferSource();
+      source.buffer = decoded;
+      source.connect(offline.destination);
+      source.start();
+      const rendered = await offline.startRendering();
+      const samples = rendered.getChannelData(0);
+      const buffer = new ArrayBuffer(44 + samples.length * 2);
+      const view = new DataView(buffer);
+      const write = (offset, text) => [...text].forEach((char, index) => view.setUint8(offset + index, char.charCodeAt(0)));
+      write(0, "RIFF"); view.setUint32(4, 36 + samples.length * 2, true); write(8, "WAVE");
+      write(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+      view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+      write(36, "data"); view.setUint32(40, samples.length * 2, true);
+      for (let index = 0; index < samples.length; index += 1) {
+        const value = Math.max(-1, Math.min(1, samples[index]));
+        view.setInt16(44 + index * 2, value < 0 ? value * 0x8000 : value * 0x7fff, true);
+      }
+      return { blob: new Blob([buffer], { type: "audio/wav" }), seconds: decoded.duration };
+    } finally {
+      context.close?.();
+    }
+  }
+
   function openCloner() {
     samples = [];
     const defaultName = (field("characterName")?.value.trim() || t("My voice")).slice(0, 60);
@@ -327,11 +376,14 @@
       recorder.onstop = () => {
         stream.getTracks().forEach(track => track.stop());
         const seconds = (Date.now() - started) / 1000;
-        const blob = new Blob(chunks, { type: chunks[0]?.type || "audio/webm" });
-        if (blob.size) samples.push({ blob, seconds, label: t("Recording") + " " + (samples.length + 1) });
+        const raw = new Blob(chunks, { type: chunks[0]?.type || "audio/webm" });
         recordButton.textContent = "⏺ " + t("Record");
         recordButton.classList.remove("recording");
-        refresh();
+        if (!raw.size) { refresh(); return; }
+        toWav(raw)
+          .then(wav => samples.push({ blob: wav.blob, seconds: wav.seconds || seconds, label: t("Recording") + " " + (samples.length + 1) }))
+          .catch(() => samples.push({ blob: raw, seconds, label: t("Recording") + " " + (samples.length + 1) }))
+          .finally(refresh);
       };
       recorder.start();
       recordButton.classList.add("recording");
@@ -343,8 +395,17 @@
 
     sheet.querySelector(".v14-upload input").addEventListener("change", async event => {
       for (const file of [...event.target.files].slice(0, 5)) {
-        if (file.size > 10 * 1024 * 1024) { toast("Each sample must be under 10 MB.", "error"); continue; }
-        samples.push({ blob: file, seconds: await blobDuration(file), label: file.name.slice(0, 40) });
+        if (file.size > 40 * 1024 * 1024) { toast("Each sample must be under 10 MB.", "error"); continue; }
+        try {
+          const wav = await toWav(file);
+          samples.push({ blob: wav.blob, seconds: wav.seconds, label: file.name.slice(0, 40) });
+        } catch {
+          // This browser can't decode it (e.g. AAC on some Linux builds):
+          // send the original file and let ElevenLabs read it.
+          const blob = file.type ? file : new Blob([file], { type: guessAudioType(file.name) });
+          const seconds = await blobDuration(blob);
+          samples.push({ blob, seconds: seconds || MIN_SECONDS, label: file.name.slice(0, 40) + (seconds ? "" : " · ?") });
+        }
       }
       event.target.value = "";
       refresh();
