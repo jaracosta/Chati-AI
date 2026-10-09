@@ -382,7 +382,9 @@
         toast(t("This reply has only actions — nothing to read aloud."));
         return;
       }
-      window.ChatiVoice.play(button, words, owner);
+      // Send the actions too: the server turns them into pauses and
+      // emotion (whispers, laughs, sighs…) instead of reading them.
+      window.ChatiVoice.play(button, String(text || "").trim(), owner);
       return;
     }
     const synth = window.speechSynthesis;
