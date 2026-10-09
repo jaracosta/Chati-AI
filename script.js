@@ -6779,9 +6779,52 @@ function collectExamples() {
 }
 
 
+// Character voice (ElevenLabs) chosen in the editor; see character-voice.js.
+function setCharacterVoiceFields(
+  voiceId,
+  voiceName
+) {
+
+  [
+    [
+      "characterVoiceId",
+      voiceId
+    ],
+    [
+      "characterVoiceName",
+      voiceName
+    ]
+  ].forEach(
+    (
+      [
+        id,
+        value
+      ]
+    ) => {
+      const input =
+        $(id);
+      if (!input) {
+        return;
+      }
+      input.value =
+        value || "";
+      input.dispatchEvent(
+        new Event("input")
+      );
+    }
+  );
+
+}
+
+
 function resetCharacterForm() {
 
   characterForm.reset();
+
+  setCharacterVoiceFields(
+    "",
+    ""
+  );
 
 
   editingCharacterId =
@@ -6875,10 +6918,16 @@ function fillCharacterForm(
     normalized.instructions;
 
 
-  if (characterReplyLength) {
+    if (characterReplyLength) {
     characterReplyLength.value =
       normalized.replyLength;
   }
+
+
+  setCharacterVoiceFields(
+    normalized.voiceId,
+    normalized.voiceName
+  );
 
 
   characterPhysicalAppearance.value =
@@ -12249,9 +12298,17 @@ characterForm.addEventListener(
             .value
             .trim(),
 
-        replyLength:
+                replyLength:
           characterReplyLength?.value ||
           "auto",
+        voiceId:
+          $("characterVoiceId")?.value ||
+          "",
+        voiceName:
+          $("characterVoiceId")?.value
+            ? $("characterVoiceName")?.value ||
+              ""
+            : "",
 
         appearance: {
 
