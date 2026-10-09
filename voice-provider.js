@@ -42,7 +42,14 @@ function describeError(status, body) {
   const message = typeof detail === "string" ? detail : detail?.message || body?.message || "";
   const code = typeof detail === "object" ? String(detail?.status || "") : "";
   if (code === "missing_permissions" || /missing.*permission/i.test(message)) {
-    return new VoiceError("The ElevenLabs key is missing permissions. In ElevenLabs → API Keys, allow Voices (read and write) and Text to Speech for this key.", 502);
+    // ElevenLabs names the permission, e.g. "missing the permission voices_write".
+    const permission = (message.match(/permission[s]?\s+([a-z_]+)/i) || [])[1] || "";
+    console.error("ElevenLabs key is missing a permission:", permission || message);
+    return new VoiceError(
+      "The ElevenLabs key is missing permissions" + (permission ? ` (${permission})` : "") +
+      ". Create a key with “Restrict key” turned off, or allow Voices: Write and Text to Speech: Access.",
+      502
+    );
   }
   if (status === 401) {
     return new VoiceError("ElevenLabs rejected the API key (it may have been deleted or mistyped). Put a valid key in ELEVENLABS_API_KEY on Render.", 502);

@@ -10,7 +10,15 @@
 
   const MIN_SECONDS = 10;
   const t = text => window.ChatiI18n?.t?.(text) ?? text;
-  const toast = (text, kind) => window.ChatiToast?.(t(text), kind);
+  const translateError = text => {
+    const missing = String(text).match(/^The ElevenLabs key is missing permissions(?: \(([a-z_]+)\))?/);
+    if (missing && window.ChatiI18n?.lang === "es") {
+      return "A la clave de ElevenLabs le faltan permisos" + (missing[1] ? ` (${missing[1]})` : "") +
+        ". Crea una clave con “Restrict key” apagado, o activa Voices: Write y Text to Speech: Access.";
+    }
+    return t(text);
+  };
+  const toast = (text, kind) => window.ChatiToast?.(translateError(text), kind);
   const escapeHtml = text => String(text ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 
   let status = null; // { enabled, voices }
@@ -208,7 +216,7 @@
         return words.every(word => text.includes(word));
       });
       if (data.error) {
-        list.innerHTML = '<p class="v14-muted">' + escapeHtml(t(data.error)) + "</p>";
+        list.innerHTML = '<p class="v14-muted">' + escapeHtml(translateError(data.error)) + "</p>";
         return;
       }
       list.innerHTML = voices.length

@@ -68,5 +68,5 @@ test('turns ElevenLabs errors into clear messages', async () => {
   await assert.rejects(unauthorized.listVoices(), /rejected the API key/);
   const limited = createVoiceProvider({ ELEVENLABS_API_KEY: 'k' }, async () =>
     new Response(JSON.stringify({ detail: { status: 'missing_permissions', message: 'The API key you used is missing the permission voices_read to execute this operation.' } }), { status: 401 }));
-  await assert.rejects(limited.listVoices(), /missing permissions/);
+  await assert.rejects(limited.listVoices(), /missing permissions \(voices_read\)/);
 });

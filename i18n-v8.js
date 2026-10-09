@@ -76,7 +76,6 @@
     "Voice cloning needs a paid ElevenLabs plan (Starter or higher).": "Clonar voces requiere un plan de pago de ElevenLabs (Starter o superior).",
     "ElevenLabs credits ran out. Add credits or upgrade the plan.": "Se acabaron los créditos de ElevenLabs. Agrega créditos o mejora el plan.",
     "ElevenLabs rejected the API key (it may have been deleted or mistyped). Put a valid key in ELEVENLABS_API_KEY on Render.": "ElevenLabs rechazó la API key (puede que se haya borrado o esté mal copiada). Pon una clave válida en ELEVENLABS_API_KEY en Render.",
-    "The ElevenLabs key is missing permissions. In ElevenLabs → API Keys, allow Voices (read and write) and Text to Speech for this key.": "A la clave de ElevenLabs le faltan permisos. En ElevenLabs → API Keys, activa Voices (lectura y escritura) y Text to Speech para esta clave.",
     "Voice": "Voz",
     "How the character sounds when you tap 🔊 on their messages.": "Cómo suena el personaje cuando tocas 🔊 en sus mensajes.",
     "Device voice": "Voz del dispositivo",
