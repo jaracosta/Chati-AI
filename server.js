@@ -40,6 +40,11 @@ import {
   createCanonProfileStore,
   sanitizeCanonProfile
 } from "./canon-profile.js";
+import {
+  createVoiceProvider,
+  spokenText,
+  VoiceError
+} from "./voice-provider.js";
 
 import {
   randomUUID
@@ -187,6 +192,16 @@ const openai =
 
 
 const chatProvider = createChatProvider(process.env, openai);
+
+// Character voices with ElevenLabs (voice-provider.js). Off when
+// ELEVENLABS_API_KEY is not set; the app then uses the browser voice.
+const voiceProvider =
+  createVoiceProvider(process.env);
+
+// Recently spoken lines, so replaying a message does not pay twice.
+const ttsCache =
+  new Map();
+
 
 // Canon voice cards (see canon-profile.js): written once per character by
 // CHATI_MODEL with web search, then reused in every roleplay prompt.
@@ -717,6 +732,8 @@ const PUBLIC_ROOT_FILES =
     "extras-v12.js",
     "canon-voice.css",
     "canon-voice.js",
+    "character-voice.css",
+    "character-voice.js",
     "script.js",
     "supabase-auth-v4.js",
     "account-profile-v6.js",
@@ -2533,6 +2550,85 @@ async function buildChatInputMessage(
 // =========================
 // CHAT API
 // =========================
+
+// ---------------------------------------------------------------------
+// Character voices (ElevenLabs)
+// ---------------------------------------------------------------------
+function sendVoiceError(res, error) {
+  const status = error instanceof VoiceError ? error.status : 502;
+  if (!(error instanceof VoiceError)) console.error("Voice error:", error?.message || error);
+  res.status(status).json({ error: error?.message || "Voice service failed." });
+}
+
+app.get(
+  "/api/voices",
+  chatRateLimiter,
+  async (req, res) => {
+    if (!voiceProvider) return res.json({ enabled: false, voices: [] });
+    try {
+      res.json({
+        enabled: true,
+        voices: await voiceProvider.listVoices({ fresh: req.query.fresh === "1" })
+      });
+    }
+    catch (error) {
+      sendVoiceError(res, error);
+    }
+  }
+);
+
+app.post(
+  "/api/voices/clone",
+  chatRateLimiter,
+  async (req, res) => {
+    if (!voiceProvider) return res.status(503).json({ error: "Character voices are not set up on this server." });
+    // The person must confirm the voice is theirs or that they have
+    // permission to use it (ElevenLabs terms; no cloning of real people
+    // without consent).
+    if (req.body?.consent !== true) {
+      return res.status(400).json({ error: "Confirm that you have the right to use this voice." });
+    }
+    const samples = (Array.isArray(req.body?.samples) ? req.body.samples : [])
+      .map(decodeDataUrl)
+      .filter(sample => sample && /^audio\/|^video\/webm/.test(sample.mimeType));
+    try {
+      res.json(await voiceProvider.cloneVoice({
+        name: req.body?.name,
+        description: req.body?.description,
+        samples
+      }));
+    }
+    catch (error) {
+      sendVoiceError(res, error);
+    }
+  }
+);
+
+app.post(
+  "/api/tts",
+  chatRateLimiter,
+  async (req, res) => {
+    if (!voiceProvider) return res.status(503).json({ error: "Character voices are not set up on this server." });
+    const voiceId = String(req.body?.voiceId || "");
+    const text = spokenText(req.body?.text);
+    const key = voiceId + "|" + text;
+    try {
+      let audio = ttsCache.get(key);
+      if (!audio) {
+        audio = await voiceProvider.speak({ voiceId, text });
+        ttsCache.set(key, audio);
+        while (ttsCache.size > 80) ttsCache.delete(ttsCache.keys().next().value);
+      }
+      res.set("Content-Type", "audio/mpeg");
+      res.set("Cache-Control", "private, max-age=86400");
+      res.send(audio);
+    }
+    catch (error) {
+      sendVoiceError(res, error);
+    }
+  }
+);
+
 
 // Canon voice card for one character. The app asks for it when a chat opens
 // and stores the answer, so it is written once, not on every message.

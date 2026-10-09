@@ -1,0 +1,246 @@
+/* CHATI-AI V14 — character voices (ElevenLabs) */
+.v14-voice-field {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.v14-voice-field > label {
+  font-weight: 600;
+}
+
+.v14-voice-field small {
+  color: #9b95ad;
+}
+
+.v14-voice-current,
+.v14-voice-actions,
+.v14-clone-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.v14-voice-chip {
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 14px;
+}
+
+.v14-voice-field button,
+.v14-sheet button,
+.v14-upload {
+  padding: 8px 13px;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+
+.v14-voice-field button:hover,
+.v14-sheet button:hover:not(:disabled),
+.v14-upload:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.v14-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 9700;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(8, 6, 14, 0.62);
+  animation: v10-fade 0.2s ease both;
+}
+
+.v14-sheet-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: min(82vh, 760px);
+  overflow: hidden;
+  color: #ece9f6;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  background: #1b1826;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: v10-zoom 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.v14-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.v14-sheet-body {
+  display: grid;
+  gap: 12px;
+  overflow-y: auto;
+  padding: 14px 16px 18px;
+  overscroll-behavior: contain;
+}
+
+.v14-voice-search,
+.v14-clone-name {
+  width: 100%;
+  padding: 10px 12px;
+  color: inherit;
+  font: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.v14-voice-list {
+  display: grid;
+  gap: 6px;
+}
+
+.v14-voice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.v14-voice-row > div {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.v14-voice-row small {
+  overflow: hidden;
+  color: #9b95ad;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v14-muted {
+  margin: 0;
+  color: #a8a2bb;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.v14-record.recording {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.18);
+}
+
+.v14-samples {
+  display: grid;
+  gap: 6px;
+}
+
+.v14-sample {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 13px;
+}
+
+.v14-total {
+  margin: 0;
+  color: #f59e0b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.v14-total.ok {
+  color: #22c55e;
+}
+
+.v14-clone-label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.v14-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  border-radius: 12px;
+  background: rgba(250, 204, 21, 0.06);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.v14-consent input {
+  margin-top: 3px;
+}
+
+.v14-clone-go {
+  justify-self: end;
+  padding: 10px 18px !important;
+  font-weight: 700;
+  background: var(--v9-gradient, #8b5cf6) !important;
+  border-color: transparent !important;
+}
+
+.v14-clone-go:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.v11-speak.loading {
+  animation: v14-loading 0.9s ease-in-out infinite;
+}
+
+@keyframes v14-loading {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+html[data-chati-theme="light"] .v14-sheet-panel {
+  color: #24202f;
+  background: #fff;
+}
+
+html[data-chati-theme="light"] .v14-voice-chip,
+html[data-chati-theme="light"] .v14-voice-field button,
+html[data-chati-theme="light"] .v14-sheet button,
+html[data-chati-theme="light"] .v14-upload,
+html[data-chati-theme="light"] .v14-voice-row,
+html[data-chati-theme="light"] .v14-sample {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+html[data-chati-theme="light"] .v14-voice-search,
+html[data-chati-theme="light"] .v14-clone-name {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: #fff;
+}
+
+@media (min-width: 761px) {
+  .v14-sheet {
+    align-items: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v11-speak.loading {
+    animation: none;
+  }
+}

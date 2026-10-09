@@ -369,7 +369,22 @@
     return (want && pool.find(voice => want.test(voice.name) && !(want === he && /female/i.test(voice.name)))) || pool[0] || voices[0] || null;
   }
 
-  function speak(button, text) {
+  function speak(button, text, bubble) {
+    // A character with an ElevenLabs voice speaks with it (character-voice.js).
+    const owner = window.ChatiVoice?.characterForBubble?.(bubble) || current();
+    if (owner?.voiceId && window.ChatiVoice) {
+      const words = String(text || "")
+        .replace(/\*\*[^*]*\*\*/g, " ")
+        .replace(/\*[^*]*\*/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!words) {
+        toast(t("This reply has only actions — nothing to read aloud."));
+        return;
+      }
+      window.ChatiVoice.play(button, words, owner);
+      return;
+    }
     const synth = window.speechSynthesis;
     if (!synth) {
       toast(t("Voice isn't available on this device."), "error");
@@ -405,7 +420,7 @@
   }
 
   function decorateVoices() {
-    if (!window.speechSynthesis) return;
+    if (!window.speechSynthesis && !window.ChatiVoice) return;
     // Don't touch bubbles while a reply is streaming in.
     if (typeof isSending !== "undefined" && isSending) return;
     document.querySelectorAll("#messages .message-row.character:not(.typing-row) .message.character").forEach(bubble => {
@@ -422,7 +437,7 @@
         clone.querySelectorAll(".v11-speak, .message-attachment").forEach(node => node.remove());
         // Rebuild ** marks from the italic action spans so they are skipped.
         clone.querySelectorAll(".action-text, em, i").forEach(node => { node.textContent = "**" + node.textContent + "**"; });
-        speak(button, clone.textContent);
+        speak(button, clone.textContent, bubble);
       });
       bubble.appendChild(button);
     });
