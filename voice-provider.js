@@ -40,7 +40,13 @@ export function isValidVoiceId(value) {
 function describeError(status, body) {
   const detail = body?.detail;
   const message = typeof detail === "string" ? detail : detail?.message || body?.message || "";
-  if (status === 401) return new VoiceError("The ElevenLabs API key was rejected.", 502);
+  const code = typeof detail === "object" ? String(detail?.status || "") : "";
+  if (code === "missing_permissions" || /missing.*permission/i.test(message)) {
+    return new VoiceError("The ElevenLabs key is missing permissions. In ElevenLabs → API Keys, allow Voices (read and write) and Text to Speech for this key.", 502);
+  }
+  if (status === 401) {
+    return new VoiceError("ElevenLabs rejected the API key (it may have been deleted or mistyped). Put a valid key in ELEVENLABS_API_KEY on Render.", 502);
+  }
   if (status === 402 || /quota|credits|character limit/i.test(message)) {
     return new VoiceError("ElevenLabs credits ran out. Add credits or upgrade the plan.", 402);
   }

@@ -65,5 +65,8 @@ test('turns ElevenLabs errors into clear messages', async () => {
     new Response(JSON.stringify({ detail: { status: 'can_not_use_instant_voice_cloning', message: 'Your subscription does not include instant voice cloning.' } }), { status: 403 }));
   await assert.rejects(provider.cloneVoice({ name: 'x', samples: [{ buffer: Buffer.from('a') }] }), /paid ElevenLabs plan/);
   const unauthorized = createVoiceProvider({ ELEVENLABS_API_KEY: 'k' }, async () => new Response('{}', { status: 401 }));
-  await assert.rejects(unauthorized.listVoices(), /API key was rejected/);
+  await assert.rejects(unauthorized.listVoices(), /rejected the API key/);
+  const limited = createVoiceProvider({ ELEVENLABS_API_KEY: 'k' }, async () =>
+    new Response(JSON.stringify({ detail: { status: 'missing_permissions', message: 'The API key you used is missing the permission voices_read to execute this operation.' } }), { status: 401 }));
+  await assert.rejects(limited.listVoices(), /missing permissions/);
 });

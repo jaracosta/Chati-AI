@@ -2556,7 +2556,7 @@ async function buildChatInputMessage(
 // ---------------------------------------------------------------------
 function sendVoiceError(res, error) {
   const status = error instanceof VoiceError ? error.status : 502;
-  if (!(error instanceof VoiceError)) console.error("Voice error:", error?.message || error);
+  console.error("Voice error:", error?.message || error);
   res.status(status).json({ error: error?.message || "Voice service failed." });
 }
 
@@ -2590,7 +2590,7 @@ app.post(
     }
     const samples = (Array.isArray(req.body?.samples) ? req.body.samples : [])
       .map(decodeDataUrl)
-      .filter(sample => sample && /^audio\/|^video\/webm/.test(sample.mimeType));
+      .filter(sample => sample && /^(audio|video)\/|^application\/octet-stream/.test(sample.mimeType));
     try {
       res.json(await voiceProvider.cloneVoice({
         name: req.body?.name,

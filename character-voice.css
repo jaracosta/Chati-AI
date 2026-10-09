@@ -1,39 +1,166 @@
 /* CHATI-AI V14 — character voices (ElevenLabs) */
 .v14-voice-field {
   display: grid;
-  gap: 8px;
-  margin-top: 16px;
+  gap: 12px;
 }
 
-.v14-voice-field > label {
-  font-weight: 600;
-}
-
-.v14-voice-field small {
-  color: #9b95ad;
-}
-
-.v14-voice-current,
-.v14-voice-actions,
-.v14-clone-actions {
+.v14-current {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.v14-voice-chip {
-  padding: 8px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
+.v14-current-icon {
+  display: grid;
+  flex: 0 0 44px;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: #a9a3bd;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.v14-current.has-voice .v14-current-icon {
+  color: #fff;
+  background: var(--v9-gradient, linear-gradient(135deg, #8b5cf6, #ec4899));
+  box-shadow: 0 6px 18px rgba(139, 92, 246, 0.35);
+}
+
+.v14-current-icon svg,
+.v14-option-icon svg,
+.v14-play svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.v14-current-text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.v14-current-text strong {
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v14-current-text small,
+.v14-option small {
+  color: #9b95ad;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.v14-play {
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: #fff;
+  border: 0;
+  border-radius: 50%;
+  background: var(--v9-gradient, linear-gradient(135deg, #8b5cf6, #ec4899));
+  cursor: pointer;
+}
+
+.v14-play svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  stroke: none;
+  margin-left: 2px;
+}
+
+.v14-play.playing,
+.v14-play.loading {
+  animation: v14-loading 0.9s ease-in-out infinite;
+}
+
+.v14-link {
+  padding: 6px 4px;
+  color: #a9a3bd;
+  font: inherit;
+  font-size: 13px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.v14-link:hover {
+  color: #f87171;
+}
+
+.v14-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.v14-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.v14-option:hover {
+  border-color: rgba(167, 139, 250, 0.55);
+  background: rgba(139, 92, 246, 0.08);
+  transform: translateY(-1px);
+}
+
+.v14-option > span:last-child {
+  display: grid;
+  gap: 3px;
+}
+
+.v14-option strong {
   font-size: 14px;
 }
 
-.v14-voice-field button,
+.v14-option-icon {
+  display: grid;
+  flex: 0 0 38px;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  color: #c4b5fd;
+  border-radius: 12px;
+  background: rgba(139, 92, 246, 0.14);
+}
+
+@media (max-width: 560px) {
+  .v14-options {
+    grid-template-columns: 1fr;
+  }
+}
+
 .v14-sheet button,
 .v14-upload {
-  padding: 8px 13px;
+  padding: 9px 14px;
   color: inherit;
   font: inherit;
   font-size: 13px;
@@ -43,7 +170,6 @@
   cursor: pointer;
 }
 
-.v14-voice-field button:hover,
 .v14-sheet button:hover:not(:disabled),
 .v14-upload:hover {
   background: rgba(255, 255, 255, 0.12);
@@ -217,8 +343,8 @@ html[data-chati-theme="light"] .v14-sheet-panel {
   background: #fff;
 }
 
-html[data-chati-theme="light"] .v14-voice-chip,
-html[data-chati-theme="light"] .v14-voice-field button,
+html[data-chati-theme="light"] .v14-current,
+html[data-chati-theme="light"] .v14-option,
 html[data-chati-theme="light"] .v14-sheet button,
 html[data-chati-theme="light"] .v14-upload,
 html[data-chati-theme="light"] .v14-voice-row,
