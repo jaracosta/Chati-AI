@@ -579,3 +579,146 @@ html[data-chati-theme="light"] .v14-sheet .v14-preset {
     animation: none;
   }
 }
+
+/* A sound sent in the chat: a compact play button instead of a player. */
+.message-attachment.audio {
+  display: flex;
+}
+
+.sound-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 150px;
+  margin: 0;
+  padding: 5px 14px 5px 5px;
+  color: inherit;
+  font: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.18s ease, transform 0.12s ease;
+}
+
+.sound-chip:active {
+  transform: scale(0.97);
+}
+
+.message.character .sound-chip {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+html[data-chati-theme="light"] .message.character .sound-chip {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.sound-chip-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #2a1f2f;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.sound-chip-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.sound-chip-pause,
+.sound-chip.playing .sound-chip-play {
+  display: none;
+}
+
+.sound-chip.playing .sound-chip-pause {
+  display: block;
+}
+
+.sound-chip-wave {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+}
+
+.sound-chip-wave i {
+  width: 3px;
+  height: 40%;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.75;
+}
+
+.sound-chip-wave i:nth-child(2),
+.sound-chip-wave i:nth-child(6) { height: 70%; }
+.sound-chip-wave i:nth-child(3),
+.sound-chip-wave i:nth-child(5) { height: 100%; }
+.sound-chip-wave i:nth-child(4) { height: 55%; }
+
+.sound-chip.playing .sound-chip-wave i {
+  animation: sound-chip-wave 0.9s ease-in-out infinite;
+}
+
+.sound-chip.playing .sound-chip-wave i:nth-child(2n) { animation-delay: -0.3s; }
+.sound-chip.playing .sound-chip-wave i:nth-child(3n) { animation-delay: -0.6s; }
+
+.sound-chip-time {
+  flex: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.sound-chip.unavailable {
+  opacity: 0.6;
+}
+
+@keyframes sound-chip-wave {
+  0%, 100% { transform: scaleY(0.45); }
+  50% { transform: scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sound-chip.playing .sound-chip-wave i {
+    animation: none;
+  }
+}
+
+/* In the composer preview: just the round play button. */
+.attachment-preview-visual .sound-chip.compact {
+  min-width: 0;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.attachment-preview-visual .sound-chip.compact .sound-chip-wave,
+.attachment-preview-visual .sound-chip.compact .sound-chip-time {
+  display: none;
+}
+
+.attachment-preview-visual .sound-chip.compact .sound-chip-icon {
+  width: 44px;
+  height: 44px;
+}
+
+.attachment-preview-visual .sound-chip.compact.playing .sound-chip-icon {
+  animation: v11-pulse 1s ease-in-out infinite;
+}
+
+/* The scene note under a sound or video the user sent. */
+.message.user .message-attachment-note {
+  color: rgba(255, 255, 255, 0.86);
+}

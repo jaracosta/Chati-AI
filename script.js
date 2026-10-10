@@ -10192,6 +10192,8 @@ function clearPendingAttachment(
 
   revokePendingPreviewUrl();
 
+  removePreviewSoundChip();
+
 
   if (
     deleteStored &&
@@ -10344,6 +10346,8 @@ function showPendingAttachment(
 
   revokePendingPreviewUrl();
 
+  removePreviewSoundChip();
+
 
   if (
     attachment.type ===
@@ -10366,38 +10370,24 @@ function showPendingAttachment(
     "audio"
   ) {
 
-    if (
-      blob &&
-      attachmentPreviewAudio
-    ) {
+    // Same play button the chat shows, instead of the browser's player.
+    const chip =
+      createSoundChip(
+        attachment
+      );
 
-      pendingPreviewObjectUrl =
-        URL.createObjectURL(
-          blob
-        );
+    chip.classList.add(
+      "compact"
+    );
 
-      attachmentPreviewAudio.src =
-        pendingPreviewObjectUrl;
-
-      attachmentPreviewAudio
-        .classList
-        .remove(
-          "hidden"
-        );
-
-    }
-
-    else {
-
-      attachmentPreviewIcon
-        ?.classList
-        .remove(
-          "hidden"
-        );
-
-    }
+    attachmentPreviewAudio
+      ?.parentElement
+      ?.appendChild(
+        chip
+      );
 
   }
+
 
   else if (
     attachment.type ===
@@ -10448,14 +10438,16 @@ function showPendingAttachment(
       : attachment.type ===
         "audio"
 
-        ? "Audio reference"
+        ? (window.ChatiI18n?.t?.("Sound") ?? "Sound")
 
         : "Video reference";
 
 
   attachmentPreviewSubtitle.textContent =
     [
-      attachment.name,
+      attachment.type === "audio"
+        ? ""
+        : attachment.name,
       formatDuration(
         attachment.duration
       )
@@ -10733,6 +10725,126 @@ async function soundToWav(
     context.close?.();
 
   }
+
+}
+
+
+function removePreviewSoundChip() {
+
+  document
+    .querySelectorAll(
+      ".attachment-preview-visual .sound-chip"
+    )
+    .forEach(chip => {
+      chip.dispatchEvent(new Event("chip-stop"));
+      chip.remove();
+    });
+
+}
+
+
+// Small "play the sound" button for audio sent in a chat message.
+let playingSoundChip = null;
+
+function createSoundChip(
+  attachmentData
+) {
+
+  const button =
+    document.createElement(
+      "button"
+    );
+
+  button.type = "button";
+  button.className = "sound-chip";
+
+  const label =
+    window.ChatiI18n?.t?.("Play sound") ??
+    "Play sound";
+
+  button.setAttribute("aria-label", label);
+  button.title = label;
+
+  button.innerHTML =
+    '<span class="sound-chip-icon" aria-hidden="true">' +
+      '<svg class="sound-chip-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>' +
+      '<svg class="sound-chip-pause" viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>' +
+    "</span>" +
+    '<span class="sound-chip-wave" aria-hidden="true">' +
+      "<i></i><i></i><i></i><i></i><i></i><i></i><i></i>" +
+    "</span>" +
+    '<span class="sound-chip-time"></span>';
+
+  const time =
+    button.querySelector(
+      ".sound-chip-time"
+    );
+
+  time.textContent =
+    formatDuration(
+      attachmentData.duration
+    ) || "";
+
+  let audio = null;
+  let url = "";
+
+  const stop = () => {
+    audio?.pause();
+    button.classList.remove("playing");
+    if (playingSoundChip === stop) playingSoundChip = null;
+  };
+
+  button.addEventListener("chip-stop", () => {
+    stop();
+    if (url) URL.revokeObjectURL(url);
+  });
+
+  button.addEventListener(
+    "click",
+    async event => {
+
+      event.stopPropagation();
+
+      if (button.classList.contains("playing")) {
+        stop();
+        return;
+      }
+
+      if (!audio) {
+
+        const blob =
+          await getMediaBlob(
+            attachmentData.mediaId
+          ).catch(() => null);
+
+        if (!blob) {
+          button.classList.add("unavailable");
+          time.textContent =
+            window.ChatiI18n?.t?.("Unavailable") ??
+            "Unavailable";
+          return;
+        }
+
+        url = URL.createObjectURL(blob);
+        audio = new Audio(url);
+        audio.addEventListener("ended", stop);
+        audio.addEventListener("pause", () => button.classList.remove("playing"));
+
+      }
+
+      playingSoundChip?.();
+      window.ChatiVoice?.stop?.();
+      playingSoundChip = stop;
+
+      button.classList.add("playing");
+
+      audio.currentTime = 0;
+      audio.play().catch(stop);
+
+    }
+  );
+
+  return button;
 
 }
 
@@ -14103,100 +14215,13 @@ function renderMessageContent(
       "audio"
     ) {
 
-      const shell =
-        document.createElement(
-          "div"
-        );
-
-
-      shell.className =
-        "message-media-shell audio";
-
-
-      const label =
-        document.createElement(
-          "div"
-        );
-
-
-      label.className =
-        "message-media-label";
-
-
-      label.textContent =
-        [
-          attachmentData.name ||
-          "Audio reference",
-          formatDuration(
-            attachmentData.duration
-          )
-        ]
-          .filter(Boolean)
-          .join(
-            " • "
-          );
-
-
-      const audio =
-        document.createElement(
-          "audio"
-        );
-
-
-      audio.controls =
-        true;
-
-      audio.preload =
-        "metadata";
-
-
-      shell.append(
-        label,
-        audio
-      );
-
-
+      // A sound in the scene: just a play button, like the character's
+      // voice button, with no file name or player box.
       attachment.appendChild(
-        shell
-      );
-
-
-      getMediaBlob(
-        attachmentData.mediaId
-      )
-        .then(
-
-          blob => {
-
-            if (blob) {
-
-              audio.src =
-                URL.createObjectURL(
-                  blob
-                );
-
-            }
-
-            else {
-
-              label.textContent +=
-                " • unavailable on this device";
-
-            }
-
-          }
-
+        createSoundChip(
+          attachmentData
         )
-        .catch(
-
-          () => {
-
-            label.textContent +=
-              " • unavailable";
-
-          }
-
-        );
+      );
 
     }
 
