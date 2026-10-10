@@ -10619,11 +10619,137 @@ async function selectImageFile(
 }
 
 
+// Decodes any sound the browser can play (an audio file, or the soundtrack
+// of a video such as a saved TikTok) into a small mono WAV, keeping at most
+// maxSeconds. WAV is what the server's audio model understands directly.
+async function soundToWav(
+  file,
+  maxSeconds = MAX_AUDIO_DURATION
+) {
+
+  const AudioCtx =
+    window.AudioContext ||
+    window.webkitAudioContext;
+
+  if (
+    !AudioCtx ||
+    typeof OfflineAudioContext === "undefined"
+  ) {
+    return null;
+  }
+
+  const context =
+    new AudioCtx();
+
+  try {
+
+    const bytes =
+      await file.arrayBuffer();
+
+    // Old Safari only supports the callback form of decodeAudioData.
+    const decoded =
+      await new Promise(
+        (resolve, reject) => {
+          const result =
+            context.decodeAudioData(
+              bytes,
+              resolve,
+              reject
+            );
+          result?.then?.(resolve, reject);
+        }
+      );
+
+    if (!decoded?.duration) {
+      return null;
+    }
+
+    const rate = 16000;
+
+    const seconds =
+      Math.min(
+        decoded.duration,
+        maxSeconds
+      );
+
+    const offline =
+      new OfflineAudioContext(
+        1,
+        Math.max(1, Math.ceil(seconds * rate)),
+        rate
+      );
+
+    const source =
+      offline.createBufferSource();
+
+    source.buffer = decoded;
+    source.connect(offline.destination);
+    source.start();
+
+    const samples =
+      (await offline.startRendering())
+        .getChannelData(0);
+
+    const buffer =
+      new ArrayBuffer(44 + samples.length * 2);
+
+    const view =
+      new DataView(buffer);
+
+    const write = (offset, text) =>
+      [...text].forEach((char, index) =>
+        view.setUint8(offset + index, char.charCodeAt(0))
+      );
+
+    write(0, "RIFF");
+    view.setUint32(4, 36 + samples.length * 2, true);
+    write(8, "WAVE");
+    write(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, rate, true);
+    view.setUint32(28, rate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    write(36, "data");
+    view.setUint32(40, samples.length * 2, true);
+
+    for (let index = 0; index < samples.length; index += 1) {
+      const value = Math.max(-1, Math.min(1, samples[index]));
+      view.setInt16(44 + index * 2, value < 0 ? value * 0x8000 : value * 0x7fff, true);
+    }
+
+    return {
+      blob: new Blob([buffer], { type: "audio/wav" }),
+      seconds,
+      mimeType: "audio/wav"
+    };
+
+  }
+
+  finally {
+
+    context.close?.();
+
+  }
+
+}
+
+
 async function selectAudioFile(
   file
 ) {
 
+  const isVideo =
+    fileLooksLikeType(
+      file,
+      "video"
+    ) &&
+    !String(file.type || "").startsWith("audio/");
+
   if (
+    !isVideo &&
     !fileLooksLikeType(
       file,
       "audio"
@@ -10639,32 +10765,90 @@ async function selectAudioFile(
 
   if (
     file.size >
-    MAX_AUDIO_FILE_SIZE
+    (isVideo
+      ? MAX_VIDEO_FILE_SIZE
+      : MAX_AUDIO_FILE_SIZE)
   ) {
 
     throw new Error(
-      "Please keep audio files under 15MB."
+      isVideo
+        ? "Please keep video files under 25MB."
+        : "Please keep audio files under 15MB."
     );
 
   }
 
 
-  const duration =
-    await getMediaDuration(
-      file,
-      "audio"
+  // Picking can take a moment on phones (iOS copies the file first), so say
+  // something is happening.
+  window.ChatiToast?.(
+    window.ChatiI18n?.t?.("Preparing the sound…") ??
+      "Preparing the sound…",
+    "info"
+  );
+
+
+  // Keep only the sound, as WAV, so it can be heard in the scene. Long clips
+  // are cut to the first minute instead of being refused.
+  let sound =
+    null;
+
+  try {
+
+    sound =
+      await soundToWav(
+        file
+      );
+
+  }
+
+  catch (error) {
+
+    console.warn(
+      "Could not convert the sound to WAV:",
+      error
     );
 
+  }
 
-  if (
-    duration >
-    MAX_AUDIO_DURATION +
-    0.25
-  ) {
 
-    throw new Error(
-      "Audio can be up to 60 seconds long."
-    );
+  if (!sound) {
+
+    // A video whose sound this browser can't decode is sent as a short
+    // video instead: the server still hears its soundtrack.
+    if (isVideo) {
+
+      return selectVideoFile(
+        file
+      );
+
+    }
+
+    const duration =
+      await getMediaDuration(
+        file,
+        "audio"
+      );
+
+    if (
+      duration >
+      MAX_AUDIO_DURATION +
+      0.25
+    ) {
+
+      throw new Error(
+        "Audio can be up to 60 seconds long."
+      );
+
+    }
+
+    sound = {
+      blob: file,
+      seconds: duration,
+      mimeType:
+        file.type ||
+        "audio/mpeg"
+    };
 
   }
 
@@ -10682,8 +10866,16 @@ async function selectAudioFile(
 
   await putMediaBlob(
     mediaId,
-    file
+    sound.blob
   );
+
+
+  const baseName =
+    String(
+      file.name ||
+      "scene-audio"
+    )
+      .replace(/\.[a-z0-9]+$/i, "");
 
 
   showPendingAttachment(
@@ -10698,17 +10890,18 @@ async function selectAudioFile(
         "",
 
       mimeType:
-        file.type ||
-        "audio/mpeg",
+        sound.mimeType,
 
       name:
-        file.name ||
-        "scene-audio",
+        sound.mimeType === "audio/wav"
+          ? baseName + ".wav"
+          : file.name || "scene-audio",
 
-      duration
+      duration:
+        sound.seconds
     },
 
-    file
+    sound.blob
 
   );
 
