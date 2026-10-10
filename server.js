@@ -31,13 +31,18 @@ import {
   findRepeatedPhrases,
   getModelContextTokens,
   getSamplingSettings,
-  recentOpenings
+  recentOpenings,
+  estimateTokens,
+  buildCharacterLock,
+  guessLanguage,
+  trimToCompleteSentence
 } from "./roleplay-guard.js";
 import {
   buildCanonProfileMessages,
   buildCanonPromptSection,
   canonFingerprint,
   createCanonProfileStore,
+  parseCanonCard,
   sanitizeCanonProfile
 } from "./canon-profile.js";
 import {
@@ -3075,40 +3080,20 @@ What are you staring at?
 
 RESPONSE LENGTH
 
-For casual conversation:
+- The REPLY LENGTH section and the CHARACTER LOCK at the end decide how long a reply is. Most replies are short: what ${character.name} says, plus at most a couple of brief actions.
 
-- Usually respond naturally and relatively concisely.
-
-- Often 1–4 sentences or a few short dialogue/action beats are enough.
-
-- A one-line response is completely acceptable.
-
-For emotional scenes, battles, transformations, revelations, important explanations, and signature abilities:
-
-- Responses may become longer and more cinematic.
-
-- Let the intensity of the scene control response length.
+- Big moments (a fight, a reveal, a transformation, an emotional turning point) may be a little longer — but they are made vivid by a few sharp details, never by paragraphs of description.
 
 
-CINEMATIC ACTION
+ACTION SCENES
 
-During important combat or dramatic scenes, describe relevant:
+- Show what matters in one or two vivid beats: the move, the impact, ${character.name}'s reaction — then ${character.name}'s words.
 
-- movement
-- stance
-- environment
-- visual effects
-- sound
-- energy
-- expression
-- atmosphere
-- immediate consequences
+- Do not rush iconic transformations or signature abilities, but do not narrate them for paragraphs either.
 
-Do not rush iconic transformations or signature abilities.
+- Do not automatically decide that an attack hits the user's character.
 
-Do not automatically decide that an attack hits the user's character.
-
-Do not automatically decide the user's injury, fear, surprise, defeat, or inability to respond.
+- Do not automatically decide the user's injury, fear, surprise, defeat, or inability to respond.
 
 
 SCENE AWARENESS
@@ -3272,7 +3257,23 @@ ${groupContinuation
         buildCoreRoleplayRules(
           character.name
         ) +
-        sensesRules;
+        sensesRules +
+        "\n\n" +
+        buildCharacterLock({
+          characterName:
+            character.name,
+          card:
+            parseCanonCard(
+              canonCard
+            ),
+          replyLength:
+            character.replyLength,
+          language:
+            guessLanguage(
+              latestUserMessage?.text ||
+              ""
+            )
+        });
 
 
       const rawInput =
@@ -3748,6 +3749,39 @@ ${groupContinuation
               }) +
               "\n"
 
+            );
+
+          }
+
+        }
+
+
+        // Cut off by the token limit: end on a complete sentence instead
+        // of half a word, and tell the app to show the trimmed text.
+        if (
+          generatedText &&
+          estimateTokens(generatedText) >=
+            maxOutputTokens * 0.88
+        ) {
+
+          const trimmed =
+            trimToCompleteSentence(
+              generatedText
+            );
+
+          if (trimmed !== generatedText) {
+
+            generatedText =
+              trimmed;
+
+            res.write(
+              JSON.stringify({
+                type:
+                  "replace",
+                text:
+                  trimmed
+              }) +
+              "\n"
             );
 
           }

@@ -117,9 +117,9 @@ test('reply length: rules and token caps follow the character setting', async ()
   assert.equal(normalizeReplyLength('huge'), 'auto');
   assert.equal(normalizeReplyLength(undefined), 'auto');
 
-  assert.equal(capTokensForLength(1150, 'short'), 320);
-  assert.equal(capTokensForLength(1150, 'medium'), 650);
-  assert.equal(capTokensForLength(1150, 'auto'), 900);
+  assert.equal(capTokensForLength(1150, 'short'), 260);
+  assert.equal(capTokensForLength(1150, 'medium'), 480);
+  assert.equal(capTokensForLength(1150, 'auto'), 600);
   assert.equal(capTokensForLength(1600, 'long'), 1600);
   assert.equal(capTokensForLength(500, 'auto'), 500);
 
@@ -157,4 +157,52 @@ test('cuts scraped-site footers the model sometimes appends', () => {
   for (const line of ['Event horizons scare me.', 'Copy that, I am on my way.', 'About us? We are a team.']) {
     assert.equal(cleanRoleplayReply('Hola.\n' + line, 'Luna'), 'Hola.\n' + line);
   }
+});
+
+import { buildCharacterLock, guessLanguage, trimToCompleteSentence } from '../roleplay-guard.js';
+import { parseCanonCard } from '../canon-profile.js';
+
+const GOJO_CARD = `SOURCE: Jujutsu Kaisen.
+WHO: Satoru Gojo.
+VOICE: Breezy, cocky, teasing; short lines.
+ATTITUDE: Amused by strangers.
+SIGNATURE: "I'm the strongest."
+NEVER: Never humble; never long gloomy speeches.
+KNOWS: Yuji, Megumi.
+SAMPLE LINES (EN):
+1. **Waves.** Yo~! Miss me?
+2. Relax. I'm the strongest, remember?
+SAMPLE LINES (ES):
+1. **Saluda.** ¡Yo~! ¿Me extrañaste?
+2. Tranquilo. Soy el más fuerte, ¿recuerdas?`;
+
+test('the character lock restates the canon voice, a budget and anti-drift', () => {
+  const card = parseCanonCard(GOJO_CARD);
+  assert.equal(card.voice, 'Breezy, cocky, teasing; short lines.');
+  assert.deepEqual(card.samples.es, ['**Saluda.** ¡Yo~! ¿Me extrañaste?', 'Tranquilo. Soy el más fuerte, ¿recuerdas?']);
+  const lock = buildCharacterLock({ characterName: 'Satoru Gojo', card, replyLength: 'short', language: 'es' });
+  assert.match(lock, /CHARACTER LOCK — YOU ARE SATORU GOJO/);
+  assert.match(lock, /How Satoru Gojo talks: Breezy, cocky/);
+  assert.match(lock, /would NEVER: Never humble/);
+  assert.match(lock, /¿Me extrañaste\?/);
+  assert.doesNotMatch(lock, /Miss me\?/);
+  assert.match(lock, /under 50 words/);
+  assert.match(lock, /Do not copy the length, style or phrases of your earlier replies/);
+  const original = buildCharacterLock({ characterName: 'Luna', card: null, replyLength: 'auto' });
+  assert.match(original, /Talk exactly the way Luna talks/);
+  assert.match(original, /usually under 80 words/);
+});
+
+test('guesses the reply language from the user message', () => {
+  assert.equal(guessLanguage('¿Qué haces aquí?'), 'es');
+  assert.equal(guessLanguage('hola, como estas'), 'es');
+  assert.equal(guessLanguage('What are you doing here?'), 'en');
+});
+
+test('a reply cut by the token limit ends on a complete sentence', () => {
+  assert.equal(trimToCompleteSentence('Yo. Relax, I am the strongest. And besides, the thing is that'), 'Yo. Relax, I am the strongest.');
+  assert.equal(trimToCompleteSentence('**He smirks.** Fine. **He turns away and'), '**He smirks.** Fine.');
+  assert.equal(trimToCompleteSentence('Already complete!'), 'Already complete!');
+  assert.equal(trimToCompleteSentence('**Waves.**'), '**Waves.**');
+  assert.equal(trimToCompleteSentence('Hi. ' + 'word '.repeat(40)).endsWith('…'), true);
 });

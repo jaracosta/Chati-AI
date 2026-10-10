@@ -139,3 +139,29 @@ export function createCanonProfileStore({ generate, limit = CACHE_LIMIT } = {}) 
     }
   };
 }
+
+// Pulls the parts of a card the character lock needs. Labels follow the
+// card format written by buildCanonProfileMessages().
+export function parseCanonCard(card) {
+  const text = sanitizeCanonProfile(card);
+  if (!text) return null;
+  const labels = ["SOURCE", "WHO", "VOICE", "ATTITUDE", "SIGNATURE", "NEVER", "KNOWS", "SAMPLE LINES \\(EN\\)", "SAMPLE LINES \\(ES\\)"];
+  const section = label => {
+    const others = labels.filter(other => other !== label).join("|");
+    const match = text.match(new RegExp("(?:^|\\n)\\s*\\**" + label + "\\**\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*\\**(?:" + others + ")\\**\\s*:|$)", "i"));
+    return match ? match[1].trim() : "";
+  };
+  const lines = value => value
+    .split(/\n+|(?<=[.!?…])\s+(?=[-•\d]|\*\*)/)
+    .map(line => line.replace(/^\s*(?:[-•]|\d+[.)])\s*/, "").trim())
+    .filter(Boolean);
+  return {
+    voice: section("VOICE"),
+    attitude: section("ATTITUDE"),
+    never: section("NEVER"),
+    samples: {
+      en: lines(section("SAMPLE LINES \\(EN\\)")),
+      es: lines(section("SAMPLE LINES \\(ES\\)"))
+    }
+  };
+}

@@ -15763,6 +15763,24 @@ async function readAIStream(
       }
 
 
+      // The server trimmed a reply that hit the length limit back to its
+      // last complete sentence.
+      if (
+        packet.type ===
+          "replace" &&
+        typeof packet.text ===
+          "string" &&
+        streamingBubble
+      ) {
+
+        finalText =
+          packet.text;
+
+        scheduleStreamPaint();
+
+      }
+
+
       if (
         packet.type ===
         "error"
