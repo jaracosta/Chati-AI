@@ -10926,15 +10926,31 @@ async function selectAudioFile(
 
   if (!sound) {
 
-    // A video whose sound this browser can't decode is sent as a short
-    // video instead: the server still hears its soundtrack.
+    // A video whose sound this browser can't convert (iPhone .mov) still
+    // goes as a sound: the same file, labelled as audio/mp4. It plays as
+    // sound only and the server listens to its soundtrack; it is never
+    // shown as a video.
     if (isVideo) {
 
-      return selectVideoFile(
-        file
-      );
+      const duration =
+        await getMediaDuration(
+          file,
+          "video"
+        ).catch(() => 0);
+
+      // Can't be cut here; the 25MB video limit above keeps it reasonable.
+      sound = {
+        blob: new Blob([file], { type: "audio/mp4" }),
+        seconds: duration || null,
+        mimeType: "audio/mp4"
+      };
 
     }
+
+  }
+
+
+  if (!sound) {
 
     const duration =
       await getMediaDuration(
@@ -11007,7 +11023,9 @@ async function selectAudioFile(
       name:
         sound.mimeType === "audio/wav"
           ? baseName + ".wav"
-          : file.name || "scene-audio",
+          : sound.mimeType === "audio/mp4"
+            ? baseName + ".mp4"
+            : file.name || "scene-audio",
 
       duration:
         sound.seconds

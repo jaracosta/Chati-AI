@@ -1762,7 +1762,9 @@ function safeMediaFilename(
       )
   ) {
 
-    return clean;
+    // iPhone videos are QuickTime (.mov); the transcription API takes the
+    // same data named .mp4 but refuses the .mov name.
+    return clean.replace(/\.(mov|qt)$/i, ".mp4");
 
   }
 
