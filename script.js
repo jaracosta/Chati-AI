@@ -181,6 +181,7 @@ const attachVideoOption = $("attachVideoOption");
 
 const imageInput = $("imageInput");
 const audioInput = $("audioInput");
+const CHAT_REPLY_START_TIMEOUT_MS = 90000;
 const videoInput = $("videoInput");
 
 const attachmentPreview = $("attachmentPreview");
@@ -19685,6 +19686,17 @@ async function requestCharacterReply(
     ) ||
     "";
 
+  // If the server never starts answering (a stuck media analysis, a dropped
+  // connection), give up instead of leaving the chat frozen.
+  const replyAbort =
+    new AbortController();
+
+  const replyStartTimer =
+    setTimeout(
+      () => replyAbort.abort(),
+      CHAT_REPLY_START_TIMEOUT_MS
+    );
+
   const response =
     await fetch(
 
@@ -19693,6 +19705,9 @@ async function requestCharacterReply(
       {
         method:
           "POST",
+
+        signal:
+          replyAbort.signal,
 
         headers: {
           "Content-Type":
@@ -19737,6 +19752,20 @@ async function requestCharacterReply(
           })
       }
 
+    )
+    .catch(error => {
+
+      throw error?.name === "AbortError"
+        ? new Error(
+            "The character took too long to answer. Try again."
+          )
+        : error;
+
+    })
+    .finally(() =>
+      clearTimeout(
+        replyStartTimer
+      )
     );
 
 

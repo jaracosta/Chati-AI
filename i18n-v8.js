@@ -43,6 +43,7 @@
     "No chats yet": "Aún no hay chats",
     "Go to chats": "Ir a chats",
     "Close": "Cerrar",
+    "The character took too long to answer. Try again.": "El personaje tardó demasiado en responder. Inténtalo de nuevo.",
     "Character voice": "Voz del personaje",
     "Device voice (default)": "Voz del dispositivo (predeterminada)",
     "Test": "Probar",

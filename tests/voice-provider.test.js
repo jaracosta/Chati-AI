@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createVoiceProvider, spokenText, prepareSpeech, actionCue, isValidVoiceId, VoiceError } from '../voice-provider.js';
+import { createVoiceProvider, spokenText, prepareSpeech, actionCue, dialogueCue, isIntenseSpeech, isValidVoiceId, VoiceError } from '../voice-provider.js';
 
 function fakeFetch(handler) {
   const calls = [];
@@ -39,13 +39,30 @@ test('lists voices with the key in the header and caches them', async () => {
 
 test('actions become pauses and emotion cues instead of being dropped', () => {
   const reply = '**Light sonríe con frialdad.** Así que lo descubriste.\n**Se inclina y susurra.** Pero nadie te creerá. **Ríe en voz baja.** Yo soy la justicia';
-  assert.equal(prepareSpeech(reply), '[coldly] Así que lo descubriste. … [whispers] Pero nadie te creerá. … [laughs] Yo soy la justicia.');
+  assert.equal(prepareSpeech(reply), '[coldly] Así que lo descubriste. … [whispers] Pero nadie te creerá. … [laughs] [whispers] Yo soy la justicia.');
   assert.equal(prepareSpeech(reply, { expressive: false }), 'Así que lo descubriste. <break time="0.6s" /> Pero nadie te creerá. <break time="0.6s" /> Yo soy la justicia.');
   assert.equal(prepareSpeech('**Waits.** Fine.'), 'Fine.');
   assert.equal(prepareSpeech('**Only an action.**'), '');
   assert.equal(actionCue('He smirks'), '[mischievously]');
   assert.equal(actionCue('Suspira con cansancio'), '[sighs]');
   assert.equal(actionCue('Walks to the window'), '');
+});
+
+test('the feeling written in the text reaches the voice', () => {
+  assert.equal(actionCue('Desesperado'), '[desperately]');
+  assert.equal(prepareSpeech('*Desesperado* ¡Por favor, no te vayas!'), '[desperately] ¡Por favor, no te vayas!');
+  assert.equal(actionCue('Con la voz rota, triste'), '[sad]');
+  assert.equal(actionCue('Grita furioso'), '[shouting] [angry]');
+  assert.equal(actionCue('Temblando de miedo'), '[scared]');
+  assert.equal(actionCue('Llora desconsolada'), '[crying]');
+  assert.equal(actionCue('Habla sobre el plan'), '');
+  assert.equal(actionCue('It began to rain'), '');
+  assert.equal(dialogueCue('¡¡NO TE ATREVAS!!'), '[shouting]');
+  assert.equal(dialogueCue('N-no… yo no quería…'), '[nervously]');
+  assert.equal(dialogueCue('Hola, ¿cómo estás?'), '');
+  assert.equal(prepareSpeech('¡¡DETENTE AHORA MISMO!!'), '[shouting] ¡¡DETENTE AHORA MISMO!!');
+  assert.equal(isIntenseSpeech('[desperately] ¡Espera!'), true);
+  assert.equal(isIntenseSpeech('[softly] Hola.'), false);
 });
 
 test('speaks with the voice and model, without the actions', async () => {
