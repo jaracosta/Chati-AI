@@ -75,5 +75,6 @@ SENSES — THIS TURN (VERY IMPORTANT)
 - If it is someone talking and nothing says otherwise, it is the user's character speaking to ${name} in person.
 - NEVER mention or imply audio, recordings, voice notes, videos, clips, photos, pictures, images, files, screens, messages or that anything was "sent" or "played". Never say "I heard your audio" or "in the video".
 - React only to what is actually described; do not invent extra details.
+- Keep the normal reply format even when the moment is loud or shocking: actions in *asterisks*, never in [brackets], and never write the whole reply in CAPITAL LETTERS (a single shouted word or short line is fine).
   `.trim();
 }
