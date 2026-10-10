@@ -198,7 +198,15 @@ const openai =
 
     apiKey:
       process.env
-        .OPENAI_API_KEY
+        .OPENAI_API_KEY,
+
+    // The SDK default waits up to 10 minutes (with retries). Audio/video
+    // analysis runs before the reply starts, so a slow call froze the chat.
+    timeout:
+      Number(process.env.OPENAI_TIMEOUT_MS) || 30000,
+
+    maxRetries:
+      1
 
   });
 
@@ -220,6 +228,9 @@ const VISION_MODEL =
 const senseCache =
   new Map();
 
+const SENSE_TIMEOUT_MS =
+  Number(process.env.SENSE_TIMEOUT_MS) || 25000;
+
 async function cachedSense(
   kind,
   data,
@@ -233,11 +244,22 @@ async function cachedSense(
       .digest("hex");
   if (senseCache.has(key)) return senseCache.get(key);
   let value = "";
+  let timer;
   try {
-    value = String(await compute() || "").trim();
+    // Never let a slow sense hold up the reply: after SENSE_TIMEOUT_MS the
+    // character reacts without it.
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error("timed out")), SENSE_TIMEOUT_MS);
+    });
+    value = String(await Promise.race([compute(), timeout]) || "").trim();
   }
   catch (error) {
     console.warn("⚠️ Scene sense failed:", kind, error?.message || error);
+    // A timeout may work next time; do not remember it.
+    if (error?.message === "timed out") return "";
+  }
+  finally {
+    clearTimeout(timer);
   }
   // Remember results, including empty ones, so a failing call is not
   // repeated for every message in the history.

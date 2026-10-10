@@ -34,36 +34,69 @@ export function spokenText(text) {
 }
 
 // Emotion cues for Eleven v3 audio tags, picked from the character's
-// **actions** (English and Spanish). First match wins.
+// **actions** (English and Spanish), e.g. *Desesperado* → [desperately].
+// Strongest feelings first; an action can give up to two cues.
 const ACTION_CUES = [
+  [/\b(desesperad\w*|desesperaci[oó]n|desperat\w*|frantic\w*|fren[eé]tic\w*)/i, "[desperately]"],
+  [/\b(p[aá]nico|panic\w*|aterrad\w*|aterroriz\w*|terrified|terror|horroriz\w*|horrified)/i, "[panicked]"],
+  [/\b(miedo|asustad\w*|temblando|tiembla|temeros\w*|scared|afraid|frightened|fearful\w*|trembl\w*|shak(y|ing))/i, "[scared]"],
+  [/\b(suplic\w*|rog(ando|ar|ó)|implor\w*|plead\w*|beg(s|ged|ging)?\b)/i, "[pleading]"],
   [/\b(carcajada|laughs? (hard|loud)|bursts? (out )?laugh)/i, "[laughs harder]"],
+  [/\b(sollo\w*|sob(s|bed|bing)?\b|llorando a mares|breaks? down)/i, "[sobbing]"],
+  [/\b(llor\w*|cr(y|ies|ying)|tears?|l[aá]grimas?)\b/i, "[crying]"],
+  [/\b(grit\w*|shout\w*|yell\w*|scream\w*|chill(a|ó|ando|aba)\b|vocifer\w*|ruge|roars?|bram\w*)\b/i, "[shouting]"],
+  [/\b(furios\w*|enfadad\w*|enojad\w*|ira|rabia|col[eé]ric\w*|angr\w*|furious\w*|enraged|glares?|frunce|gru[ñn]\w*|growl\w*)/i, "[angry]"],
+  [/\b(frustrad\w*|frustrat\w*|exasperad\w*|exasperat\w*)/i, "[frustrated]"],
+  [/\b(sorprendid\w*|asombrad\w*|impactad\w*|shock\w*|stunned|surprised|astonish\w*|boquiabierto)/i, "[shocked]"],
+  [/\b(jade\w*|gasps?|sin aliento|out of breath|panting)/i, "[gasps]"],
   [/\b(r[ií]e|r[ií]endo|risa|re[ií]r|laugh|laughs|laughing)\b/i, "[laughs]"],
   [/\b(chuckl\w*|risita|ri[sz]ita|giggl\w*)/i, "[chuckles]"],
   [/\b(susurr\w*|whisper\w*|en voz baja|murmur\w*|mutter\w*)/i, "[whispers]"],
   [/\b(suspir\w*|sigh\w*)/i, "[sighs]"],
-  [/\b(llor\w*|sollo\w*|cr(y|ies|ying)|sob\w*|tears?|l[aá]grimas?)\b/i, "[crying]"],
-  [/\b(grit\w*|shout\w*|yell\w*|scream\w*|ruge|roars?)\b/i, "[shouting]"],
-  [/\b(furios\w*|enfadad\w*|enojad\w*|ira|rabia|angr\w*|furious\w*|glares?|frunce)/i, "[angry]"],
   [/\b(sarc[aá]stic\w*|ir[oó]nic\w*|sarcastic\w*|rolls? (his|her|their) eyes|pone los ojos en blanco)/i, "[sarcastic]"],
   [/\b(malicia|malicios\w*|sonrisa (torcida|burlona|siniestra)|smirk\w*|sly\w*|mischiev\w*|evil grin|wicked)/i, "[mischievously]"],
   [/\b(fr[ií]o|fr[ií]a|fr[ií]amente|frialdad|cold\w*|icy|helad\w*)\b/i, "[coldly]"],
-  [/\b(triste|tristeza|sad\w*|sorrow\w*|melanc\w*)/i, "[sad]"],
-  [/\b(nervios\w*|tartamude\w*|stammer\w*|stutter\w*|nervous\w*)/i, "[nervously]"],
+  [/\b(triste|tristeza|sad\w*|sorrow\w*|melanc\w*|abatid\w*|dolid\w*|heartbroken|desolad\w*|devastad\w*)/i, "[sad]"],
+  [/\b(avergonzad\w*|sonroj\w*|ruboriz\w*|embarrass\w*|blush\w*|flustered)/i, "[embarrassed]"],
+  [/\b(nervios\w*|tartamude\w*|stammer\w*|stutter\w*|nervous\w*|ansios\w*|anxious\w*)/i, "[nervously]"],
+  [/\b(cansad\w*|agotad\w*|exhaust\w*|tired|d[eé]bil|weak\w*|somnolient\w*|sleepy)/i, "[tired]"],
+  [/\b(feliz|alegr\w*|content[oa]|happ(y|ily)\b|cheerful\w*|joyful\w*|radiante)/i, "[happily]"],
   [/\b(emocionad\w*|entusiasm\w*|excited\w*|eager\w*)/i, "[excited]"],
+  [/\b(tiern\w*|dulce\w*|suave\w*|cari[ñn]os\w*|tender\w*|gentl\w*|softly|warmly)/i, "[softly]"],
+  [/\b(seri[oa]|seriamente|serious\w*|firme\w*|stern\w*|grave)\b/i, "[seriously]"],
   [/\b(curios\w*|intrigad\w*|ladea la cabeza|tilts? (his|her|their) head|curious\w*)/i, "[curious]"],
   [/\b(exhal\w*|resopla|scoffs?|bufa)/i, "[exhales]"]
 ];
 
+// Cues that call for a freer, more dramatic performance (lower stability).
+const INTENSE_CUES = /\[(desperately|panicked|scared|pleading|laughs harder|sobbing|crying|shouting|angry|frustrated|shocked|gasps)\]/;
+
 export function actionCue(action) {
   const text = String(action || "");
-  for (const [pattern, cue] of ACTION_CUES) if (pattern.test(text)) return cue;
+  const cues = [];
+  for (const [pattern, cue] of ACTION_CUES) {
+    if (pattern.test(text) && !cues.includes(cue)) cues.push(cue);
+    if (cues.length === 2) break;
+  }
+  return cues.join(" ");
+}
+
+// Emotion the spoken words show by themselves, when no action names one:
+// "¡¡NO TE VAYAS!!" is shouted, "N-no… yo…" is nervous.
+export function dialogueCue(line) {
+  const text = String(line || "");
+  const letters = text.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, "");
+  const upper = letters.replace(/[^A-ZÁÉÍÓÚÜÑ]/g, "");
+  if (letters.length >= 6 && upper.length / letters.length > 0.7) return "[shouting]";
+  if (/!{2,}|¡{2,}|[!?]{3,}/.test(text)) return "[shouting]";
+  if (/\b([A-Za-zÁÉÍÓÚÑáéíóúñ]{1,2})-\1/i.test(text)) return "[nervously]";
   return "";
 }
 
 // Turns a roleplay reply into what the voice should perform. **Actions** are
 // not read aloud, but they become pauses — and, for expressive models
-// (Eleven v3), emotion cues such as [whispers] or [laughs] — so the line is
-// not read as one flat run-on sentence.
+// (Eleven v3), emotion cues such as [desperately], [sad] or [shouting] — so
+// the line sounds like the feeling written around it, not one flat read.
 export function prepareSpeech(text, { expressive = true } = {}) {
   const parts = [];
   const pattern = /\*\*([^*]+)\*\*|\*([^*]+)\*/g;
@@ -94,12 +127,18 @@ export function prepareSpeech(text, { expressive = true } = {}) {
     }
     if (pendingPause) output += expressive ? " … " : ' <break time="0.6s" /> ';
     else if (output) output += " ";
-    if (pendingCue) output += pendingCue + " ";
+    const cue = expressive ? pendingCue || dialogueCue(part.text) : "";
+    if (cue) output += cue + " ";
     output += part.text;
     pendingCue = "";
     pendingPause = false;
   }
   return output.replace(/\s+/g, " ").trim().slice(0, MAX_TTS_CHARS);
+}
+
+// True when the prepared line carries a strong emotion.
+export function isIntenseSpeech(prepared) {
+  return INTENSE_CUES.test(String(prepared || ""));
 }
 
 export function isValidVoiceId(value) {
@@ -249,16 +288,20 @@ export function createVoiceProvider(env = {}, fetchImpl = globalThis.fetch) {
       const request = async modelId => {
         // Eleven v3 performs emotion tags and only takes stability 0 / 0.5 / 1
         // (creative / natural / robust).
+        // Strong feelings (shouting, crying, despair) get the "creative"
+        // setting, which acts them out; calm lines stay "natural".
         const expressive = /v3/.test(modelId);
-        const stability = Number(env.ELEVENLABS_STABILITY);
+        const speech = prepareSpeech(text, { expressive });
+        const chosen = String(env.ELEVENLABS_STABILITY ?? "").trim() === "" ? NaN : Number(env.ELEVENLABS_STABILITY);
+        const stability = [0, 0.5, 1].includes(chosen) ? chosen : isIntenseSpeech(speech) ? 0 : 0.5;
         const response = await call(`/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "audio/mpeg" },
           body: JSON.stringify({
-            text: prepareSpeech(text, { expressive }),
+            text: speech,
             model_id: modelId,
             voice_settings: expressive
-              ? { stability: [0, 0.5, 1].includes(stability) ? stability : 0.5, similarity_boost: 0.8, use_speaker_boost: true }
+              ? { stability, similarity_boost: 0.8, use_speaker_boost: true }
               : { stability: 0.35, similarity_boost: 0.8, style: 0.45, use_speaker_boost: true }
           })
         });
