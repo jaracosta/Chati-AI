@@ -41,12 +41,19 @@ import {
   sanitizeCanonProfile
 } from "./canon-profile.js";
 import {
+  buildSensesRules,
+  buildSightMessages,
+  frameSensoryInput,
+  modelSeesImages
+} from "./scene-senses.js";
+import {
   createVoiceProvider,
   spokenText,
   VoiceError
 } from "./voice-provider.js";
 
 import {
+  createHash,
   randomUUID
 } from "node:crypto";
 
@@ -192,6 +199,62 @@ const openai =
 
 
 const chatProvider = createChatProvider(process.env, openai);
+
+// What the character perceives from media the user sends (scene-senses.js).
+// Text-only roleplay models get a vision model's description of pictures.
+const CHAT_MODEL_SEES =
+  modelSeesImages(
+    MODEL,
+    process.env
+  );
+
+const VISION_MODEL =
+  process.env.VISION_MODEL ||
+  CHATI_MODEL;
+
+const senseCache =
+  new Map();
+
+async function cachedSense(
+  kind,
+  data,
+  compute
+) {
+  if (!data) return "";
+  const key =
+    kind + ":" +
+    createHash("sha1")
+      .update(String(data))
+      .digest("hex");
+  if (senseCache.has(key)) return senseCache.get(key);
+  let value = "";
+  try {
+    value = String(await compute() || "").trim();
+  }
+  catch (error) {
+    console.warn("⚠️ Scene sense failed:", kind, error?.message || error);
+  }
+  // Remember results, including empty ones, so a failing call is not
+  // repeated for every message in the history.
+  senseCache.set(key, value);
+  while (senseCache.size > 300) senseCache.delete(senseCache.keys().next().value);
+  return value;
+}
+
+async function describeSight({ images, note, isVideo, characterName }) {
+  if (typeof chatProvider.assistant !== "function") return "";
+  const result =
+    await chatProvider.assistant({
+      model: VISION_MODEL,
+      messages: buildSightMessages({ images, note, isVideo, characterName }),
+      max_output_tokens: 400,
+      web: false
+    });
+  return String(result?.text || "")
+    .replace(/\b(?:in|on) (?:the|this) (?:photo|picture|image|video|frame)s?\b/gi, "")
+    .trim();
+}
+
 
 // Character voices with ElevenLabs (voice-provider.js). Off when
 // ELEVENLABS_API_KEY is not set; the app then uses the browser voice.
@@ -2323,7 +2386,8 @@ ${character.powerLimits || "Not specified"}
 // =========================
 
 async function buildChatInputMessage(
-  message
+  message,
+  character = null
 ) {
 
   const role =
@@ -2363,187 +2427,124 @@ async function buildChatInputMessage(
     attachment.note
       .trim();
 
+  const characterName =
+    character?.name ||
+    "the character";
 
-  const textParts =
-    [];
+  const unavailable =
+    Boolean(
+      attachment.mediaUnavailable
+    );
 
+  let sight = "";
+  let sound = "";
 
-  const content =
-    [];
+  // Hearing: voice notes and the soundtrack of short videos become a
+  // description of what is heard (cached, so history is not re-analysed).
+  if (attachment.type === "audio") {
+    sound =
+      await cachedSense(
+        "audio",
+        attachment.mediaDataUrl,
+        () => analyzeAudioAttachment(attachment)
+      );
+  }
 
+  if (attachment.type === "video") {
+    sound =
+      await cachedSense(
+        "video-sound",
+        attachment.mediaDataUrl,
+        () => transcribeMediaAttachment(attachment)
+      );
+  }
+
+  // Sight: a text-only roleplay model gets a description written by a
+  // vision model; a model that can see gets the pictures as well.
+  const pictures =
+    attachment.type === "image"
+      ? [attachment.dataUrl].filter(Boolean)
+      : attachment.type === "video"
+        ? attachment.frames
+        : [];
+
+  if (
+    pictures.length &&
+    !CHAT_MODEL_SEES
+  ) {
+    sight =
+      await cachedSense(
+        "sight:" + characterName,
+        pictures.join("|"),
+        () => describeSight({
+          images: pictures,
+          note,
+          isVideo: attachment.type === "video",
+          characterName
+        })
+      );
+  }
+
+  const textParts = [];
 
   if (
     message.text
       ?.trim()
   ) {
-
     textParts.push(
       message.text.trim()
     );
-
   }
 
+  const sensory =
+    frameSensoryInput({
+      type: attachment.type,
+      characterName,
+      sight,
+      sound,
+      note,
+      unavailable
+    });
 
-  if (note) {
-
-    textParts.push(
-      `Scene clarification: ${note}`
-    );
-
+  if (sensory) {
+    textParts.push(sensory);
   }
 
-
-  if (
-    attachment.type ===
-    "audio"
-  ) {
-
-    const audioContext =
-      await analyzeAudioAttachment(
-        attachment
-      );
-
-
-    if (audioContext) {
-
-      textParts.push(
-        `Audible scene context:\n${audioContext}`
-      );
-
-    }
-
-    else if (
-      attachment.mediaUnavailable
-    ) {
-
-      textParts.push(
-        "An audio event belongs to the current scene, but its stored media is unavailable on this device. Rely on the user's Scene clarification and established context."
-      );
-
-    }
-
-    else {
-
-      textParts.push(
-        "An audio event is occurring in the current scene. React conservatively using the user's clarification and established context; do not invent exact words or sounds."
-      );
-
-    }
-
-  }
-
-
-  if (
-    attachment.type ===
-    "video"
-  ) {
-
-    const audibleContext =
-      await transcribeMediaAttachment(
-        attachment
-      );
-
-
-    if (audibleContext) {
-
-      textParts.push(
-        `Audible context during the current event:\n${audibleContext}`
-      );
-
-    }
-
-
-    if (
-      attachment.frames.length
-    ) {
-
-      textParts.push(
-        "The following visual moments are sampled in chronological order from one continuous event. Infer motion conservatively from changes between them."
-      );
-
-    }
-
-    else if (
-      attachment.mediaUnavailable
-    ) {
-
-      textParts.push(
-        "A video event belongs to the current scene, but its stored media is unavailable on this device. Rely on the user's Scene clarification and established context."
-      );
-
-    }
-
-  }
-
-
-  if (
-    !textParts.length
-  ) {
-
+  if (!textParts.length) {
     textParts.push(
       "React naturally to what is happening right now."
     );
-
   }
 
-
-  content.push({
-    type:
-      "input_text",
-    text:
-      textParts.join(
-        "\n\n"
-      )
-  });
-
-
-  if (
-    attachment.type ===
-    "image"
-  ) {
-
-    content.push({
+  const content = [
+    {
       type:
-        "input_image",
-      image_url:
-        attachment.dataUrl,
-      detail:
-        "high"
-    });
+        "input_text",
+      text:
+        textParts.join(
+          "\n\n"
+        )
+    }
+  ];
 
-  }
-
-
-  if (
-    attachment.type ===
-    "video"
-  ) {
-
-    for (
-      const frame of
-      attachment.frames
-    ) {
-
+  if (CHAT_MODEL_SEES) {
+    for (const picture of pictures) {
       content.push({
         type:
           "input_image",
         image_url:
-          frame,
+          picture,
         detail:
           "high"
       });
-
     }
-
   }
-
 
   return {
     role:
       "user",
     content
   };
-
 }
 
 
@@ -3217,6 +3218,31 @@ ${groupContinuation
         });
 
 
+      // The latest message brings a sound, photo or video into the scene:
+      // remind the model, last, to react to it as something perceived live.
+      const latestUserMessage =
+        [...messages]
+          .reverse()
+          .find(message => message?.sender === "user");
+
+      const latestMediaType =
+        normalizeAttachment(
+          latestUserMessage?.attachment
+        )?.type ||
+        "";
+
+      const sensesRules =
+        latestMediaType
+          ? "\n\n" +
+            buildSensesRules({
+              characterName:
+                character.name,
+              type:
+                latestMediaType
+            })
+          : "";
+
+
       const instructions =
         (compactPrompt
           ? compactInstructions
@@ -3245,7 +3271,8 @@ ${groupContinuation
         "\n\n" +
         buildCoreRoleplayRules(
           character.name
-        );
+        ) +
+        sensesRules;
 
 
       const rawInput =
@@ -3263,7 +3290,11 @@ ${groupContinuation
 
             )
             .map(
-              buildChatInputMessage
+              message =>
+                buildChatInputMessage(
+                  message,
+                  character
+                )
             )
 
         );
