@@ -419,7 +419,7 @@ export function normalizeReplyLength(value) {
   return REPLY_LENGTHS.includes(value) ? value : "auto";
 }
 
-const LENGTH_TOKEN_CAPS = { short: 320, medium: 650, auto: 900 };
+const LENGTH_TOKEN_CAPS = { short: 260, medium: 480, auto: 600 };
 
 export function capTokensForLength(maxTokens, replyLength) {
   const cap = LENGTH_TOKEN_CAPS[normalizeReplyLength(replyLength)];
@@ -441,7 +441,7 @@ export function buildLengthRules({ characterName, replyLength, lastUserMessage =
     auto:
       `- Decide the length from WHO ${name} is. If they are known (canon) or written as terse, cold, arrogant, laconic, stoic or a person of few words, most replies must be SHORT: a brief action and one or two cutting lines. If they are chatty, energetic or dramatic by nature, they may talk more — but still keep casual replies to a few sentences.
 - Mirror the user: short messages get short replies.${userWords && userWords <= 12 ? " The user's last message was short, so answer briefly." : ""} Only big moments (a fight, a reveal, an emotional turning point) earn a longer reply.
-- Casual replies stay under about 120 words.`
+- Casual replies stay under about 80 words.`
   };
 
   return `
@@ -451,4 +451,68 @@ ${byLength[length]}
 - Say each idea once. Do not restate the same threat, boast, feeling or description twice in one reply, and do not repeat what ${name} already said in earlier replies.
 - Stop as soon as the point is made. No summaries, no extra closing lines.
   `.trim();
+}
+
+// ---------------------------------------------------------------------------
+// Character lock: the very last block of the system prompt, where models pay
+// the most attention. It restates WHO is talking and HOW they talk (from the
+// canon voice card when there is one), a hard length budget, and tells the
+// model not to copy its own earlier replies if they drifted.
+// ---------------------------------------------------------------------------
+const WORD_BUDGETS = {
+  short: "under 50 words",
+  medium: "under 110 words",
+  long: "under 250 words",
+  auto: "as short as the real character would be — usually under 80 words; only a truly big moment may reach 160"
+};
+
+export function guessLanguage(text) {
+  const value = String(text || "").toLowerCase();
+  if (/[ñ¿¡]|[áéíóú]/.test(value)) return "es";
+  const es = (value.match(/\b(que|qué|de|el|la|los|las|y|pero|como|estoy|eres|tú|yo|por|para|no|sí|hola|bien)\b/g) || []).length;
+  const en = (value.match(/\b(the|you|and|is|are|i|what|but|how|my|your|to|of|hello|yes)\b/g) || []).length;
+  return es > en ? "es" : "en";
+}
+
+export function buildCharacterLock({ characterName, card = null, replyLength = "auto", language = "en" }) {
+  const name = String(characterName || "the character").trim();
+  const budget = WORD_BUDGETS[normalizeReplyLength(replyLength)];
+  const samples = (card?.samples?.[language === "es" ? "es" : "en"] || []).slice(0, 3);
+  const canon = card
+    ? [
+        card.voice ? `- How ${name} talks: ${card.voice}` : "",
+        card.attitude ? `- Attitude: ${card.attitude}` : "",
+        card.never ? `- ${name} would NEVER: ${card.never}` : "",
+        samples.length ? `- ${name}'s real voice sounds like this (style only, never copy):\n${samples.map(line => `    ${line}`).join("\n")}` : ""
+      ].filter(Boolean).join("\n")
+    : `- Talk exactly the way ${name} talks in their story or profile: their words, rhythm, attitude and flaws.`;
+
+  return `
+CHARACTER LOCK — YOU ARE ${name.toUpperCase()}. STAY ${name.toUpperCase()}.
+${canon}
+- LENGTH: ${budget}. Stop as soon as ${name} has said or done their one thing.
+- DIALOGUE FIRST: most of the reply is ${name}'s own spoken words. At most two short **action** beats (one line each). No paragraphs of scenery, inner thoughts or feelings explained.
+- Do not copy the length, style or phrases of your earlier replies in this chat. If they drifted (too long, too poetic, too polite, too generic), snap back to ${name}'s real voice now.
+- If a line would sound like any generic anime/movie character instead of ${name}, rewrite it as ${name} would actually say it.
+  `.trim();
+}
+
+// A reply cut off by the token limit ends mid-sentence. Trim it back to the
+// last complete sentence or closed **action** (keeping at least 40% of it);
+// otherwise end it with an ellipsis.
+export function trimToCompleteSentence(text) {
+  const value = String(text || "").replace(/\s+$/, "");
+  if (!value) return value;
+  const openActions = (value.match(/\*\*/g) || []).length % 2 === 1;
+  if (!openActions && /[.!?…~"”»)\]]$|\*\*$/.test(value)) return value;
+  let cut = -1;
+  const pattern = /[.!?…](?:["”»)\]~]*)(?=\s|$)|\*\*(?=\s|$)/g;
+  let match;
+  while ((match = pattern.exec(value))) {
+    const end = match.index + match[0].length;
+    const head = value.slice(0, end);
+    if ((head.match(/\*\*/g) || []).length % 2 === 0) cut = end;
+  }
+  if (cut >= value.length * 0.4) return value.slice(0, cut).trim();
+  return (openActions ? value + "…**" : value + "…");
 }
