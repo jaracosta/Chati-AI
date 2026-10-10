@@ -20,13 +20,38 @@ const USER_TURN_PATTERNS = [
   /^#{2,}\s*(?:instruction|input|user|response|human)/i
 ];
 
+// Roleplay-tuned models were trained on scraped roleplay sites and
+// sometimes "remember" a page footer after the reply: signatures, "posted
+// on", copyright, site menus. A line like this ends the reply. Every pattern
+// must be recognisable from the first ~18 characters of the line.
+const JUNK_LINE_PATTERNS = [
+  /^-{2,}\s*[a-z0-9]/i,
+  /^(?:event|post|story|thread|roleplay|entry)\s+(?:was\s+)?(?:originally\s+)?(?:posted|recorded|written|created)/i,
+  /^(?:originally\s+posted|recorded\s+by|posted\s+by|written\s+by|source\s*:|author\s*:)/i,
+  /^roleplay\s+(?:source|gateway|repository)/i,
+  /^events?\s+can\s+be\s+sh/i,
+  /^private\s+events?\s/i,
+  /^copyright\b/i,
+  /^all\s+rights\s+reserved/i,
+  /^(?:\(c\)|©)\s*\d{4}/i,
+  /^about\s+us\s*\|/i,
+  /^(?:have\s+fun\s+creating|your\s+voice\s+matters|share\s+your\s+feedback|don'?t\s+forget\s+to\s+(?:connect|subscribe|like|follow))/i,
+  /^(?:https?:\/\/|www\.)/i,
+  /\b(?:roleplay\s+gateway|character\s+hub\s+inc|chub\.ai|janitorai\.com)\b/i
+];
+
+function isJunkLine(line) {
+  const text = String(line || "").trim().replace(/^[*_"“]+/, "").trim();
+  return JUNK_LINE_PATTERNS.some(pattern => pattern.test(text));
+}
+
 // How many characters of a line we need before we can tell it is not a
 // user-turn header. Headers are short ("Usuario:", "### Instruction").
 const DECIDE_AFTER = 18;
 
 function isUserTurnLine(line) {
   const text = String(line || "").trim().replace(/^[*_"“]+/, "").trim();
-  return USER_TURN_PATTERNS.some(pattern => pattern.test(text));
+  return USER_TURN_PATTERNS.some(pattern => pattern.test(text)) || isJunkLine(text);
 }
 
 function makeOwnNamePrefix(characterName) {

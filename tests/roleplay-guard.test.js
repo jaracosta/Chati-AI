@@ -143,3 +143,18 @@ test('core rules fix the "You" perspective and ask for the canon voice', async (
   assert.match(rules, /canon wins/);
   assert.match(rules, /you'll remember this day/);
 });
+
+test('cuts scraped-site footers the model sometimes appends', () => {
+  const reply = '**Subaru blinks repeatedly, alive and uninjured once again.**\n\n--ffng unknown\n\nEvent originally posted on Roleplay Gateway, recorded by source HorizonFire23.\n\nRoleplay Sourcebook Entry: Subaru Natsuki\n\nAbout Us | Legal | Contact\n\n(c) 2023 Character Hub Inc., Roleplay Gateway';
+  assert.equal(cleanRoleplayReply(reply, 'Subaru Natsuki'), '**Subaru blinks repeatedly, alive and uninjured once again.**');
+  const streamed = stream(reply, 'Subaru Natsuki', 4);
+  assert.equal(streamed.stopped, true);
+  assert.equal(streamed.text.trim(), '**Subaru blinks repeatedly, alive and uninjured once again.**');
+  for (const footer of ['Copyright information may vary.', 'Have fun creating and connect!', 'Your Voice Matters! Share it.', 'https://example.com/post/1', 'Originally posted by someone']) {
+    assert.equal(cleanRoleplayReply('Hola.\n' + footer, 'Luna'), 'Hola.');
+  }
+  // Normal lines that only look similar stay.
+  for (const line of ['Event horizons scare me.', 'Copy that, I am on my way.', 'About us? We are a team.']) {
+    assert.equal(cleanRoleplayReply('Hola.\n' + line, 'Luna'), 'Hola.\n' + line);
+  }
+});
