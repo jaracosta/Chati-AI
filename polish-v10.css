@@ -59,6 +59,45 @@
   50% { transform: translateY(-8px); }
 }
 
+/* The first-visit splash plays while the app's scripts load, when the main
+   thread is busy. Blur/brightness (filter) animations run on that thread and
+   froze there, so the splash animates only transform and opacity, which the
+   browser animates on its own (it keeps moving while scripts load). */
+.cinematic-splash-stage {
+  animation-name: v10-stage-enter !important;
+  will-change: transform, opacity;
+}
+
+.cinematic-splash-monogram,
+.cinematic-splash-sweep,
+.cinematic-splash-ray {
+  display: none !important;
+}
+
+.cinematic-splash.is-leaving {
+  filter: none !important;
+}
+
+.cinematic-splash-wordmark {
+  animation: v10-word-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both !important;
+  filter: none !important;
+}
+
+@keyframes v10-word-in {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.v10-splash-robot,
+.v10-splash-dots span {
+  will-change: transform, opacity;
+}
+
+@keyframes v10-stage-enter {
+  0% { opacity: 0; transform: translateY(calc(-1vh + 12px)) scale(0.94); }
+  100% { opacity: 1; transform: translateY(-1vh) scale(0.965); }
+}
+
 @keyframes v10-dot {
   0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
   40% { opacity: 1; transform: scale(1.15); }

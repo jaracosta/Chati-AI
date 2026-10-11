@@ -1,0 +1,95 @@
+/* CHATI-AI V15 — desktop Home.
+   - The purple glow lived on #homeView, which sits inside the padded main
+     area, so it showed as a hard-edged box. It now lights the whole area.
+   - Home content is centred with a comfortable maximum width instead of
+     stretching across very wide screens.
+   - "Your characters" and Explore share the same card size, and a
+     "New character" tile keeps a short list from looking empty. */
+
+@media (min-width: 1024px) {
+  .main-content {
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 0%, rgba(139, 92, 246, 0.12), transparent 70%),
+      radial-gradient(ellipse 50% 35% at 100% 15%, rgba(99, 102, 241, 0.08), transparent 70%);
+  }
+
+  #homeView {
+    width: 100%;
+    max-width: 1320px;
+    margin-left: auto;
+    margin-right: auto;
+    background: none !important;
+  }
+
+  #homeView .top-bar h2 {
+    font-size: 30px;
+    letter-spacing: -0.01em;
+  }
+
+  #homeView .characters-grid,
+  #homeView .v8-explore-row {
+    grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+    gap: 18px;
+  }
+
+  #homeView .character-card {
+    max-width: none;
+  }
+
+  .v9-hero {
+    min-height: 210px;
+  }
+}
+
+/* The "New character" tile at the end of "Your characters". */
+.v15-create-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  aspect-ratio: 3 / 4;
+  width: 100%;
+  padding: 16px;
+  color: #c9c2e6;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  border: 1.5px dashed rgba(167, 139, 250, 0.35);
+  border-radius: 18px;
+  background: rgba(139, 92, 246, 0.05);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.v15-create-tile:hover {
+  border-color: rgba(167, 139, 250, 0.7);
+  background: rgba(139, 92, 246, 0.12);
+  transform: translateY(-2px);
+}
+
+.v15-create-tile svg {
+  width: 30px;
+  height: 30px;
+  padding: 10px;
+  box-sizing: content-box;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, 0.18);
+}
+
+html[data-chati-theme="light"] .v15-create-tile {
+  color: #5b4b8a;
+  border-color: rgba(124, 58, 237, 0.3);
+  background: rgba(124, 58, 237, 0.04);
+}
+
+@media (max-width: 760px) {
+  .v15-create-tile {
+    display: none;
+  }
+}
