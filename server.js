@@ -34,6 +34,7 @@ import {
   recentOpenings,
   estimateTokens,
   buildCharacterLock,
+  buildEarlierChatSection,
   guessLanguage,
   trimToCompleteSentence
 } from "./roleplay-guard.js";
@@ -822,6 +823,7 @@ const PUBLIC_ROOT_FILES =
     "extras-v12.js",
     "canon-voice.css",
     "canon-voice.js",
+    "chat-recall.js",
     "character-voice.css",
     "character-voice.js",
     "script.js",
@@ -2319,24 +2321,26 @@ ${bullets(clean.unresolvedThreads)}
 // =========================
 
 function formatExamples(
-  examples
+  examples,
+  characterName = "Character"
 ) {
 
-  const valid =
-    examples.filter(
-
-      example =>
-        example &&
-        (
-          example.user ||
-          example.character
-        )
-
-    );
+  // Only the character's own lines: these show HOW they talk. (Older
+  // characters also stored a user line; it is ignored.)
+  const lines =
+    (Array.isArray(examples) ? examples : [])
+      .map(example =>
+        String(
+          typeof example === "string"
+            ? example
+            : example?.character || ""
+        ).trim()
+      )
+      .filter(Boolean);
 
 
   if (
-    !valid.length
+    !lines.length
   ) {
 
     return (
@@ -2346,27 +2350,8 @@ function formatExamples(
   }
 
 
-  return valid
-    .map(
-
-      (
-        example,
-        index
-      ) => {
-
-        return `
-Example ${index + 1}
-
-User:
-${example.user || ""}
-
-Character:
-${example.character || ""}
-        `.trim();
-
-      }
-
-    )
+  return lines
+    .map(line => `${characterName}: ${line}`)
     .join(
       "\n\n"
     );
@@ -2946,7 +2931,7 @@ EXAMPLE MESSAGES
 Use these only as style and behavior examples.
 Do not copy them mechanically unless the current scene naturally calls for similar wording.
 
-${formatExamples(character.exampleMessages)}
+${formatExamples(character.exampleMessages, character.name)}
 
 
 MEMORY OF THIS CHAT ONLY
@@ -3167,7 +3152,7 @@ POWERS & ABILITIES
 ${formatPowers(character)}
 
 STYLE EXAMPLES (style only, do not copy)
-${formatExamples(character.exampleMessages)}
+${formatExamples(character.exampleMessages, character.name)}
 
 MEMORY OF THIS CHAT
 ${formatMemoryForPrompt(memory)}
@@ -3252,10 +3237,21 @@ ${groupContinuation
           : "";
 
 
+      const earlierChatSection =
+        buildEarlierChatSection({
+          characterName:
+            character.name,
+          earlierChat:
+            req.body.earlierChat
+        });
+
       const instructions =
         (compactPrompt
           ? compactInstructions
           : fullInstructions) +
+        (earlierChatSection
+          ? "\n\n" + earlierChatSection
+          : "") +
         "\n\n" +
         voiceRules +
         (canonCard
@@ -3296,7 +3292,9 @@ ${groupContinuation
             guessLanguage(
               latestUserMessage?.text ||
               ""
-            )
+            ),
+          examples:
+            character.exampleMessages
         });
 
 
@@ -4110,7 +4108,9 @@ RULES
 
 - Preserve important older information unless new messages clearly update it.
 
-- Keep the story summary compact but useful.
+- summary is the story so far IN ORDER, from how the chat began to now. Never drop the beginning: when it gets long, shorten older parts to one line each instead of deleting them. Keep the first meeting, how the user was introduced, and every turning point.
+- importantFacts must keep, permanently, everything the user has said about themselves or their character (name, age, looks, job, likes and dislikes, family, past, goals, secrets) and every promise, deal, gift, nickname or inside joke between them and the character. Never remove these unless the user changes them.
+- Keep the story summary under about 350 words.
 
 - Track the current location and immediate situation in currentScene.
 

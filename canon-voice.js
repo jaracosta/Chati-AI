@@ -9,12 +9,15 @@
   const STORE_KEY = "chatiCanonV1";
   const ORIGINAL = "ORIGINAL";
   const RETRY_AFTER = 10 * 60 * 1000;
+  // Must match CARD_VERSION in canon-profile.js.
+  const CARD_VERSION = "v2";
   const t = text => window.ChatiI18n?.t?.(text) ?? text;
   const es = () => window.ChatiI18n?.lang === "es";
 
   // Must match canonFingerprint() in canon-profile.js.
   function fingerprint(character = {}) {
     const text = [
+      CARD_VERSION,
       character.name,
       String(character.bio || character.description || "").slice(0, 600),
       String(character.personality || "").slice(0, 600)
