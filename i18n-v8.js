@@ -43,6 +43,7 @@
     "No chats yet": "Aún no hay chats",
     "Go to chats": "Ir a chats",
     "Close": "Cerrar",
+    "New character": "Nuevo personaje",
     "Sound": "Sonido",
     "Play sound": "Reproducir sonido",
     "Unavailable": "No disponible",

@@ -824,6 +824,8 @@ const PUBLIC_ROOT_FILES =
     "canon-voice.css",
     "canon-voice.js",
     "chat-recall.js",
+    "home-v15.css",
+    "home-v15.js",
     "character-voice.css",
     "character-voice.js",
     "script.js",
@@ -972,6 +974,27 @@ app.use(
             path.basename(
               filePath
             );
+
+
+          // Files requested with ?v=… (and pinned vendor files) never change
+          // under the same URL, so browsers can keep them for a year
+          // instead of re-checking every hour.
+          if (
+            IS_PRODUCTION &&
+            (
+              res.req?.query?.v ||
+              filePath.includes(
+                `${path.sep}assets${path.sep}vendor${path.sep}`
+              )
+            )
+          ) {
+
+            res.setHeader(
+              "Cache-Control",
+              "public, max-age=31536000, immutable"
+            );
+
+          }
 
 
           if (
