@@ -9323,3 +9323,8 @@ html.splash-skip body.splash-active .app {
 
 }
 
+
+/* Example messages are only the character's lines: one full-width box. */
+.example-grid.single {
+  grid-template-columns: 1fr;
+}

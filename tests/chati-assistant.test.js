@@ -20,7 +20,7 @@ test('splits the reply text from the character block and sanitizes it', () => {
       name: 'Satoru Gojo', pronouns: 'he', bio: 'El hechicero más fuerte.',
       appearance: { physical: 'Cabello blanco, ojos azules' },
       personality: 'Arrogante y bromista.',
-      exampleMessages: [{ user: 'Hola', character: '**Sonríe.** Yo~' }, { user: '', character: 'x' }],
+      exampleMessages: ['**Sonríe.** Yo~', { user: 'Hola', character: 'Relájate.' }, { user: 'x', character: '' }],
       sources: ['https://jujutsu-kaisen.fandom.com/wiki/Satoru_Gojo', 'javascript:alert(1)']
     }),
     '```'
@@ -30,7 +30,7 @@ test('splits the reply text from the character block and sanitizes it', () => {
   assert.equal(draft.name, 'Satoru Gojo');
   assert.equal(draft.pronouns, 'HE');
   assert.equal(draft.appearance.maintainContinuity, true);
-  assert.equal(draft.exampleMessages.length, 1, 'incomplete examples are dropped');
+  assert.deepEqual(draft.exampleMessages, [{ user: '', character: '**Sonríe.** Yo~' }, { user: '', character: 'Relájate.' }], 'only character lines are kept');
   assert.deepEqual(draft.sources, ['https://jujutsu-kaisen.fandom.com/wiki/Satoru_Gojo']);
 });
 

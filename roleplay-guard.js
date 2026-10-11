@@ -474,22 +474,30 @@ export function guessLanguage(text) {
   return es > en ? "es" : "en";
 }
 
-export function buildCharacterLock({ characterName, card = null, replyLength = "auto", language = "en" }) {
+export function buildCharacterLock({ characterName, card = null, replyLength = "auto", language = "en", examples = [] }) {
   const name = String(characterName || "the character").trim();
   const budget = WORD_BUDGETS[normalizeReplyLength(replyLength)];
-  const samples = (card?.samples?.[language === "es" ? "es" : "en"] || []).slice(0, 3);
-  const canon = card
-    ? [
-        card.voice ? `- How ${name} talks: ${card.voice}` : "",
-        card.attitude ? `- Attitude: ${card.attitude}` : "",
-        card.never ? `- ${name} would NEVER: ${card.never}` : "",
-        samples.length ? `- ${name}'s real voice sounds like this (style only, never copy):\n${samples.map(line => `    ${line}`).join("\n")}` : ""
-      ].filter(Boolean).join("\n")
-    : `- Talk exactly the way ${name} talks in their story or profile: their words, rhythm, attitude and flaws.`;
+  const samples = card?.samples?.[language === "es" ? "es" : "en"] || [];
+  // Lines the creator wrote in the editor (only the character's own words).
+  const creatorLines = (Array.isArray(examples) ? examples : [])
+    .map(example => String(typeof example === "string" ? example : example?.character || "").replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(line => (line.length > 300 ? line.slice(0, 299) + "…" : line));
+  const quotes = (card?.quotes || []).slice(0, 2);
+  const voiceLines = [...quotes, ...samples.slice(0, 2), ...creatorLines].slice(0, 5);
+  const canon = [
+    card?.voice ? `- How ${name} talks: ${card.voice}` : `- Talk exactly the way ${name} talks in their story or profile: their words, rhythm, attitude and flaws.`,
+    card?.attitude ? `- Attitude: ${card.attitude}` : "",
+    card?.never ? `- ${name} would NEVER: ${card.never}` : "",
+    voiceLines.length ? `- ${name}'s real voice sounds like this (style only, never copy):\n${voiceLines.map(line => `    ${line}`).join("\n")}` : ""
+  ].filter(Boolean).join("\n");
 
   return `
 CHARACTER LOCK — YOU ARE ${name.toUpperCase()}. STAY ${name.toUpperCase()}.
 ${canon}
+- REACT AS ${name.toUpperCase()}, NOT AS A HELPER: ${name} has their own goals, mood, pride and opinions. They may tease, refuse, argue, lie, ignore a question, get annoyed or change the subject — whatever ${name} would really do. Never sound like a polite assistant: no offering help, no "how can I help you?", no apologising or explaining feelings unless ${name} truly would.
+- ${name} only knows what ${name} would know in their world; they treat the user according to how well they know them so far.
 - LENGTH: ${budget}. Stop as soon as ${name} has said or done their one thing.
 - DIALOGUE FIRST: most of the reply is ${name}'s own spoken words. At most two short **action** beats (one line each). No paragraphs of scenery, inner thoughts or feelings explained.
 - Do not copy the length, style or phrases of your earlier replies in this chat. If they drifted (too long, too poetic, too polite, too generic), snap back to ${name}'s real voice now.
@@ -515,4 +523,28 @@ export function trimToCompleteSentence(text) {
   }
   if (cut >= value.length * 0.4) return value.slice(0, cut).trim();
   return (openActions ? value + "…**" : value + "…");
+}
+
+// Parts of a long chat that are older than the recent messages the model
+// sees (chat-recall.js picks them in the browser): how the story began and
+// older lines related to what the user just said.
+export function buildEarlierChatSection({ characterName = "the character", earlierChat } = {}) {
+  const name = String(characterName || "the character").trim();
+  const clean = list => (Array.isArray(list) ? list : [])
+    .slice(0, 8)
+    .map(item => ({
+      who: item?.sender === "user" ? "User" : name,
+      text: String(item?.text || "").replace(/\s+/g, " ").trim().slice(0, 700)
+    }))
+    .filter(item => item.text);
+  const opening = clean(earlierChat?.opening);
+  const recall = clean(earlierChat?.recall);
+  if (!opening.length && !recall.length) return "";
+  const block = items => items.map(item => `${item.who}: ${item.text}`).join("\n");
+  return [
+    "EARLIER IN THIS CHAT (real messages from before the recent ones — this all happened; remember it)",
+    opening.length ? "How this chat began:\n" + block(opening) : "",
+    recall.length ? "Earlier lines related to what the user just said:\n" + block(recall) : "",
+    `- ${name} remembers these moments the way a person remembers them: bring them up naturally when they matter (\"you said…\", \"like that time…\"). Never say you forgot something written here, and never contradict it.`
+  ].filter(Boolean).join("\n\n");
 }

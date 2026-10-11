@@ -128,9 +128,7 @@ When you have enough information, give a 1-2 sentence summary and then output EX
   "scenario": "",
   "instructions": "",
   "replyLength": "auto | short | medium | long",
-  "exampleMessages": [
-    { "user": "", "character": "" }
-  ],
+  "exampleMessages": ["", ""],
   "hasPowers": false,
   "powerSystem": "",
   "combatStyle": "",
@@ -146,7 +144,7 @@ Field guidance:
 - scenario: an engaging starting situation that involves the user ("you"), true to the character's world.
 - replyLength: how much the character talks. "short" for terse, cold, stoic or few-words characters (e.g. Sukuna, Levi, Zoro); "long" only for very talkative, dramatic characters; "medium" for most others; "auto" if unsure.
 - instructions: 3-6 short rules for the bot (stay in character, speech quirks, what they would never do). Never tell the bot to control the user.
-- exampleMessages: 2-3 examples. Character replies use **actions between double asterisks** and spoken dialogue outside them, in the character's real voice.
+- exampleMessages: 3 short lines the CHARACTER says (no user lines), in their real voice: e.g. a greeting, a reaction when teased, something in a tense moment. Use **actions between double asterisks** and spoken dialogue outside them.
 - Powers only if the character really has them; include real limits/costs.
 - Keep each text field under ~1200 characters.
 - The user can ask for changes; output a new complete block each time.
@@ -200,8 +198,9 @@ export function sanitizeCharacterDraft(raw) {
     replyLength: ["auto", "short", "medium", "long"].includes(raw.replyLength) ? raw.replyLength : "auto",
     exampleMessages: examples
       .slice(0, 5)
-      .map(example => ({ user: text(example?.user, 800), character: text(example?.character, 1500) }))
-      .filter(example => example.user && example.character),
+      // Only the character's lines (older drafts had {user, character}).
+      .map(example => ({ user: "", character: text(typeof example === "string" ? example : example?.character, 1500) }))
+      .filter(example => example.character),
     hasPowers: Boolean(raw.hasPowers),
     powerSystem: text(raw.powerSystem, 500),
     combatStyle: text(raw.combatStyle, 500),

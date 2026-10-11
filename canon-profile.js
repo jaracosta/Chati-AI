@@ -14,10 +14,14 @@ const CACHE_LIMIT = 300;
 
 export const ORIGINAL_MARKER = "ORIGINAL";
 
+// Bump when the card format changes, so every character gets a new card.
+const CARD_VERSION = "v2";
+
 // Same character sheet → same card. Changing the name, bio or personality
 // in the editor gives a new fingerprint, so the card is rebuilt.
 export function canonFingerprint(character = {}) {
   const text = [
+    CARD_VERSION,
     character.name,
     String(character.bio || character.description || "").slice(0, 600),
     String(character.personality || "").slice(0, 600)
@@ -45,13 +49,14 @@ You are an expert on anime, manga, games, TV series, films and books. You write 
 
 First decide: is "${name}" an existing character from a published work (as the sheet below describes them)? If they are an original character someone made up, or you cannot identify them with confidence, reply with exactly: ${ORIGINAL_MARKER}
 
-Otherwise write the card. Be specific to THIS character, never generic. Facts must be canon (search the web if unsure). Use this exact format, in English except where noted, at most about 450 words:
+Otherwise write the card. Be specific to THIS character, never generic. Facts must be canon (search the web if unsure). Use this exact format, in English except where noted, at most about 520 words:
 
 SOURCE: the work, and which point of the story this version is from (follow the sheet; otherwise their most iconic period).
 WHO: 2-3 lines — who they are and what drives them.
 VOICE: how they really talk — register, sentence length and rhythm, how they refer to themselves and address others (nicknames, honorifics), verbal tics, laugh, humour, swearing or not, how much they talk. Mention what makes their dialogue instantly recognisable.
 ATTITUDE: how they treat strangers, friends/allies, enemies, and someone they like or tease.
 SIGNATURE: their real catchphrases or iconic lines (they use these rarely, at the right moment).
+REAL QUOTES: 3-5 short lines ${name} really says in the work (exact wording when you know it, in the original or official translation), each on its own line starting with "- ". These show how they truly sound.
 NEVER: 4-6 things this character would never say or do (common out-of-character mistakes).
 KNOWS: key people, places, powers and events they would naturally reference — and what they would not know.
 SAMPLE LINES (EN): 6 short everyday lines in their exact voice: a greeting, being teased, being challenged, comforting someone, being bored, being complimented. One or two sentences each, with a short **action** where it fits.
@@ -145,7 +150,7 @@ export function createCanonProfileStore({ generate, limit = CACHE_LIMIT } = {}) 
 export function parseCanonCard(card) {
   const text = sanitizeCanonProfile(card);
   if (!text) return null;
-  const labels = ["SOURCE", "WHO", "VOICE", "ATTITUDE", "SIGNATURE", "NEVER", "KNOWS", "SAMPLE LINES \\(EN\\)", "SAMPLE LINES \\(ES\\)"];
+  const labels = ["SOURCE", "WHO", "VOICE", "ATTITUDE", "SIGNATURE", "REAL QUOTES", "NEVER", "KNOWS", "SAMPLE LINES \\(EN\\)", "SAMPLE LINES \\(ES\\)"];
   const section = label => {
     const others = labels.filter(other => other !== label).join("|");
     const match = text.match(new RegExp("(?:^|\\n)\\s*\\**" + label + "\\**\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*\\**(?:" + others + ")\\**\\s*:|$)", "i"));
@@ -159,6 +164,7 @@ export function parseCanonCard(card) {
     voice: section("VOICE"),
     attitude: section("ATTITUDE"),
     never: section("NEVER"),
+    quotes: lines(section("REAL QUOTES")),
     samples: {
       en: lines(section("SAMPLE LINES \\(EN\\)")),
       es: lines(section("SAMPLE LINES \\(ES\\)"))

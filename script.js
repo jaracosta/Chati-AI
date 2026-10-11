@@ -4962,22 +4962,24 @@ function normalizeExamples(
   }
 
 
+  // Examples are only lines the character says. Older characters also had a
+  // "user message" in each example; it is dropped here, so every saved
+  // character shows and uses only its own lines.
   return value
     .map(
 
       example => ({
 
         user:
-          typeof example?.user ===
-          "string"
-            ? example.user
-            : "",
+          "",
 
         character:
-          typeof example?.character ===
-          "string"
-            ? example.character
-            : ""
+          typeof example === "string"
+            ? example.trim()
+            : typeof example?.character ===
+              "string"
+              ? example.character.trim()
+              : ""
 
       })
 
@@ -4985,7 +4987,6 @@ function normalizeExamples(
     .filter(
 
       example =>
-        example.user ||
         example.character
 
     );
@@ -6672,23 +6673,14 @@ function createExampleEditor(
       </button>
     </div>
 
-    <div class="example-grid">
+    <div class="example-grid single">
 
       <label>
-        User message
-
-        <textarea
-          class="example-user"
-          placeholder="What the user might say..."
-        ></textarea>
-      </label>
-
-      <label>
-        Character reply
+        Character message
 
         <textarea
           class="example-character"
-          placeholder="How the character should reply..."
+          placeholder="Something the character would say, in their own voice. **Actions** between asterisks."
         ></textarea>
       </label>
 
@@ -6696,13 +6688,6 @@ function createExampleEditor(
   `;
 
 
-  card
-    .querySelector(
-      ".example-user"
-    )
-    .value =
-    example.user ||
-    "";
 
 
   card
@@ -6751,12 +6736,7 @@ function collectExamples() {
       card => ({
 
         user:
-          card
-            .querySelector(
-              ".example-user"
-            )
-            .value
-            .trim(),
+          "",
 
         character:
           card
@@ -16644,18 +16624,8 @@ async function updateMemoryForChat(
       processed;
 
 
-    if (
-      !fullRebuild &&
-      processed === 0 &&
-      totalMessages >
-        MEMORY_MAX_BATCH_MESSAGES
-    ) {
-
-      start =
-        totalMessages -
-        MEMORY_MAX_BATCH_MESSAGES;
-
-    }
+    // Always start from the first message not yet remembered, so the
+    // beginning of a long chat is summarised too (in batches).
 
 
     const end =
@@ -19800,16 +19770,35 @@ async function requestCharacterReply(
   }
 
 
+  const timeline =
+    messagesOverride ||
+    getActiveMessages(
+      chat
+    );
+
   const recentMessages =
-    (
-      messagesOverride ||
-      getActiveMessages(
-        chat
-      )
-    )
+    timeline
       .slice(
         -CHAT_RECENT_LIMIT
       );
+
+  // Older parts of a long chat the model would otherwise not see: how it
+  // began, and lines related to what the user just said (chat-recall.js).
+  const historyLines =
+    timeline.map(message => {
+      const normalized = normalizeMessage(message);
+      return { sender: normalized.sender, text: getMessageText(normalized) };
+    });
+
+  const latestUserText =
+    [...historyLines].reverse().find(message => message.sender === "user")?.text || "";
+
+  const earlierChat = {
+    opening:
+      window.ChatiRecall?.opening(historyLines, recentMessages.length) || [],
+    recall:
+      window.ChatiRecall?.recall(historyLines, recentMessages.length, latestUserText) || []
+  };
 
 
   const activeMessages =
@@ -19983,7 +19972,9 @@ async function requestCharacterReply(
             matureContent:
               isMatureContentEnabled(),
 
-            groupContinuation
+            groupContinuation,
+
+            earlierChat
 
           })
       }
