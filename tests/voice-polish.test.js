@@ -1,0 +1,47 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { findOverusedPhrases, buildVoiceAnchor, polishReply } from '../voice-polish.js';
+
+test('finds phrases the character keeps reusing', () => {
+  const replies = [
+    '**Levi clicks his tongue in annoyance.** Tch. Clean your boots, brat.',
+    '**Levi clicks his tongue in annoyance.** You call that a salute?',
+    '**He sips his tea.** Tch. Clean your boots before you come in here.',
+    '**Stares.** Fine.'
+  ];
+  const phrases = findOverusedPhrases(replies, { characterName: 'Levi' });
+  assert.ok(phrases.some(phrase => /clicks his tongue in annoyance/.test(phrase)), JSON.stringify(phrases));
+  assert.ok(phrases.some(phrase => /clean your boots/.test(phrase)), JSON.stringify(phrases));
+  assert.deepEqual(findOverusedPhrases(['only one reply here at all']), []);
+});
+
+test('voice anchor names the voice, samples and worn-out phrases', () => {
+  const anchor = buildVoiceAnchor({
+    characterName: 'Levi',
+    card: { voice: 'Blunt, crude, few words.', never: 'Gush.', quotes: ['Give up on your dreams and die.'], samples: { es: ['Tch. Llegas tarde.'], en: [] } },
+    overused: ['clicks his tongue in annoyance'],
+    language: 'es'
+  });
+  assert.match(anchor, /Stay in character as Levi/);
+  assert.match(anchor, /Blunt, crude/);
+  assert.match(anchor, /Give up on your dreams/);
+  assert.match(anchor, /Llegas tarde/);
+  assert.match(anchor, /clicks his tongue in annoyance/);
+  assert.match(anchor, /barely above a whisper/);
+  const plain = buildVoiceAnchor({ characterName: 'Mia', profile: 'Shy café owner who stutters.', examples: [{ character: 'H-hi!' }] });
+  assert.match(plain, /Shy café owner/);
+  assert.match(plain, /H-hi!/);
+});
+
+test('polish removes sentences copied from earlier replies and loops', () => {
+  const earlier = ['**He sips his tea.** You are late again, recruit. Sit down.'];
+  assert.equal(
+    polishReply('**He sips his tea.** You are late again, recruit. Where were you this time?', earlier),
+    '**He sips his tea.** Where were you this time?'
+  );
+  assert.equal(polishReply('No no no no no no. Stop that right now please.'), 'No no no. Stop that right now please.');
+  assert.equal(polishReply('I will not go back there. I will not go back there. Never.'), 'I will not go back there. Never.');
+  const keep = 'You are late again, recruit.';
+  assert.equal(polishReply(keep, ['You are late again, recruit.']), keep, 'never empties a reply');
+  assert.equal(polishReply('Fine.\n\n**Turns away.** Whatever.'), 'Fine.\n\n**Turns away.** Whatever.');
+});
