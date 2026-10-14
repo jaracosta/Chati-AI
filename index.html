@@ -3260,6 +3260,29 @@
   ========================== -->
   <!-- Pinned copy served by Chati (was the unversioned CDN "@2"). -->
   <script src="assets/vendor/supabase-js-2.117.3.js"></script>
+  <!-- Some phones' browsers can't run the newest build (accounts showed as
+       "unavailable"). If it did not load, or can't create a client, load an
+       older, more compatible build before the account scripts run. -->
+  <script>
+    (function () {
+      var works = false;
+      try {
+        works = Boolean(
+          window.supabase &&
+          typeof window.supabase.createClient === "function" &&
+          window.supabase.createClient("https://example.supabase.co", "public-anon-key", {
+            auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+          })
+        );
+      } catch (error) {
+        works = false;
+      }
+      if (!works) {
+        window.supabase = undefined;
+        document.write('<script src="assets/vendor/supabase-js-2.45.4.js"><\/script>');
+      }
+    })();
+  </script>
   <script src="supabase-auth-v4.js?v=4.0.7.3"></script>
   <script src="account-profile-v6.js?v=6.2.3"></script>
 
