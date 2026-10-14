@@ -13959,6 +13959,34 @@ function openChat(
 //   She smiles. "Hello."
 // In that case everything outside the quotes is action/narration, so show it
 // with the action style. Replies that already use asterisks are untouched.
+// Removes the quotation marks that wrap speech in one stretch of text
+// between *actions*, leaving quotes inside a sentence ("a 'word' like
+// this") alone.
+function stripSpeechQuotes(segment) {
+
+  return segment
+    .split(/(\n+)/)
+    .map(line => {
+      const quotes = (line.match(/["“”«»]/g) || []).length;
+      if (!quotes) return line;
+      const body = line.trim();
+      const opens = /^["“«]/.test(body);
+      const closes = /["”»]$/.test(body);
+      if (quotes % 2 === 0) {
+        return opens && closes
+          ? line.replace(/^(\s*)["“«]/, "$1").replace(/["”»](\s*)$/, "$1")
+          : line;
+      }
+      // An odd count: the speech continues across an action.
+      if (opens) return line.replace(/^(\s*)["“«]/, "$1");
+      if (closes) return line.replace(/["”»](\s*)$/, "$1");
+      return line;
+    })
+    .join("");
+
+}
+
+
 function normalizeRoleplayText(
   text
 ) {
@@ -13973,7 +14001,17 @@ function normalizeRoleplayText(
     value.includes("*")
   ) {
 
-    return value;
+    // Speech needs no quotation marks next to *actions* (it is already
+    // set apart): drop quotes that open or close a spoken stretch.
+    return value
+      .split(/(\*\*[\s\S]*?\*\*|\*(?!\*)[\s\S]*?\*)/)
+      .map(
+        (segment, index) =>
+          index % 2 === 1
+            ? segment
+            : stripSpeechQuotes(segment)
+      )
+      .join("");
 
   }
 

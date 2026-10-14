@@ -7,7 +7,9 @@
 // character's voice. The card goes into every roleplay prompt, where a small
 // model imitates it far better than it recalls canon on its own.
 //
-// Original characters (made up by the user) get no card: "ORIGINAL".
+// Original characters (made up by the user) get a card too, written from the
+// creator's profile, rules and example lines ("SOURCE: Original character").
+// Only a sheet that says almost nothing gets "ORIGINAL" (no card).
 
 const MAX_CARD_CHARS = 4000;
 const CACHE_LIMIT = 300;
@@ -15,7 +17,7 @@ const CACHE_LIMIT = 300;
 export const ORIGINAL_MARKER = "ORIGINAL";
 
 // Bump when the card format changes, so every character gets a new card.
-const CARD_VERSION = "v2";
+const CARD_VERSION = "v3";
 
 // Same character sheet → same card. Changing the name, bio or personality
 // in the editor gives a new fingerprint, so the card is rebuilt.
@@ -24,7 +26,8 @@ export function canonFingerprint(character = {}) {
     CARD_VERSION,
     character.name,
     String(character.bio || character.description || "").slice(0, 600),
-    String(character.personality || "").slice(0, 600)
+    String(character.personality || "").slice(0, 600),
+    String(character.instructions || "").slice(0, 400)
   ]
     .map(part => String(part || "").trim().toLowerCase().replace(/\s+/g, " "))
     .join("|");
@@ -38,26 +41,36 @@ export function canonFingerprint(character = {}) {
 
 export function buildCanonProfileMessages(character = {}) {
   const name = String(character.name || "").trim();
+  const exampleLines = (Array.isArray(character.exampleMessages) ? character.exampleMessages : [])
+    .map(example => String(typeof example === "string" ? example : example?.character || "").trim())
+    .filter(Boolean)
+    .slice(0, 4);
   const sheet = [
     character.bio || character.description ? `Description: ${String(character.bio || character.description).slice(0, 1500)}` : "",
-    character.personality ? `Personality: ${String(character.personality).slice(0, 1500)}` : "",
-    character.scenario ? `Scenario: ${String(character.scenario).slice(0, 800)}` : ""
+    character.personality ? `Personality: ${String(character.personality).slice(0, 2000)}` : "",
+    character.scenario ? `Scenario: ${String(character.scenario).slice(0, 800)}` : "",
+    character.instructions ? `Creator's rules for this character: ${String(character.instructions).slice(0, 1500)}` : "",
+    exampleLines.length ? `Lines the creator wrote for them:\n${exampleLines.map(line => `- ${line.slice(0, 400)}`).join("\n")}` : ""
   ].filter(Boolean).join("\n");
 
   const system = `
-You are an expert on anime, manga, games, TV series, films and books. You write "canon voice cards" that let a roleplay AI speak exactly like an existing fictional character.
+You are an expert on anime, manga, games, TV series, films and books, and on writing characters. You write "voice cards" that let a roleplay AI speak exactly like one specific character.
 
-First decide: is "${name}" an existing character from a published work (as the sheet below describes them)? If they are an original character someone made up, or you cannot identify them with confidence, reply with exactly: ${ORIGINAL_MARKER}
+First decide: is "${name}" an existing character from a published work (as the sheet below describes them)?
 
-Otherwise write the card. Be specific to THIS character, never generic. Facts must be canon (search the web if unsure). Use this exact format, in English except where noted, at most about 520 words:
+A) EXISTING CHARACTER: write their canon card. Facts must be canon (search the web if unsure); where the sheet adds details, include them.
+B) ORIGINAL CHARACTER (made up by the creator, or you cannot identify them with confidence): write the card FROM THE SHEET. The creator's personality, rules and lines are the truth — turn them into concrete, specific speaking and behaviour notes. Invent only small details that fit and never contradict the sheet. SOURCE must start with "Original character".
+Only if the sheet is empty or says almost nothing about who they are, reply with exactly: ${ORIGINAL_MARKER}
 
-SOURCE: the work, and which point of the story this version is from (follow the sheet; otherwise their most iconic period).
+Be specific to THIS character, never generic. Use this exact format, in English except where noted, at most about 520 words:
+
+SOURCE: the work and which point of the story this version is from — or "Original character (creator's profile)".
 WHO: 2-3 lines — who they are and what drives them.
 VOICE: how they really talk — register, sentence length and rhythm, how they refer to themselves and address others (nicknames, honorifics), verbal tics, laugh, humour, swearing or not, how much they talk. Mention what makes their dialogue instantly recognisable.
 ATTITUDE: how they treat strangers, friends/allies, enemies, and someone they like or tease.
 SIGNATURE: their real catchphrases or iconic lines (they use these rarely, at the right moment).
-REAL QUOTES: 3-5 short lines ${name} really says in the work (exact wording when you know it, in the original or official translation), each on its own line starting with "- ". These show how they truly sound.
-NEVER: 4-6 things this character would never say or do (common out-of-character mistakes).
+REAL QUOTES: 3-5 short lines ${name} really says — from the work (exact wording when you know it), or for an original character the creator's own lines — each on its own line starting with "- ". These show how they truly sound.
+NEVER: 4-6 things this character would never say or do (common out-of-character mistakes; for an original character, things that break the creator's profile).
 KNOWS: key people, places, powers and events they would naturally reference — and what they would not know.
 SAMPLE LINES (EN): 6 short everyday lines in their exact voice: a greeting, being teased, being challenged, comforting someone, being bored, being complimented. One or two sentences each, with a short **action** where it fits.
 SAMPLE LINES (ES): the same 6 lines in natural spoken Spanish (tú, not usted), keeping the voice and attitude.
@@ -67,6 +80,11 @@ SAMPLE LINES (ES): the same 6 lines in natural spoken Spanish (tú, not usted), 
     { role: "system", content: system },
     { role: "user", content: `Character: ${name}\n${sheet || "(no sheet — identify them from the name)"}` }
   ];
+}
+
+// True for a card written from the creator's profile (not from a series).
+export function isOriginalCharacterCard(card) {
+  return /^\s*\**SOURCE\**\s*:\s*original character/i.test(String(card || ""));
 }
 
 // The model's reply → a clean card, "ORIGINAL", or "" if unusable.

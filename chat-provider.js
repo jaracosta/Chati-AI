@@ -80,6 +80,10 @@ export function createChatProvider(env, openai) {
           messages,
           max_tokens: request.max_output_tokens,
           ...(request.sampling || {}),
+          // Prefer the providers that start answering soonest (OpenRouter's
+          // default leans on price). OPENROUTER_PROVIDER_SORT=price|throughput
+          // changes it; "off" leaves OpenRouter's default.
+          ...(providerSort(env) ? { provider: { sort: providerSort(env) } } : {}),
           // Stop if the model starts writing the user's turn.
           stop: ROLEPLAY_STOP_SEQUENCES,
           stream: Boolean(request.stream)
@@ -104,6 +108,11 @@ export function createChatProvider(env, openai) {
       }
     }
   };
+}
+
+function providerSort(env = {}) {
+  const value = String(env.OPENROUTER_PROVIDER_SORT || "latency").trim().toLowerCase();
+  return ["latency", "throughput", "price"].includes(value) ? value : "";
 }
 
 // Returns the JSON object text inside a model reply (handles ```json fences

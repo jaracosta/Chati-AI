@@ -62,5 +62,8 @@ test('roleplay requests name the fallback model when one is configured', async (
     assert.equal(payloads[0].model, 'sao10k/l3.3-euryale-70b');
     assert.equal(payloads[1].models, undefined);
     assert.equal(payloads[2].models, undefined);
+    assert.deepEqual(payloads[0].provider, { sort: 'latency' }, 'fastest-starting providers first');
+    await createChatProvider({ OPENROUTER_API_KEY: 'k', OPENROUTER_PROVIDER_SORT: 'off' }, {}).responses.create(request);
+    assert.equal(payloads[3].provider, undefined);
   } finally { globalThis.fetch = originalFetch; }
 });

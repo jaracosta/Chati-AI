@@ -10,7 +10,7 @@
   const ORIGINAL = "ORIGINAL";
   const RETRY_AFTER = 10 * 60 * 1000;
   // Must match CARD_VERSION in canon-profile.js.
-  const CARD_VERSION = "v2";
+  const CARD_VERSION = "v3";
   const t = text => window.ChatiI18n?.t?.(text) ?? text;
   const es = () => window.ChatiI18n?.lang === "es";
 
@@ -20,7 +20,8 @@
       CARD_VERSION,
       character.name,
       String(character.bio || character.description || "").slice(0, 600),
-      String(character.personality || "").slice(0, 600)
+      String(character.personality || "").slice(0, 600),
+      String(character.instructions || "").slice(0, 400)
     ]
       .map(part => String(part || "").trim().toLowerCase().replace(/\s+/g, " "))
       .join("|");
@@ -72,7 +73,12 @@
           name: character.name,
           bio: character.bio || character.description || "",
           personality: character.personality || "",
-          scenario: character.scenario || ""
+          scenario: character.scenario || "",
+          instructions: character.instructions || "",
+          exampleMessages: (character.exampleMessages || [])
+            .map(example => (typeof example === "string" ? example : example?.character || ""))
+            .filter(Boolean)
+            .slice(0, 4)
         }
       })
     })
@@ -86,7 +92,7 @@
         const store = readStore();
         store[key] = { card, name: character.name, at: Date.now() };
         writeStore(store);
-        if (card !== ORIGINAL) announce(character);
+        if (card !== ORIGINAL) announce(character, card);
         return card === ORIGINAL ? "" : card;
       })
       .catch(() => {
@@ -98,16 +104,22 @@
     return job;
   }
 
-  function announce(character) {
-    const message = es()
-      ? `📜 ${character.name} ahora habla como en su historia original.`
-      : `📜 ${character.name} now talks like in their original story.`;
+  function announce(character, card) {
+    const original = /^\s*\**SOURCE\**\s*:\s*original character/i.test(String(card || ""));
+    const message = original
+      ? (es()
+          ? `📜 ${character.name} ahora sigue su personalidad al pie de la letra.`
+          : `📜 ${character.name} now follows their personality to the letter.`)
+      : es()
+        ? `📜 ${character.name} ahora habla como en su historia original.`
+        : `📜 ${character.name} now talks like in their original story.`;
     window.ChatiToast?.(message, "info");
   }
 
-  // Used by requestCharacterReply() in script.js. Waits a little for a card
-  // that is still being written, so even the first reply can use it.
-  async function cardFor(character, waitMs = 9000) {
+  // Used by requestCharacterReply() in script.js. Waits only briefly for a
+  // card that is still being written (it is prefetched when the chat opens);
+  // waiting longer made the first reply feel slow. Later replies use it.
+  async function cardFor(character, waitMs = 2500) {
     if (!character?.name || isGroup(character)) return "";
     const known = stored(character);
     if (known !== undefined) return known === ORIGINAL ? "" : known;
