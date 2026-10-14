@@ -168,8 +168,10 @@ MOST IMPORTANT RULES (ALWAYS FOLLOW)
 
 1. You are ONLY ${name}. The user controls their own character. Never write the user's dialogue, actions, thoughts, feelings, or decisions, and never continue the conversation as the user. Stop after ${name}'s turn.
 
-2. Write every action, gesture, expression, and narration between double asterisks, and write spoken words outside them. Example:
+2. FORMAT. Write every action, gesture, expression, and narration between double asterisks, and write spoken words outside them, with no quotation marks. Build the reply from 1-3 short paragraphs separated by a blank line; each paragraph is one short **action** followed by what ${name} says. Never cut a spoken sentence in half with an action. Example:
 **${name} crosses their arms and looks away.** I never said I was worried.
+
+**A pause.** …Fine. Maybe a little.
 
 3. Do not start your reply with "${name}:" or any name label.
 
@@ -474,7 +476,7 @@ export function guessLanguage(text) {
   return es > en ? "es" : "en";
 }
 
-export function buildCharacterLock({ characterName, card = null, replyLength = "auto", language = "en", examples = [] }) {
+export function buildCharacterLock({ characterName, card = null, replyLength = "auto", language = "en", examples = [], profile = "" }) {
   const name = String(characterName || "the character").trim();
   const budget = WORD_BUDGETS[normalizeReplyLength(replyLength)];
   const samples = card?.samples?.[language === "es" ? "es" : "en"] || [];
@@ -488,6 +490,10 @@ export function buildCharacterLock({ characterName, card = null, replyLength = "
   const voiceLines = [...quotes, ...samples.slice(0, 2), ...creatorLines].slice(0, 5);
   const canon = [
     card?.voice ? `- How ${name} talks: ${card.voice}` : `- Talk exactly the way ${name} talks in their story or profile: their words, rhythm, attitude and flaws.`,
+    // No card yet: restate the creator's own description of who they are.
+    !card?.voice && String(profile || "").trim()
+      ? `- Who ${name} is (from the creator — follow it exactly): ${String(profile).replace(/\s+/g, " ").trim().slice(0, 600)}`
+      : "",
     card?.attitude ? `- Attitude: ${card.attitude}` : "",
     card?.never ? `- ${name} would NEVER: ${card.never}` : "",
     voiceLines.length ? `- ${name}'s real voice sounds like this (style only, never copy):\n${voiceLines.map(line => `    ${line}`).join("\n")}` : ""
@@ -499,7 +505,7 @@ ${canon}
 - REACT AS ${name.toUpperCase()}, NOT AS A HELPER: ${name} has their own goals, mood, pride and opinions. They may tease, refuse, argue, lie, ignore a question, get annoyed or change the subject — whatever ${name} would really do. Never sound like a polite assistant: no offering help, no "how can I help you?", no apologising or explaining feelings unless ${name} truly would.
 - ${name} only knows what ${name} would know in their world; they treat the user according to how well they know them so far.
 - LENGTH: ${budget}. Stop as soon as ${name} has said or done their one thing.
-- DIALOGUE FIRST: most of the reply is ${name}'s own spoken words. At most two short **action** beats (one line each). No paragraphs of scenery, inner thoughts or feelings explained.
+- DIALOGUE FIRST: most of the reply is ${name}'s own spoken words. At most two short **action** beats (one line each), each opening its own short paragraph. No paragraphs of scenery, inner thoughts or feelings explained. No quotation marks around speech.
 - Do not copy the length, style or phrases of your earlier replies in this chat. If they drifted (too long, too poetic, too polite, too generic), snap back to ${name}'s real voice now.
 - If a line would sound like any generic anime/movie character instead of ${name}, rewrite it as ${name} would actually say it.
   `.trim();

@@ -825,6 +825,7 @@ const PUBLIC_ROOT_FILES =
     "canon-voice.js",
     "chat-recall.js",
     "home-v15.css",
+    "chat-v15.css",
     "home-v15.js",
     "character-voice.css",
     "character-voice.js",
@@ -3317,7 +3318,14 @@ ${groupContinuation
               ""
             ),
           examples:
-            character.exampleMessages
+            character.exampleMessages,
+          profile:
+            [
+              character.personality,
+              character.instructions
+            ]
+              .filter(Boolean)
+              .join(" ")
         });
 
 

@@ -67,3 +67,20 @@ SAMPLE LINES (ES):
   const plain = buildCharacterLock({ characterName: 'Mia', examples: ['**Ríe.** ¡Te gané!'] });
   assert.match(plain, /Te gané/);
 });
+
+import { buildCanonProfileMessages, isOriginalCharacterCard } from '../canon-profile.js';
+
+test('original characters get a card written from the creator profile', () => {
+  const [system, user] = buildCanonProfileMessages({
+    name: 'Ryukawa Fujimori', personality: 'Playful, teasing, never sappy.',
+    instructions: 'Always tease. Never confess feelings first.',
+    exampleMessages: [{ user: '', character: '**Pouts.** Booooring!' }]
+  });
+  assert.match(system.content, /ORIGINAL CHARACTER/);
+  assert.match(user.content, /Never confess feelings first/);
+  assert.match(user.content, /Booooring/);
+  assert.equal(isOriginalCharacterCard('SOURCE: Original character (creator\'s profile)\nVOICE: x'), true);
+  assert.equal(isOriginalCharacterCard('SOURCE: Attack on Titan\nVOICE: x'), false);
+  const lock = buildCharacterLock({ characterName: 'Ryukawa', profile: 'Playful, teasing, never sappy.' });
+  assert.match(lock, /from the creator — follow it exactly\): Playful, teasing/);
+});

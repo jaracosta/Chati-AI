@@ -1,0 +1,109 @@
+/* CHATI-AI V15 — chat screen in the style of Botify.
+   1. The character's background fills the whole screen behind the chat and
+      never ends half-way down (on iPhone it scrolled away with the page).
+   2. Calm, rounded bubbles: a solid dark bubble for the character, the
+      accent colour for the user, and soft lavender *actions*. The newest
+      reply's actions glow in the accent colour. */
+
+/* ---------- 1. Background ---------- */
+/* After the launch splash, .app kept "transform: scale(1)". Any transform
+   makes an element the frame for position: fixed, so "fixed" layers inside
+   the app scrolled with it. The splash fade-in is over by then. */
+body:not(.splash-active) .app {
+  transform: none !important;
+}
+
+@media (max-width: 760px) {
+  /* Fixed to the screen instead of the page: when Safari moves the page
+     (address bar, scrolling) the picture stays put and covers everything. */
+  #chatView .chat-background {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100lvh !important;
+  }
+
+  /* A transform on the view would make "fixed" relative to it again. */
+  #chatView.view:not(.hidden) {
+    animation-name: chati-view-fade !important;
+  }
+}
+
+@keyframes chati-view-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* More of the picture shows, like Botify; text stays readable because the
+   bubbles are solid. */
+.chat-background.active {
+  opacity: 0.78 !important;
+}
+
+.chat-background::after {
+  background:
+    linear-gradient(180deg, rgba(12, 10, 22, 0.35) 0%, rgba(12, 10, 22, 0.28) 35%, rgba(12, 10, 22, 0.5) 75%, rgba(12, 10, 22, 0.8) 100%) !important;
+}
+
+html[data-chati-theme="light"] .chat-background.active {
+  opacity: 0.5 !important;
+}
+
+/* ---------- 2. Bubbles ---------- */
+.message.character {
+  color: #f4f2ff;
+  border: 0 !important;
+  border-radius: 22px !important;
+  background: rgba(34, 30, 60, 0.92) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.message.user {
+  border-radius: 22px !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22) !important;
+}
+
+.message.character .message-text {
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.message.character .action-text {
+  color: #a9a3cc !important;
+  font-style: italic;
+}
+
+/* The newest reply: its actions take the accent colour, as in Botify. */
+#messages > .message-row.character:last-of-type .message.character .action-text {
+  color: #c4b5fd !important;
+}
+
+html[data-chati-theme="light"] .message.character {
+  color: #1f1b2e;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow: 0 6px 18px rgba(30, 20, 60, 0.12) !important;
+}
+
+html[data-chati-theme="light"] .message.character .action-text {
+  color: #6b6390 !important;
+}
+
+/* Phones: one-on-one chats drop the little avatar beside every reply (the
+   character is already in the header), so bubbles get the full width. */
+@media (max-width: 760px) {
+  #messages.v9-solo .message-row.character:not(.typing-row) {
+    padding-left: 0;
+  }
+
+  #messages.v9-solo .message-row.character.group-start::before,
+  #messages.v9-solo .message-row.character.group-solo::before {
+    display: none;
+  }
+
+  .message.character {
+    max-width: 92% !important;
+  }
+}
