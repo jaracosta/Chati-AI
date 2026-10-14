@@ -38,6 +38,13 @@ import {
   guessLanguage,
   trimToCompleteSentence
 } from "./roleplay-guard.js";
+
+import {
+  CLICHE_PHRASES,
+  buildVoiceAnchor,
+  findOverusedPhrases,
+  polishReply
+} from "./voice-polish.js";
 import {
   buildCanonProfileMessages,
   buildCanonPromptSection,
@@ -301,7 +308,9 @@ const canonProfiles =
     generate: async character => {
       if (typeof chatProvider.assistant !== "function") return "";
       const result = await chatProvider.assistant({
-        model: CHATI_MODEL,
+        // CANON_MODEL: a stronger model just for writing voice cards (once
+        // per character); defaults to CHATI_MODEL.
+        model: process.env.CANON_MODEL || CHATI_MODEL,
         messages: buildCanonProfileMessages(character),
         max_output_tokens: 1600,
         web: process.env.CANON_WEB_SEARCH !== "false"
@@ -3326,7 +3335,10 @@ ${groupContinuation
             ]
               .filter(Boolean)
               .join(" ")
-        });
+        }) +
+        "\n- BANNED PHRASES (stock AI prose that makes every character sound the same; never write them or close variants, in any language): " +
+        CLICHE_PHRASES.join("; ") +
+        ".";
 
 
       const rawInput =
@@ -3377,6 +3389,64 @@ ${groupContinuation
               }
             )
           : rawInput;
+
+
+      // Voice anchor: a short "who is talking and how" note right before the
+      // user's last message, plus the phrases this character keeps reusing
+      // (voice-polish.js). The full rules sit far above a long chat.
+      const previousReplies =
+        messages
+          .filter(message => message?.sender === "character")
+          .map(message => String(message.text || ""))
+          .slice(-8);
+
+      const voiceAnchor =
+        buildVoiceAnchor({
+          characterName:
+            character.name,
+          card:
+            parseCanonCard(
+              canonCard
+            ),
+          profile:
+            [
+              character.personality,
+              character.instructions
+            ]
+              .filter(Boolean)
+              .join(" "),
+          examples:
+            character.exampleMessages,
+          overused:
+            findOverusedPhrases(
+              previousReplies,
+              {
+                characterName:
+                  character.name
+              }
+            ),
+          language:
+            guessLanguage(
+              latestUserMessage?.text ||
+              ""
+            )
+        });
+
+      const lastUserIndex =
+        input.map(item => item?.role).lastIndexOf("user");
+
+      if (lastUserIndex >= 0) {
+        input.splice(
+          lastUserIndex,
+          0,
+          {
+            role:
+              "system",
+            content:
+              voiceAnchor
+          }
+        );
+      }
 
 
       const responseRequest = {
@@ -3802,6 +3872,36 @@ ${groupContinuation
               }) +
               "\n"
 
+            );
+
+          }
+
+        }
+
+
+        // Speech copied from recent replies, or repeated inside this one,
+        // reads as a loop: drop it and show the cleaned text.
+        if (generatedText) {
+
+          const polished =
+            polishReply(
+              generatedText,
+              previousReplies
+            );
+
+          if (polished !== generatedText) {
+
+            generatedText =
+              polished;
+
+            res.write(
+              JSON.stringify({
+                type:
+                  "replace",
+                text:
+                  polished
+              }) +
+              "\n"
             );
 
           }
