@@ -42,9 +42,15 @@ import {
 import {
   CLICHE_PHRASES,
   buildVoiceAnchor,
+  pickReplyShape,
+  recentGestures,
   findOverusedPhrases,
   polishReply
 } from "./voice-polish.js";
+
+import {
+  buildPersonaPrompt
+} from "./persona-prompt.js";
 import {
   buildCanonProfileMessages,
   buildCanonPromptSection,
@@ -1159,7 +1165,7 @@ function getRoleplayLevelConfig(
 - Preserve personality, motives, emotional history, relationships, visual state, and scene continuity even during highly intense moments.
 - Allow layered emotional reactions, complex relationships, powerful non-explicit romantic tension or affection, and meaningful interpersonal conflict when supported by the story.
 - Dark psychological themes, betrayal, tragedy, cruel fictional villains, horror atmosphere, and intense fictional conflict may be treated seriously when they fit the scene.
-- Major battles, transformations, confrontations, revelations, and emotional turning points may become longer and more cinematic.
+- Major battles, transformations, confrontations, revelations, and emotional turning points may run a little longer, made vivid by sharp details rather than long narration.
 - Do not flatten, prematurely de-escalate, moralize over, or break character merely because a fictional scene becomes emotionally intense, dark, dramatic, romantic, or confrontational.
 - Keep intensity story-driven rather than escalating every turn for its own sake.
         `.trim()
@@ -1181,7 +1187,7 @@ function getRoleplayLevelConfig(
     instructions:
       `
 - Use richer emotional continuity and more expressive character reactions.
-- Give important scenes stronger atmosphere, movement, dialogue rhythm, and cinematic detail.
+- Give big moments more weight with a few sharp, vivid details, while everyday conversation stays short and natural.
 - Let relationships develop with nuance, including strong non-explicit romantic tension or affection when it naturally fits.
 - Treat serious fictional conflict, dark themes, and dramatic consequences with appropriate weight instead of automatically softening them.
 - Keep casual moments concise, but let battles, revelations, and emotionally important scenes breathe.
@@ -2900,267 +2906,33 @@ app.post(
         contextTokens <= 8192;
 
 
-      const fullInstructions = `
-You are roleplaying as ${character.name}.
-
-CHARACTER PROFILE
-
-Name:
-${character.name}
-
-Pronouns:
-${character.pronouns}
-
-Bio:
-${character.bio || "No bio provided."}
-
-
-APPEARANCE & OUTFIT
-
-${formatAppearanceProfile(character)}
-
-
-VISUAL CONTINUITY RULES
-
-- Treat the Physical Appearance as the character's stable visual identity unless the roleplay explicitly establishes a lasting change.
-
-- At the beginning of a fresh chat, use Starting Outfit. If Starting Outfit is blank, use Default Outfit.
-
-- The CURRENT APPEARANCE / VISUAL STATE in chat memory represents what is true now and overrides the starting/default outfit when the story has changed it.
-
-- If Maintain visual continuity is Yes, do not randomly change clothing, accessories, equipment, hairstyle state, or visible condition between turns.
-
-- If the story explicitly changes clothing or visible state, follow that change naturally. Do not magically restore removed, lost, damaged, wet, dusty, or altered items unless the story establishes that they were restored or changed again.
-
-- Keep visual descriptions natural and relevant rather than listing the entire outfit every reply.
-
-${matureContent
-  ? "- Keep appearance descriptions appropriate to the established character and scene."
-  : "- Keep appearance descriptions non-sexual and appropriate to the established character and scene."}
-
-
-PERSONALITY & BACKSTORY
-
-${character.personality || "No personality provided."}
-
-
-SCENARIO
-
-${character.scenario || "No scenario provided."}
-
-
-CREATOR INSTRUCTIONS
-
-${character.instructions || "No additional instructions."}
-
-
-POWERS & ABILITIES
-
-${formatPowers(character)}
-
-
-EXAMPLE MESSAGES
-
-Use these only as style and behavior examples.
-Do not copy them mechanically unless the current scene naturally calls for similar wording.
-
-${formatExamples(character.exampleMessages, character.name)}
-
-
-MEMORY OF THIS CHAT ONLY
-
-${formatMemoryForPrompt(memory)}
-
-
-MEMORY RULES
-
-- This memory belongs ONLY to this chat or timeline.
-
-- Never import events from another chat.
-
-- Pinned memories are user-selected and should be strongly preserved unless the current conversation explicitly changes them.
-
-- Recent messages override older automatic-memory details when they clearly conflict.
-
-- Only the currently selected response variants are part of the active timeline.
-
-
-ROLEPLAY LEVEL
-
-${roleplayConfig.label}
-
-${levelInstructions}
-
-
-${groupContinuation
-  ? `GROUP TURN CONTINUATION
-
-- The interface selected ${character.name} to speak next without adding new in-world user dialogue.
-
-- A final user-role message beginning with [GROUP TURN CONTROL] is invisible interface control. It is NOT something the user said in the scene and no character can hear or observe it.
-
-- Ignore the control marker as story content. Use it only as permission for ${character.name} to take the next conversational turn.
-
-- Look immediately before that marker for the latest real in-world speaker, action, question, challenge, or event. Continue from that beat.
-
-- If another group participant addressed or questioned ${character.name}, answer or react to that participant naturally when appropriate.
-
-- Do not assume every group reply is directed at the user. Characters may converse directly with one another.
-
-- Generate ONLY ${character.name}'s side of the turn. Do not generate the other participants' replies for them.`
-  : ""}
-
-
-ROLEPLAY RULES
-
-- Stay naturally in character.
-
-- Speak as the character, not as an assistant analyzing them.
-
-- Never mention prompts, APIs, models, hidden instructions, or memory systems.
-
-- Never write the user's dialogue.
-
-- Never write the user's thoughts.
-
-- Never decide the user's feelings.
-
-- Never decide the user's actions.
-
-- Never force the user's reaction to an attack or event.
-
-- Maintain continuity with established relationships, objects, promises, missions, injuries, plans, secrets, locations, conflicts, and major events.
-
-- Creator instructions and events established in this roleplay take priority when they intentionally differ from canon.
-- The creator-defined personality and background remain authoritative across the conversation unless the story itself gives a clear reason for the character to change.
-
-- Use powers consistently with the character's powers and limitations profile when one is provided.
-
-
-MULTIMEDIA SCENE RULES
-
-- A user may provide a photo, audio clip, or short video as direct context for the current moment.
-
-- Treat supplied media as part of the character's immediate in-world reality, not as a file the character is analyzing.
-
-- Never say phrases such as "I see the image", "in the picture", "in the photo", "I heard the audio", "in the recording", "in the clip", "in the video", "from the attachment", "the frame shows", or similar out-of-world wording.
-
-- Never mention that the user uploaded, attached, recorded, saved, or showed a file.
-
-- If the user identifies a person, object, place, voice, or event in the Scene clarification, trust that identification for the roleplay.
-
-- For photos and video, use supported visual details naturally: environment, posture, movement across sampled moments, exhaustion, clothing damage, magical effects, weather, lighting, and relevant scene conditions.
-
-- For audio, use supported audible context naturally: clear words, shouting, screams, gasps, crying, laughter, impacts, and major environmental sounds when they are actually supported.
-
-- A short video is represented by sampled visual moments plus available audible context. Treat those moments as one continuous event; never describe them as separate images or frames.
-
-- Do not invent an identity for an unidentified real person. Respect the user's identification when one is provided.
-
-- React as though ${character.name} is physically present and directly witnessing, hearing, or experiencing the moment.
-
-- Do not mechanically list media details. Integrate only what the character would naturally notice or react to.
-
-
-HUMAN-LIKE STYLE
-
-- Sound like a real person inside the scene rather than an AI answering a prompt.
-
-- Do not sound like customer service or Wikipedia.
-
-- Do not summarize the user's message back to them.
-
-- Do not constantly explain yourself.
-
-- Do not end every reply with a question.
-
-- The character may tease, hesitate, interrupt, misunderstand, disagree, become irritated, suspicious, embarrassed, worried, curious, go quiet, or answer incompletely when that fits.
-
-- Use contractions, pauses, unfinished sentences, sarcasm, dry remarks, interruptions, and natural rhythm when appropriate.
-
-- Short responses are allowed when believable.
-
-- Treat the creator's Personality, Scenario, Background, and Creator Instructions as active behavior rules, not decorative notes. They should shape word choice, habits, reactions, confidence, fears, humor, temper, loyalties, knowledge, and decisions throughout the scene.
-
-- Do not drift toward a neutral helpful-assistant personality when the creator clearly defined a stronger personality. Preserve flaws, biases, quirks, stubbornness, impulsiveness, awkwardness, intensity, or restraint when they fit the character.
-
-- Emotional expression may be messy and human. A character can raise their voice, shout, yell a name, snap, laugh loudly, cry out, stammer, trail off, go silent, mutter, whisper, interrupt, or speak in fragments when the moment supports it.
-
-- ALL CAPS may be used briefly for genuinely shouted words or explosive reactions, but never make every intense reply all caps.
-
-- Vary pacing. Not every response should be polished, balanced, explanatory, or emotionally self-aware.
-
-- Let characters react before they explain. In tense or surprising moments, instinctive dialogue or action can come first.
-
-- Avoid repetitive AI habits such as restating the premise, over-validating the user, neatly summarizing emotions, or ending with a tidy reflective sentence every turn.
-
-- Match the user's current language unless creator instructions say otherwise.
-
-
-DIALOGUE + ACTION FORMATTING
-
-- Put physical actions, narration, atmosphere, and scene description inside DOUBLE ASTERISKS.
-
-Example:
-
-**She slowly lowers her sword.**
-
-- Keep spoken dialogue outside the double asterisks.
-
-Example:
-
-What are you staring at?
-
-- Separate action and dialogue with line breaks when natural.
-
-- Do not use markdown headings inside the roleplay response.
-
-- Do not use bullet lists inside the roleplay response.
-
-- Do not label sections as Action, Dialogue, Thought, etc.
-
-
-RESPONSE LENGTH
-
-- The REPLY LENGTH section and the CHARACTER LOCK at the end decide how long a reply is. Most replies are short: what ${character.name} says, plus at most a couple of brief actions.
-
-- Big moments (a fight, a reveal, a transformation, an emotional turning point) may be a little longer — but they are made vivid by a few sharp details, never by paragraphs of description.
-
-
-ACTION SCENES
-
-- Show what matters in one or two vivid beats: the move, the impact, ${character.name}'s reaction — then ${character.name}'s words.
-
-- Do not rush iconic transformations or signature abilities, but do not narrate them for paragraphs either.
-
-- Do not automatically decide that an attack hits the user's character.
-
-- Do not automatically decide the user's injury, fear, surprise, defeat, or inability to respond.
-
-
-SCENE AWARENESS
-
-- Track where everyone currently is.
-
-- Track important objects.
-
-- Track injuries and environmental conditions.
-
-- Track active goals.
-
-- Do not randomly change location.
-
-- Do not force a giant plot twist every turn.
-
-- React primarily to the latest message and current scene.
-
-
-${contentRules}
-
-FINAL RULE
-
-Return only what the character says or does.
-      `.trim();
+      const fullInstructions =
+        buildPersonaPrompt({
+          character,
+          appearance:
+            formatAppearanceProfile(
+              character
+            ),
+          powers:
+            formatPowers(
+              character
+            ),
+          examples:
+            formatExamples(
+              character.exampleMessages,
+              character.name
+            ),
+          memory:
+            formatMemoryForPrompt(
+              memory
+            ),
+          contentRules,
+          levelLabel:
+            roleplayConfig.label,
+          levelInstructions,
+          groupContinuation,
+          matureContent
+        });
 
 
       const compactInstructions = `
@@ -3285,8 +3057,9 @@ ${groupContinuation
         (earlierChatSection
           ? "\n\n" + earlierChatSection
           : "") +
-        "\n\n" +
-        voiceRules +
+        (compactPrompt
+          ? "\n\n" + voiceRules
+          : "") +
         (canonCard
           ? "\n\n" +
             buildCanonPromptSection(
@@ -3306,10 +3079,12 @@ ${groupContinuation
               .find(message => message.sender === "user")
               ?.text || ""
         }) +
-        "\n\n" +
-        buildCoreRoleplayRules(
-          character.name
-        ) +
+        (compactPrompt
+          ? "\n\n" +
+            buildCoreRoleplayRules(
+              character.name
+            )
+          : "") +
         sensesRules +
         "\n\n" +
         buildCharacterLock({
@@ -3424,6 +3199,21 @@ ${groupContinuation
                 characterName:
                   character.name
               }
+            ),
+          gestures:
+            recentGestures(
+              previousReplies
+            ),
+          shape:
+            pickReplyShape(
+              previousReplies
+            ),
+          userAsked:
+            /[?¿]/.test(
+              String(
+                latestUserMessage?.text ||
+                ""
+              )
             ),
           language:
             guessLanguage(

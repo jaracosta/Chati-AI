@@ -392,8 +392,12 @@ HOW ${name.toUpperCase()} TALKS (VERY IMPORTANT)
   `.trim();
 }
 
-// Sampling settings that reduce loops and repetition. Each can be tuned
-// from the environment without a code change.
+// Sampling settings. Each can be tuned from the environment without a code
+// change. Repetition is mostly handled in the prompt (the per-turn voice
+// anchor lists worn-out phrases and gestures), so the penalties stay light:
+// a strong frequency penalty also punishes ordinary words like "I", "you",
+// "que" or "de" in every longer reply, which made speech stilted and odd.
+// min_p keeps temperature 1.0 coherent.
 export function getSamplingSettings(env = {}) {
   const number = (value, fallback) => {
     const parsed = Number(value);
@@ -401,12 +405,12 @@ export function getSamplingSettings(env = {}) {
   };
 
   return {
-    temperature: number(env.CHAT_TEMPERATURE, 0.9),
-    top_p: number(env.CHAT_TOP_P, 0.95),
-    min_p: number(env.CHAT_MIN_P, 0.05),
-    frequency_penalty: number(env.CHAT_FREQUENCY_PENALTY, 0.35),
-    presence_penalty: number(env.CHAT_PRESENCE_PENALTY, 0.25),
-    repetition_penalty: number(env.CHAT_REPETITION_PENALTY, 1.08)
+    temperature: number(env.CHAT_TEMPERATURE, 1.0),
+    top_p: number(env.CHAT_TOP_P, 1),
+    min_p: number(env.CHAT_MIN_P, 0.1),
+    frequency_penalty: number(env.CHAT_FREQUENCY_PENALTY, 0.1),
+    presence_penalty: number(env.CHAT_PRESENCE_PENALTY, 0.15),
+    repetition_penalty: number(env.CHAT_REPETITION_PENALTY, 1.04)
   };
 }
 
@@ -505,7 +509,7 @@ ${canon}
 - REACT AS ${name.toUpperCase()}, NOT AS A HELPER: ${name} has their own goals, mood, pride and opinions. They may tease, refuse, argue, lie, ignore a question, get annoyed or change the subject — whatever ${name} would really do. Never sound like a polite assistant: no offering help, no "how can I help you?", no apologising or explaining feelings unless ${name} truly would.
 - ${name} only knows what ${name} would know in their world; they treat the user according to how well they know them so far.
 - LENGTH: ${budget}. Stop as soon as ${name} has said or done their one thing.
-- DIALOGUE FIRST: most of the reply is ${name}'s own spoken words. At most two short **action** beats (one line each), each opening its own short paragraph. No paragraphs of scenery, inner thoughts or feelings explained. No quotation marks around speech.
+- DIALOGUE FIRST: most of the reply is ${name}'s own spoken words. At most two short **action** beats (one line each, or none at all), each in its own short paragraph. No paragraphs of scenery, inner thoughts or feelings explained. No quotation marks around speech.
 - Do not copy the length, style or phrases of your earlier replies in this chat. If they drifted (too long, too poetic, too polite, too generic), snap back to ${name}'s real voice now.
 - If a line would sound like any generic anime/movie character instead of ${name}, rewrite it as ${name} would actually say it.
   `.trim();
