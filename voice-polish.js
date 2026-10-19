@@ -88,7 +88,50 @@ export function findOverusedPhrases(replies, { characterName = "", minReplies = 
   return kept;
 }
 
-export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], language = "en" } = {}) {
+
+// The *actions* used in recent replies, shortened ("crosses his arms",
+// "sips his tea"), so the next reply picks a different gesture.
+export function recentGestures(replies, { limit = 6 } = {}) {
+  const found = [];
+  for (const reply of (Array.isArray(replies) ? replies : []).slice(-5)) {
+    for (const match of String(reply || "").matchAll(/\*\*([^*]+)\*\*|\*([^*]+)\*/g)) {
+      const gist = words(match[1] || match[2]).slice(0, 6).join(" ");
+      if (gist.split(" ").length >= 2 && !found.includes(gist)) found.push(gist);
+    }
+  }
+  return found.slice(-limit);
+}
+
+// How a reply is built: only speech, action first, or speech first.
+export function replyShape(reply) {
+  const text = String(reply || "").trim();
+  if (!/\*[^*]+\*/.test(text)) return "speech";
+  return /^\*/.test(text) ? "action-first" : "speech-first";
+}
+
+const SHAPES = [
+  { id: "action-first", weight: 3, text: "One short action, then what they say." },
+  { id: "speech-first", weight: 3, text: "Start by speaking; add one small action or reaction after, or none." },
+  { id: "speech", weight: 3, text: "Just speak this time — 1 to 3 spoken sentences, no action." },
+  { id: "two-beats", weight: 1, text: "Two short paragraphs: react, then say a bit more or ask something." }
+];
+
+// Picks this turn's shape, avoiding the shape of the last two replies so
+// the conversation does not fall into one template.
+export function pickReplyShape(previousReplies = [], random = Math.random) {
+  const recent = (Array.isArray(previousReplies) ? previousReplies : []).slice(-2).map(replyShape);
+  const options = SHAPES.filter(shape => !(recent.length === 2 && recent[0] === recent[1] && shape.id === recent[1]) && shape.id !== recent[recent.length - 1]);
+  const pool = options.length ? options : SHAPES;
+  const total = pool.reduce((sum, shape) => sum + shape.weight, 0);
+  let roll = random() * total;
+  for (const shape of pool) {
+    roll -= shape.weight;
+    if (roll < 0) return shape.text;
+  }
+  return pool[0].text;
+}
+
+export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, language = "en" } = {}) {
   const name = String(characterName || "the character").trim();
   const lines = [];
   const voice = card?.voice || String(profile || "").replace(/\s+/g, " ").trim().slice(0, 300);
@@ -104,6 +147,9 @@ export function buildVoiceAnchor({ characterName = "the character", card = null,
   ].map(line => line.replace(/\s+/g, " ").slice(0, 180));
   if (samples.length) lines.push(`Sounds like: ${samples.map(line => `"${line}"`).join(" / ")}`);
   if (overused.length) lines.push(`Worn out — do NOT use again: ${overused.map(phrase => `"${phrase}"`).join(", ")}. Open differently from the last replies.`);
+  if (gestures.length) lines.push(`Gestures already used — pick a different one, or none: ${gestures.map(gesture => `"${gesture}"`).join(", ")}.`);
+  if (userAsked) lines.push(`They asked ${name} something: answer it first, in ${name}'s own way.`);
+  if (shape) lines.push(`This reply: ${shape}`);
   lines.push(`No stock AI phrases (${ANCHOR_CLICHES.map(phrase => `"${phrase}"`).join(", ")}…). Fresh words, ${name}'s words.`);
   return `[Stay in character as ${name}. Answer the user's last message the way ${name} really would.\n${lines.map(line => "- " + line).join("\n")}]`;
 }
