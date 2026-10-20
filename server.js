@@ -41,7 +41,9 @@ import {
 
 import {
   CLICHE_PHRASES,
+  appearanceCues,
   buildVoiceAnchor,
+  pickAppearanceCue,
   pickReplyShape,
   recentGestures,
   findOverusedPhrases,
@@ -2217,6 +2219,44 @@ ${appearance.maintainContinuity ? "Yes" : "No"}
 }
 
 
+// Concrete features of how this character looks right now (profile plus
+// the outfit/condition this chat's memory has tracked), for the voice anchor.
+function characterAppearanceCues(
+  character,
+  memory
+) {
+  const profile =
+    normalizeAppearanceProfile(
+      character?.appearance
+    );
+  const current =
+    normalizeCurrentAppearance(
+      memory?.currentAppearance
+    )
+      .characters
+      .find(
+        entry =>
+          (entry.characterId && String(entry.characterId) === String(character?.id || "")) ||
+          String(entry.characterName || "").toLowerCase() === String(character?.name || "").toLowerCase()
+      );
+  return appearanceCues({
+    physical:
+      profile.physical,
+    outfit:
+      current?.outfit ||
+      profile.startingOutfit ||
+      profile.defaultOutfit,
+    accessories:
+      current?.accessories ||
+      profile.accessories,
+    condition:
+      current?.condition,
+    extras:
+      current?.temporaryChanges || []
+  });
+}
+
+
 function formatAppearanceRoster(
   character
 ) {
@@ -3206,6 +3246,14 @@ ${groupContinuation
             ),
           shape:
             pickReplyShape(
+              previousReplies
+            ),
+          appearanceCue:
+            pickAppearanceCue(
+              characterAppearanceCues(
+                character,
+                memory
+              ),
               previousReplies
             ),
           userAsked:
