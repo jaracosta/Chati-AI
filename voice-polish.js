@@ -89,6 +89,31 @@ export function findOverusedPhrases(replies, { characterName = "", minReplies = 
 }
 
 
+// Short, concrete features of how the character looks right now ("silver
+// hair tied back", "black leather gloves"), taken from their appearance
+// profile and the chat's current outfit/condition.
+export function appearanceCues({ physical = "", outfit = "", accessories = "", condition = "", extras = [] } = {}) {
+  const cues = [];
+  for (const source of [condition, outfit, accessories, physical, ...extras]) {
+    for (const piece of String(source || "").split(/[,.;\n]|\s+(?:and|with|y|con)\s+/i)) {
+      const cue = piece.replace(/\s+/g, " ").replace(/^[-•\s]+/, "").trim();
+      const count = cue.split(" ").length;
+      if (!cue || count < 2 || count > 9 || /not specified|no temporary|none stored|no especificado/i.test(cue)) continue;
+      if (!cues.some(other => other.toLowerCase() === cue.toLowerCase())) cues.push(cue);
+    }
+  }
+  return cues.slice(0, 14);
+}
+
+// One feature to bring into this reply, skipping what the last two replies
+// already showed, so the character's look comes up in varied ways.
+export function pickAppearanceCue(cues = [], previousReplies = [], random = Math.random) {
+  const recent = new Set(words((Array.isArray(previousReplies) ? previousReplies : []).slice(-2).join(" ")));
+  const fresh = cues.filter(cue => !words(cue).some(word => word.length >= 4 && recent.has(word)));
+  const pool = fresh.length ? fresh : cues;
+  return pool.length ? pool[Math.floor(random() * pool.length)] : "";
+}
+
 // The *actions* used in recent replies, shortened ("crosses his arms",
 // "sips his tea"), so the next reply picks a different gesture.
 export function recentGestures(replies, { limit = 6 } = {}) {
@@ -111,8 +136,8 @@ export function replyShape(reply) {
 
 const SHAPES = [
   { id: "action-first", weight: 3, text: "One short action, then what they say." },
-  { id: "speech-first", weight: 3, text: "Start by speaking; add one small action or reaction after, or none." },
-  { id: "speech", weight: 3, text: "Just speak this time — 1 to 3 spoken sentences, no action." },
+  { id: "speech-first", weight: 3, text: "Start by speaking; then one small action or expression." },
+  { id: "speech", weight: 3, text: "Mostly speech — 1 to 3 spoken sentences, with just a quick expression or body detail woven in." },
   { id: "two-beats", weight: 1, text: "Two short paragraphs: react, then say a bit more or ask something." }
 ];
 
@@ -131,7 +156,7 @@ export function pickReplyShape(previousReplies = [], random = Math.random) {
   return pool[0].text;
 }
 
-export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, language = "en" } = {}) {
+export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, appearanceCue = "", language = "en" } = {}) {
   const name = String(characterName || "the character").trim();
   const lines = [];
   const voice = card?.voice || String(profile || "").replace(/\s+/g, " ").trim().slice(0, 300);
@@ -147,9 +172,12 @@ export function buildVoiceAnchor({ characterName = "the character", card = null,
   ].map(line => line.replace(/\s+/g, " ").slice(0, 180));
   if (samples.length) lines.push(`Sounds like: ${samples.map(line => `"${line}"`).join(" / ")}`);
   if (overused.length) lines.push(`Worn out — do NOT use again: ${overused.map(phrase => `"${phrase}"`).join(", ")}. Open differently from the last replies.`);
-  if (gestures.length) lines.push(`Gestures already used — pick a different one, or none: ${gestures.map(gesture => `"${gesture}"`).join(", ")}.`);
+  if (gestures.length) lines.push(`Gestures already used — pick a different one: ${gestures.map(gesture => `"${gesture}"`).join(", ")}.`);
   if (userAsked) lines.push(`They asked ${name} something: answer it first, in ${name}'s own way.`);
   if (shape) lines.push(`This reply: ${shape}`);
+  lines.push(appearanceCue
+    ? `Show ${name} physically: a facial expression or body language that fits the moment, and this time something about their look — ${appearanceCue} (touching or adjusting it, how it looks right now, what they do with it).`
+    : `Show ${name} physically: a facial expression or body language that fits the moment, and now and then their look — hair, clothes, what their hands do with them.`);
   lines.push(`No stock AI phrases (${ANCHOR_CLICHES.map(phrase => `"${phrase}"`).join(", ")}…). Fresh words, ${name}'s words.`);
   return `[Stay in character as ${name}. Answer the user's last message the way ${name} really would.\n${lines.map(line => "- " + line).join("\n")}]`;
 }
