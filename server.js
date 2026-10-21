@@ -2434,7 +2434,14 @@ function formatExamples(
 
 
   return lines
-    .map(line => `${characterName}: ${line}`)
+    // "[Severe Anger] ..." → "(severe anger) Name: ..." so the tag reads as
+    // context, not as text to copy into replies.
+    .map(line => {
+      const tag = line.match(/^\s*\[([^\]]{1,40})\]\s*/);
+      return tag
+        ? `(${tag[1].toLowerCase()}) ${characterName}: ${line.slice(tag[0].length)}`
+        : `${characterName}: ${line}`;
+    })
     .join(
       "\n\n"
     );

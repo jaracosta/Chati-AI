@@ -486,7 +486,7 @@ export function buildCharacterLock({ characterName, card = null, replyLength = "
   const samples = card?.samples?.[language === "es" ? "es" : "en"] || [];
   // Lines the creator wrote in the editor (only the character's own words).
   const creatorLines = (Array.isArray(examples) ? examples : [])
-    .map(example => String(typeof example === "string" ? example : example?.character || "").replace(/\s+/g, " ").trim())
+    .map(example => String(typeof example === "string" ? example : example?.character || "").replace(/^\s*\[[^\]]{1,40}\]\s*/, "").replace(/\s+/g, " ").trim())
     .filter(Boolean)
     .slice(0, 2)
     .map(line => (line.length > 300 ? line.slice(0, 299) + "…" : line));
