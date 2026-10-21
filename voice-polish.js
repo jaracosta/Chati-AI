@@ -94,7 +94,16 @@ export function findOverusedPhrases(replies, { characterName = "", minReplies = 
 // profile and the chat's current outfit/condition.
 export function appearanceCues({ physical = "", outfit = "", accessories = "", condition = "", extras = [] } = {}) {
   const cues = [];
-  for (const source of [condition, outfit, accessories, physical, ...extras]) {
+  for (const raw of [condition, outfit, accessories, physical, ...extras]) {
+    // Sheets written as [Hair("long black hair")]: each value is one cue
+    // (skipping height, weight and measurement numbers).
+    const bracket = /\[\s*([\w /&-]+?)\s*\(\s*["'“”]?([^"'“”)]*)["'“”]?\s*\)\s*\]/g;
+    for (const [, key, value] of String(raw || "").matchAll(bracket)) {
+      const cue = value.replace(/\s+/g, " ").trim();
+      if (!cue || /height|weight|measure|age|bust|waist|hip|figure/i.test(key) || cue.split(" ").length > 12) continue;
+      if (!cues.some(other => other.toLowerCase() === cue.toLowerCase())) cues.push(cue);
+    }
+    const source = String(raw || "").replace(bracket, " ");
     for (const piece of String(source || "").split(/[,.;\n]|\s+(?:and|with|y|con)\s+/i)) {
       const cue = piece.replace(/\s+/g, " ").replace(/^[-•\s]+/, "").trim();
       const count = cue.split(" ").length;
@@ -166,7 +175,7 @@ export function buildVoiceAnchor({ characterName = "the character", card = null,
     ...(card?.quotes || []).slice(0, 2),
     ...((card?.samples?.[language === "es" ? "es" : "en"]) || []).slice(0, 1),
     ...(Array.isArray(examples) ? examples : [])
-      .map(example => String(typeof example === "string" ? example : example?.character || "").trim())
+      .map(example => String(typeof example === "string" ? example : example?.character || "").replace(/^\s*\[[^\]]{1,40}\]\s*/, "").trim())
       .filter(Boolean)
       .slice(0, 1)
   ].map(line => line.replace(/\s+/g, " ").slice(0, 180));

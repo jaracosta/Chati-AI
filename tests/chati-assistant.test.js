@@ -91,7 +91,8 @@ test('visual analysis always checks age first; mature detail only with 18+ mode'
   }
 
   assert.match(off, /18\+ mode is off/);
-  assert.doesNotMatch(off, /clinical/);
+  assert.doesNotMatch(off, /describe the body frankly/);
+  assert.match(on, /describe the body frankly/);
   assert.match(on, /clearly adults/);
   assert.match(on, /clinical/);
 });
@@ -110,7 +111,7 @@ test('character drafts carry a reply length', () => {
   const block = (extra) => 'ok\n```chati-character\n' + JSON.stringify({ name: 'Sukuna', ...extra }) + '\n```';
   assert.equal(extractCharacterDraft(block({ replyLength: 'short' })).draft.replyLength, 'short');
   assert.equal(extractCharacterDraft(block({ replyLength: 'giant' })).draft.replyLength, 'auto');
-  assert.match(buildChatiInstructions({ rootDir: '/nonexistent' }), /replyLength: how much the character talks/);
+  assert.match(buildChatiInstructions({ rootDir: '/nonexistent' }), /replyLength: "short" for terse/);
 });
 
 import { sanitizeCharacterDraft, buildChatiInstructions as buildInstructionsV2, isMinorAge } from '../chati-assistant.js';
@@ -138,8 +139,28 @@ test('minors never keep figure or measurement descriptions', () => {
 
 test('the creator prompt asks for deep, specific, canon detail', () => {
   const prompt = buildInstructionsV2({});
-  assert.match(prompt, /Under 18, looks young, or age unknown: NO measurements/);
-  assert.match(prompt, /NO generic rules/);
-  assert.match(prompt, /5 lines the CHARACTER says/);
+  assert.match(prompt, /UNDER 18, looks young, or age unknown: NO figure, NO measurements, NO cup size/);
+  assert.match(prompt, /\[PERSONALITY\]/);
+  assert.match(prompt, /\[BACKSTORY\]/);
+  assert.match(prompt, /\[Severe Anger\]/);
+  assert.match(prompt, /\[Variable\("Data"\)\]/);
+  assert.match(prompt, /in ENGLISH unless the user asks/);
   assert.match(prompt, /"wiki"/);
+});
+
+test('tagline goes on the card; bot bio and aliases open the personality', () => {
+  const draft = sanitizeCharacterDraft({ name: 'Daki', aliases: 'Ume, Warabihime', tagline: 'Upper Rank Six, queen of the Entertainment District.', botBio: 'A vain, cruel demon oiran.', personality: '[PERSONALITY]\nVain.\n\n[BACKSTORY]\nBorn Ume.', exampleMessages: ['[Severe Anger] *Her obi snap taut.* You ugly little worm!'] });
+  assert.equal(draft.bio, 'Upper Rank Six, queen of the Entertainment District.');
+  assert.match(draft.personality, /^\[BIO\]\nA vain, cruel demon oiran\.\nAlso known as: Ume, Warabihime\n\n\[PERSONALITY\]/);
+  assert.match(draft.exampleMessages[0].character, /^\[Severe Anger\]/);
+});
+
+test('minors lose cup sizes and figure attributes too', () => {
+  const draft = sanitizeCharacterDraft({ name: 'Kid', age: 15, appearance: { physical: '[Height("160 cm")]. [Figure("hourglass")]. [Measurements("32C, waist 24 in")]. Short brown hair.' } });
+  assert.equal(draft.appearance.physical, '[Height("160 cm")]. Short brown hair.');
+});
+
+test('minor scrub works on one-attribute-per-line sheets', () => {
+  const draft = sanitizeCharacterDraft({ name: 'Kid', age: 16, appearance: { physical: '[Height("168 cm")]\n[Figure("highly curvaceous hourglass")]\n[Measurements("34D-24-36")]\n[Hair("black, shoulder length")] [Bust("large")]\nShe moves like a trained fighter.' } });
+  assert.equal(draft.appearance.physical, '[Height("168 cm")]\n[Hair("black, shoulder length")]\nShe moves like a trained fighter.');
 });
