@@ -53,6 +53,10 @@ import {
 import {
   buildPersonaPrompt
 } from "./persona-prompt.js";
+
+import {
+  findCharacterImages
+} from "./character-images.js";
 import {
   buildCanonProfileMessages,
   buildCanonPromptSection,
@@ -5019,6 +5023,30 @@ app.post(
         extractCharacterDraft(
           result.text
         );
+
+
+      // Pictures for the new character: a profile picture and a chat
+      // background found on its wiki / AniList (character-images.js).
+      if (draft) {
+        draft.images =
+          await Promise.race([
+            findCharacterImages(
+              draft
+            ),
+            new Promise(resolve =>
+              setTimeout(
+                () => resolve(null),
+                10000
+              )
+            )
+          ]).catch(() => null) ||
+          {
+            avatar: "",
+            background: "",
+            avatarSource: "",
+            backgroundSource: ""
+          };
+      }
 
 
       const sources = [];

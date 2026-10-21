@@ -195,10 +195,17 @@
     const card = document.createElement("div");
     card.className = "v8-chati-draft";
 
-    const photos = sessionPhotos();
+    // Pictures to choose from: the ones Chati found for this character on
+    // the web (wiki / AniList), then photos the user sent in this chat.
+    const found = draft.images || {};
+    const photos = [
+      ...(found.avatar ? [{ src: found.avatar, label: t("Found: profile"), short: t("Profile"), kind: "avatar" }] : []),
+      ...(found.background && found.background !== found.avatar ? [{ src: found.background, label: t("Found: background"), short: t("Background"), kind: "background" }] : []),
+      ...sessionPhotos().map((src, index) => ({ src, label: t("Photo") + " " + (index + 1), short: String(index + 1), kind: "photo" }))
+    ];
     const photoOptions = photos.length
       ? '<option value="">' + escapeHtml(t("None")) + '</option>' +
-        photos.map((_, index) => '<option value="' + index + '">' + escapeHtml(t("Photo")) + " " + (index + 1) + '</option>').join("")
+        photos.map((photo, index) => '<option value="' + index + '">' + escapeHtml(photo.label) + '</option>').join("")
       : "";
 
     const powers = draft.hasPowers && draft.abilities
@@ -219,8 +226,8 @@
       '</details>' +
       (photos.length
         ? '<div class="v8-chati-photo-pick">' +
-            '<div class="v8-chati-thumbs">' + photos.map((src, index) =>
-              '<figure><img src="' + src + '" alt=""><figcaption>' + (index + 1) + '</figcaption></figure>').join("") + '</div>' +
+            '<div class="v8-chati-thumbs">' + photos.map(photo =>
+              '<figure><img src="' + escapeHtml(photo.src) + '" alt="" referrerpolicy="no-referrer" loading="lazy"><figcaption>' + escapeHtml(photo.short) + '</figcaption></figure>').join("") + '</div>' +
             '<label>' + escapeHtml(t("Profile picture")) + ' <select data-role="avatar">' + photoOptions + '</select></label>' +
             '<label>' + escapeHtml(t("Chat background")) + ' <select data-role="background">' + photoOptions + '</select></label>' +
           '</div>'
@@ -232,7 +239,13 @@
 
     const avatarSelect = card.querySelector('[data-role="avatar"]');
     const backgroundSelect = card.querySelector('[data-role="background"]');
-    if (avatarSelect && photos.length) avatarSelect.value = "0";
+    // Preselect: found profile picture (or the first photo) and found background.
+    const avatarIndex = photos.findIndex(photo => photo.kind === "avatar");
+    const backgroundIndex = photos.findIndex(photo => photo.kind === "background");
+    const firstPhoto = photos.findIndex(photo => photo.kind === "photo");
+    const avatarDefault = avatarIndex >= 0 ? avatarIndex : firstPhoto;
+    if (avatarSelect && avatarDefault >= 0) avatarSelect.value = String(avatarDefault);
+    if (backgroundSelect && backgroundIndex >= 0) backgroundSelect.value = String(backgroundIndex);
 
     const createdId = messages[messageIndex]?.createdId;
     const existing = createdId && typeof characters !== "undefined"
@@ -256,7 +269,7 @@
         return;
       }
       if (existing) return;
-      const pick = select => (select && select.value !== "" ? photos[Number(select.value)] : "");
+      const pick = select => (select && select.value !== "" && photos[Number(select.value)] ? photos[Number(select.value)].src : "");
       createCharacter(draft, {
         avatar: pick(avatarSelect),
         background: pick(backgroundSelect),
@@ -284,7 +297,7 @@
         '<h3>' + escapeHtml(t("Hi! I'm Chati")) + '</h3>' +
         '<p>' + escapeHtml(t("Tell me a character from any anime, game, movie or book and I'll research it and build the bot for you. You can also send me photos, or ask me how the app works.")) + '</p>' +
         '<div class="v8-chati-chips">' +
-          ["Make me a character from an anime or game", "Help me create an original character", "How does the app work?", "How do characters send me pictures?", "What is NSFW (18+)?"]
+          ["Make me a character from an anime or game", "Help me create an original character", "How does the app work?", "How do characters send me pictures?", "How do I give a character a voice?"]
             .map(chip => '<button type="button" data-chip="' + escapeHtml(t(chip)) + '">' + escapeHtml(t(chip)) + '</button>').join("") +
         '</div>';
       welcome.addEventListener("click", event => {
