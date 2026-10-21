@@ -112,3 +112,34 @@ test('character drafts carry a reply length', () => {
   assert.equal(extractCharacterDraft(block({ replyLength: 'giant' })).draft.replyLength, 'auto');
   assert.match(buildChatiInstructions({ rootDir: '/nonexistent' }), /replyLength: how much the character talks/);
 });
+
+import { sanitizeCharacterDraft, buildChatiInstructions as buildInstructionsV2, isMinorAge } from '../chati-assistant.js';
+
+test('drafts carry research fields; only fandom wiki links are kept', () => {
+  const draft = sanitizeCharacterDraft({ name: 'Daki', series: 'Demon Slayer', age: 'adult', wiki: 'https://kimetsu-no-yaiba.fandom.com/wiki/Daki', backgroundQuery: 'Entertainment District', appearance: { physical: 'Height 167 cm, approx. 88-58-90 cm. Long black hair.' } });
+  assert.equal(draft.series, 'Demon Slayer');
+  assert.equal(draft.wiki, 'https://kimetsu-no-yaiba.fandom.com/wiki/Daki');
+  assert.equal(draft.backgroundQuery, 'Entertainment District');
+  assert.match(draft.appearance.physical, /88-58-90/, 'adults keep their measurements');
+  assert.equal(sanitizeCharacterDraft({ name: 'X', wiki: 'https://evil.example/wiki/X' }).wiki, '');
+});
+
+test('minors never keep figure or measurement descriptions', () => {
+  assert.equal(isMinorAge(16), true);
+  assert.equal(isMinorAge('16 years'), true);
+  assert.equal(isMinorAge('adult'), false);
+  const draft = sanitizeCharacterDraft({ name: 'Yuka', age: 16, appearance: {
+    physical: 'Yuka is 1.68 m with an athletic build. She has a highly curvaceous hourglass figure. Measurements 88-58-90. Black hair to her shoulders.',
+    defaultOutfit: 'A mint-green tunic vest. It shows off her cleavage.'
+  } });
+  assert.equal(draft.appearance.physical, 'Yuka is 1.68 m with an athletic build. Black hair to her shoulders.');
+  assert.equal(draft.appearance.defaultOutfit, 'A mint-green tunic vest.');
+});
+
+test('the creator prompt asks for deep, specific, canon detail', () => {
+  const prompt = buildInstructionsV2({});
+  assert.match(prompt, /Under 18, looks young, or age unknown: NO measurements/);
+  assert.match(prompt, /NO generic rules/);
+  assert.match(prompt, /5 lines the CHARACTER says/);
+  assert.match(prompt, /"wiki"/);
+});

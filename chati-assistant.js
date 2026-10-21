@@ -30,6 +30,7 @@ NSFW (18+)
 
 Character editor fields
 - Avatar & Identity: image (photo or video, from gallery or URL), name, pronouns, bio.
+- Creating with Chati: say "make me <character>" and Chati researches them and fills every field — appearance, outfits, personality, scenario, rules, example messages and powers — and, for existing characters, finds a profile picture and a chat background automatically (shown on the card; the user can swap them for their own photos).
 - Appearance & Outfit: physical appearance, default outfit, starting outfit, accessories, "maintain visual continuity".
 - Personality & Backstory, Scenario, Instructions (rules for the bot), Example Messages (teach its voice), Powers & Abilities (optional: power system, combat style, abilities, limits), Chat Background (image or video behind the chat).
 - To edit an existing character: open its chat, tap ⋯ (top right) → Edit Character.
@@ -109,6 +110,7 @@ PHOTOS (VISUAL ANALYSIS)
 ${matureLine}
 - Never try to identify a real private person from a photo.
 - The app lets the user choose whether a photo becomes the profile picture or the chat background — you can suggest which fits better (portrait/face → profile, wide scene → background).
+- For existing characters the app automatically looks up a profile picture (from their Fandom page in "wiki", or AniList) and a chat background (from the place in "backgroundQuery", or their series banner). The user sees them on the character card and can swap them for their own photos. Never paste image links in your reply.
 
 CREATING THE CHARACTER
 When you have enough information, give a 1-2 sentence summary and then output EXACTLY ONE fenced block like this (valid JSON, no comments):
@@ -116,6 +118,10 @@ When you have enough information, give a 1-2 sentence summary and then output EX
 \`\`\`${CHARACTER_BLOCK}
 {
   "name": "",
+  "series": "the work they come from, or \"Original\"",
+  "age": "canon age as a number, \"adult\", or \"unknown\"",
+  "wiki": "https://<series>.fandom.com/wiki/<Character_Page> (their Fandom page, if one exists)",
+  "backgroundQuery": "a canon place from their story for the chat background (e.g. \"Entertainment District\")",
   "pronouns": "HE | SHE | THEY | N/A",
   "bio": "1-2 sentences shown on the card",
   "appearance": {
@@ -138,15 +144,20 @@ When you have enough information, give a 1-2 sentence summary and then output EX
 }
 \`\`\`
 
-Field guidance:
+Field guidance (be thorough — the user should not need to edit anything):
+- When the user only names a character, research everything before writing: their wiki page (Fandom), official sources, how they talk in key scenes. Put their Fandom page URL in "wiki" — the app uses it to find their profile picture — and a canon place in "backgroundQuery" for the chat background.
 - Write the character fields in the same language the user is using.
-- personality: who they are and HOW they behave and talk (tone, slang, catchphrases, habits, fears, values, relationships). Rich and specific, 5-12 sentences.
-- scenario: an engaging starting situation that involves the user ("you"), true to the character's world.
-- replyLength: how much the character talks. "short" for terse, cold, stoic or few-words characters (e.g. Sukuna, Levi, Zoro); "long" only for very talkative, dramatic characters; "medium" for most others; "auto" if unsure.
-- instructions: 3-6 short rules for the bot (stay in character, speech quirks, what they would never do). Never tell the bot to control the user.
-- exampleMessages: 3 short lines the CHARACTER says (no user lines), in their real voice: e.g. a greeting, a reaction when teased, something in a tense moment. Use **actions between double asterisks** and spoken dialogue outside them.
-- Powers only if the character really has them; include real limits/costs.
-- Keep each text field under ~1200 characters.
+- appearance.physical: very detailed, like a character-design sheet. Height (and weight when known), build and body proportions, skin, face shape, eyes (colour, shape, look), eyebrows, lips, hair (colour, length, style, how it moves), distinctive marks, scars, tattoos, horns or other features, posture, how they move, and their voice.
+  - Adults only (canon age 18+, or clearly adult): also give their figure and body measurements — official ones when known, otherwise an approximate estimate marked "approx." — e.g. "Height 167 cm, approx. 88-58-90 cm". ${matureContent ? "18+ mode is on: you may describe their body frankly and in detail." : "Keep the wording descriptive and non-sexual."}
+  - Under 18, looks young, or age unknown: NO measurements, NO figure or curves — describe height and build neutrally, as for any teenager.
+- appearance.defaultOutfit / startingOutfit: every piece of clothing, colours, materials, fit, and how they wear it. accessories: jewellery, weapons, items they carry.
+- personality: 10-18 sentences. Core traits and contradictions, what drives them, fears and insecurities, how they treat strangers / friends / enemies / someone they like, temper and humour, likes and dislikes, key relationships and backstory, and HOW THEY TALK: vocabulary, slang, how they refer to themselves and address others, verbal tics, catchphrases.
+- scenario: a specific, canon-faithful starting moment involving the user ("you") — where, when, what is happening — in at most 4 sentences, ending on something the user can react to.
+- replyLength: how much the character talks. "short" for terse, cold, stoic or few-words characters (Sukuna, Levi, Zoro); "long" only for very talkative, dramatic characters; "medium" for most others; "auto" if unsure.
+- instructions: 5-8 specific behaviour rules drawn from canon, written as what THIS character does — e.g. "Calls people 'ugly' or 'trash' the moment they annoy her", "When she is losing she cries and calls for her brother", "Never thanks anyone sincerely". NO generic rules ("stay in character", "never break character", "use asterisks", "be immersive") — the app already handles those. Never tell the bot to control the user.
+- exampleMessages: 5 lines the CHARACTER says (no user lines), each in a different situation and mood — meeting a stranger, being teased or insulted, angry, a rare vulnerable moment, playful or flirty or bored. Make them sound like a real person and like THIS character in canon: their vocabulary and rhythm, specific to their world (names, places, things they care about). Vary the length and the shape (a one-line retort; an **action** then speech; speech then an **action**). Never start two the same way, never repeat a gesture, use a catchphrase at most once, and no stock AI phrases ("a hint of", "barely above a whisper", "a mischievous glint", "can't help but").
+- Powers only if the character really has them; include real limits and costs.
+- Keep each text field under ~2500 characters (physical and personality may use up to ~3500).
 - The user can ask for changes; output a new complete block each time.
 
 SAFETY
@@ -171,6 +182,24 @@ const PRONOUNS = new Set(["HE", "SHE", "THEY", "N/A"]);
 const text = (value, max = 4000) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
 
+// Figure/measurement wording that must never describe a minor.
+const MINOR_FIGURE_PATTERN = /\b\d{2,3}\s*[-–\/]\s*\d{2,3}\s*[-–\/]\s*\d{2,3}\b|measurement|medidas|\bbust\b|busto|pecho|breast|cleavage|escote|curv(y|aceous|es)|curvilínea|hourglass|reloj de arena|voluptu|voluptuos|seductiv|sensual|sexy|thigh|muslo|hips? (sway|swing)|cadera|buttock|trasero|nalga/i;
+
+export function isMinorAge(age) {
+  const value = Number(String(age || "").match(/\d+/)?.[0]);
+  return Number.isFinite(value) && value > 0 && value < 18;
+}
+
+// For characters under 18, drop any sentence that describes their figure or
+// measurements, whatever the model wrote.
+export function scrubMinorFigure(text) {
+  return String(text || "")
+    .split(/(?<=[.!?])\s+/)
+    .filter(sentence => !MINOR_FIGURE_PATTERN.test(sentence))
+    .join(" ")
+    .trim();
+}
+
 // Turn the model's JSON block into a safe, app-ready character draft.
 export function sanitizeCharacterDraft(raw) {
   if (!raw || typeof raw !== "object") return null;
@@ -181,23 +210,30 @@ export function sanitizeCharacterDraft(raw) {
   const appearance = raw.appearance && typeof raw.appearance === "object" ? raw.appearance : {};
   const examples = Array.isArray(raw.exampleMessages) ? raw.exampleMessages : [];
 
+  const minor = isMinorAge(raw.age);
+  const look = value => (minor ? scrubMinorFigure(value) : value);
+
   return {
     name,
+    series: text(raw.series, 120),
+    age: text(String(raw.age ?? ""), 20),
+    wiki: /^https:\/\/[a-z0-9.-]+\.fandom\.com\//i.test(text(raw.wiki, 400)) ? text(raw.wiki, 400) : "",
+    backgroundQuery: text(raw.backgroundQuery, 120),
     pronouns: PRONOUNS.has(pronoun) ? pronoun : "N/A",
     bio: text(raw.bio, 400),
     appearance: {
-      physical: text(appearance.physical, 2000),
-      defaultOutfit: text(appearance.defaultOutfit, 1500),
-      startingOutfit: text(appearance.startingOutfit, 1500),
-      accessories: text(appearance.accessories, 1500),
+      physical: look(text(appearance.physical, 3500)),
+      defaultOutfit: look(text(appearance.defaultOutfit, 2500)),
+      startingOutfit: look(text(appearance.startingOutfit, 2500)),
+      accessories: text(appearance.accessories, 2000),
       maintainContinuity: true
     },
-    personality: text(raw.personality, 4000),
+    personality: text(raw.personality, 5000),
     scenario: text(raw.scenario, 2500),
     instructions: text(raw.instructions, 2500),
     replyLength: ["auto", "short", "medium", "long"].includes(raw.replyLength) ? raw.replyLength : "auto",
     exampleMessages: examples
-      .slice(0, 5)
+      .slice(0, 6)
       // Only the character's lines (older drafts had {user, character}).
       .map(example => ({ user: "", character: text(typeof example === "string" ? example : example?.character, 1500) }))
       .filter(example => example.character),
