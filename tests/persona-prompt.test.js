@@ -52,3 +52,20 @@ test('every reply is asked to show the character physically, with a fresh look d
   assert.match(buildVoiceAnchor({ characterName: 'Mia' }), /Show Mia physically/);
   assert.match(buildPersonaPrompt({ character: { name: 'Levi' } }), /Show Levi physically in every reply/);
 });
+
+test('the user story outranks canon plot and the anchor carries the current scene', async () => {
+  const { formatStoryLine, buildVoiceAnchor } = await import('../voice-polish.js');
+  const prompt = buildPersonaPrompt({ character: { name: 'Levi', scenario: 'Modern AU coffee shop.' } });
+  assert.match(prompt, /THIS STORY COMES FIRST/);
+  assert.match(prompt, /never drag it back to canon/);
+  assert.match(prompt, /remembers/);
+  const line = formatStoryLine({ scene: 'Closing time at the café, rain outside.', relationship: 'Coworkers, slowly warming up.', threads: ['The broken espresso machine', { text: 'Her birthday on Friday' }, 'extra'] });
+  assert.match(line, /Closing time/);
+  assert.match(line, /Coworkers/);
+  assert.match(line, /espresso machine; Her birthday/);
+  assert.doesNotMatch(line, /extra/);
+  assert.equal(formatStoryLine(null), '');
+  assert.match(formatStoryLine({ scenario: 'Modern AU coffee shop.' }), /it started as/);
+  const anchor = buildVoiceAnchor({ characterName: 'Levi', story: { scene: 'Closing time at the café.' } });
+  assert.match(anchor, /Where the story is .*Closing time/);
+});

@@ -123,7 +123,8 @@ HOW TO USE THE CARD
 - The sample lines show the voice. Write new lines in that same voice; do not copy the samples word for word.
 - Use signature catchphrases rarely — only when the moment really calls for them, never every reply.
 - Never do anything listed under NEVER.
-- The creator's profile and the events of this chat can add to the card; for everything else, the card (canon) wins over generic roleplay habits.
+- The card is WHO ${name} is: voice, personality, past and skills — it wins over generic roleplay habits.
+- The scenario and the events of this chat are WHAT IS HAPPENING NOW. When they differ from canon (another setting, a different relationship, an alternate timeline), follow this story — never pull it back to canon events, places or people that are not part of it.
   `.trim();
 }
 

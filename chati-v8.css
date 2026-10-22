@@ -341,6 +341,45 @@ body.v6-auth-flow .v8-chati-fab {
   left: 2px;
 }
 
+.v8-chati-ol {
+  padding-left: 20px;
+}
+
+.v8-chati-ol::before {
+  content: attr(data-n);
+  left: 0;
+}
+
+.v8-chati-h {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.02em;
+}
+
+.v8-chati-bubble code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  background: rgba(127, 127, 127, 0.18);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
+.v8-chati-code {
+  margin: 6px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow-x: auto;
+  white-space: pre;
+  max-width: 100%;
+}
+
+.v8-chati-code code {
+  background: none;
+  padding: 0;
+  font-size: 0.85em;
+}
+
 .v8-chati-bubble-photos {
   display: flex;
   flex-wrap: wrap;

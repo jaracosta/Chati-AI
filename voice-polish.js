@@ -165,7 +165,7 @@ export function pickReplyShape(previousReplies = [], random = Math.random) {
   return pool[0].text;
 }
 
-export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, appearanceCue = "", language = "en" } = {}) {
+export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, appearanceCue = "", story = null, language = "en" } = {}) {
   const name = String(characterName || "the character").trim();
   const lines = [];
   const voice = card?.voice || String(profile || "").replace(/\s+/g, " ").trim().slice(0, 300);
@@ -182,6 +182,8 @@ export function buildVoiceAnchor({ characterName = "the character", card = null,
   if (samples.length) lines.push(`Sounds like: ${samples.map(line => `"${line}"`).join(" / ")}`);
   if (overused.length) lines.push(`Worn out — do NOT use again: ${overused.map(phrase => `"${phrase}"`).join(", ")}. Open differently from the last replies.`);
   if (gestures.length) lines.push(`Gestures already used — pick a different one: ${gestures.map(gesture => `"${gesture}"`).join(", ")}.`);
+  const storyLine = formatStoryLine(story);
+  if (storyLine) lines.push(`Where the story is (stay inside it — don't contradict, reset or skip it): ${storyLine}`);
   if (userAsked) lines.push(`They asked ${name} something: answer it first, in ${name}'s own way.`);
   if (shape) lines.push(`This reply: ${shape}`);
   lines.push(appearanceCue
@@ -189,6 +191,27 @@ export function buildVoiceAnchor({ characterName = "the character", card = null,
     : `Show ${name} physically: a facial expression or body language that fits the moment, and now and then their look — hair, clothes, what their hands do with them.`);
   lines.push(`No stock AI phrases (${ANCHOR_CLICHES.map(phrase => `"${phrase}"`).join(", ")}…). Fresh words, ${name}'s words.`);
   return `[Stay in character as ${name}. Answer the user's last message the way ${name} really would.\n${lines.map(line => "- " + line).join("\n")}]`;
+}
+
+// One compact line about the current state of the user's story (from the
+// chat memory), so a long chat does not drift away from what was built.
+export function formatStoryLine(story) {
+  if (!story || typeof story !== "object") return "";
+  const clip = (value, max) => {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    return text.length > max ? text.slice(0, max - 1).trimEnd() + "…" : text;
+  };
+  const threads = (Array.isArray(story.threads) ? story.threads : [])
+    .map(thread => clip(typeof thread === "string" ? thread : thread?.text, 120))
+    .filter(Boolean)
+    .slice(0, 2);
+  const parts = [
+    story.scene ? `now — ${clip(story.scene, 260)}` : "",
+    story.relationship ? `between them — ${clip(story.relationship, 180)}` : "",
+    threads.length ? `still open — ${threads.join("; ")}` : ""
+  ].filter(Boolean);
+  if (!parts.length && story.scenario) parts.push(`it started as — ${clip(story.scenario, 220)}`);
+  return parts.join(" | ");
 }
 
 // Removes repetition the model produced anyway. Never removes so much that

@@ -67,3 +67,37 @@ test('roleplay requests name the fallback model when one is configured', async (
     assert.equal(payloads[3].provider, undefined);
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('a model that does not start writing in time is replaced by the fallback', async () => {
+  const originalFetch = globalThis.fetch;
+  const models = [];
+  globalThis.fetch = async (url, options) => {
+    const body = JSON.parse(options.body);
+    models.push(body.model);
+    if (body.model === 'slow-model') {
+      // Never sends a word; errors out once the request is aborted.
+      const stream = new ReadableStream({
+        start(controller) {
+          options.signal?.addEventListener('abort', () => controller.error(new Error('aborted')));
+        }
+      });
+      return new Response(stream, { headers: { 'content-type': 'text/event-stream' } });
+    }
+    const chunk = 'data: ' + JSON.stringify({ choices: [{ delta: { content: 'Fast hello' } }] }) + '\n\ndata: [DONE]\n\n';
+    return new Response(chunk, { headers: { 'content-type': 'text/event-stream' } });
+  };
+  try {
+    const provider = createChatProvider({ OPENROUTER_API_KEY: 'k', OPENROUTER_FALLBACK_MODEL: 'fast-model', CHAT_FIRST_TOKEN_TIMEOUT_MS: '50' }, {});
+    const events = [];
+    for await (const event of await provider.responses.create({ model: 'slow-model', instructions: '', input: [], stream: true })) events.push(event);
+    assert.deepEqual(models, ['slow-model', 'fast-model']);
+    assert.equal(events.at(-1).response.output_text, 'Fast hello');
+
+    // A model that answers in time keeps its own stream.
+    models.length = 0;
+    const quick = [];
+    for await (const event of await provider.responses.create({ model: 'quick-model', instructions: '', input: [], stream: true })) quick.push(event);
+    assert.deepEqual(models, ['quick-model']);
+    assert.equal(quick.at(-1).response.output_text, 'Fast hello');
+  } finally { globalThis.fetch = originalFetch; }
+});

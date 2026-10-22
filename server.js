@@ -17,7 +17,8 @@ import {
   buildChatiInstructions,
   extractCharacterDraft,
   extractUrls,
-  fetchPageText
+  fetchPageText,
+  shouldSearchWeb
 } from "./chati-assistant.js";
 import {
   buildCoreRoleplayRules,
@@ -3267,6 +3268,16 @@ ${groupContinuation
               ),
               previousReplies
             ),
+          story: {
+            scene:
+              normalizeMemory(memory).currentScene,
+            relationship:
+              normalizeMemory(memory).relationshipState,
+            threads:
+              normalizeMemory(memory).unresolvedThreads,
+            scenario:
+              character.scenario
+          },
           userAsked:
             /[?¿]/.test(
               String(
@@ -5018,8 +5029,15 @@ app.post(
           ],
           max_output_tokens:
             3500,
+          // Small talk and app questions answer faster without a search.
           web:
-            req.body?.web !== false
+            req.body?.web !== false &&
+            (
+              (lastUser.images || []).length > 0 ||
+              shouldSearchWeb(
+                lastUser.text
+              )
+            )
         });
 
 
