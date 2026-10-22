@@ -18,7 +18,9 @@ import {
   extractCharacterDraft,
   extractUrls,
   fetchPageText,
-  shouldSearchWeb
+  wantsWebSearch,
+  extractSearchRequest,
+  stripSearchMarkers
 } from "./chati-assistant.js";
 import {
   buildCoreRoleplayRules,
@@ -5005,40 +5007,77 @@ app.post(
         );
 
 
-      const result =
+      const chatiMessages = [
+        {
+          role: "system",
+          content:
+            buildChatiInstructions({
+              rootDir: __dirname,
+              matureContent:
+                req.body?.matureContent === true
+            })
+        },
+        ...pageContext.map(
+          content => ({
+            role: "system",
+            content
+          })
+        ),
+        ...conversation
+      ];
+
+      const webAllowed =
+        req.body?.web !== false;
+
+      // Search right away only when the user clearly asks for research or a
+      // character; otherwise Chati answers directly and asks for a search
+      // itself ([[SEARCH: …]]) when it really needs one.
+      let result =
         await chatProvider.assistant({
           model:
             CHATI_MODEL,
-          messages: [
-            {
-              role: "system",
-              content:
-                buildChatiInstructions({
-                  rootDir: __dirname,
-                  matureContent:
-                    req.body?.matureContent === true
-                })
-            },
-            ...pageContext.map(
-              content => ({
-                role: "system",
-                content
-              })
-            ),
-            ...conversation
-          ],
+          messages:
+            chatiMessages,
           max_output_tokens:
             3500,
-          // Small talk and app questions answer faster without a search.
           web:
-            req.body?.web !== false &&
-            (
-              (lastUser.images || []).length > 0 ||
-              shouldSearchWeb(
-                lastUser.text
-              )
+            webAllowed &&
+            wantsWebSearch(
+              lastUser.text
             )
         });
+
+      const searchQuery =
+        extractSearchRequest(
+          result.text
+        );
+
+      if (searchQuery) {
+        result =
+          await chatProvider.assistant({
+            model:
+              CHATI_MODEL,
+            messages: [
+              ...chatiMessages,
+              {
+                role: "system",
+                content:
+                  webAllowed
+                    ? `Web results for "${searchQuery}" are attached. Answer the user's last message now using only what is relevant. Do not ask for another search.`
+                    : "Web search is turned off by the user. Answer from what you know, say briefly that it may be out of date, and do not ask for a search."
+              }
+            ],
+            max_output_tokens:
+              3500,
+            web:
+              webAllowed
+          });
+      }
+
+      result.text =
+        stripSearchMarkers(
+          result.text
+        );
 
 
       const {

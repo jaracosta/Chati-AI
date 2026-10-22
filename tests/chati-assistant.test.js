@@ -166,18 +166,23 @@ test('minor scrub works on one-attribute-per-line sheets', () => {
 });
 
 test('Chati is a general assistant that talks like a person', async () => {
-  const { shouldSearchWeb } = await import('../chati-assistant.js');
+  const { wantsWebSearch, extractSearchRequest, stripSearchMarkers } = await import('../chati-assistant.js');
   const prompt = buildChatiInstructions({ rootDir: '/nonexistent' });
   assert.match(prompt, /help with ANYTHING/);
   assert.match(prompt, /like a real person/);
   assert.match(prompt, /Understand what they MEAN/);
   assert.match(prompt, /Only when the user asks for a character/);
   assert.match(prompt, /code in ``` blocks/);
-  // Small talk and app questions skip the slow web search; facts keep it.
-  assert.equal(shouldSearchWeb('hola!!'), false);
-  assert.equal(shouldSearchWeb('gracias'), false);
-  assert.equal(shouldSearchWeb('¿Cómo funciona la app?'), false);
-  assert.equal(shouldSearchWeb('make me Gojo'), true);
-  assert.equal(shouldSearchWeb('¿quién ganó el mundial 2022?'), true);
-  assert.equal(shouldSearchWeb('créame un personaje de la app de Naruto'), true);
+  assert.match(prompt, /\[\[SEARCH: short search query\]\]/);
+  // Greetings, slang and ordinary requests never trigger a search up front.
+  for (const message of ['queonda', 'qué onda', 'holaa', 'gracias', '¿Cómo funciona la app?', 'explícame los bucles for', 'ayúdame con mi tarea de historia', 'hazme un favor']) {
+    assert.equal(wantsWebSearch(message), false, message);
+  }
+  // Clear research or character requests search right away.
+  for (const message of ['make me Gojo', 'créame a Daki', 'hazme un personaje de Naruto', 'busca las últimas noticias de One Piece', 'cuánto cuesta el switch 2', 'what are the latest anime news']) {
+    assert.equal(wantsWebSearch(message), true, message);
+  }
+  assert.equal(extractSearchRequest('[[SEARCH: one piece 1100 fecha]]'), 'one piece 1100 fecha');
+  assert.equal(extractSearchRequest('¡Hola! ¿Qué tal?'), '');
+  assert.equal(stripSearchMarkers('Listo [[SEARCH: x]]'), 'Listo');
 });

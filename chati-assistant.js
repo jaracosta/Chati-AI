@@ -94,7 +94,11 @@ Today's date: ${today.toISOString().slice(0, 10)}.
 WHAT YOU DO
 - Anything the user needs: answer questions on any topic, explain things simply, help with homework and studying, write or fix texts and messages, translate, brainstorm ideas and names, give advice, plan things, do math, write and debug code, recommend anime/games/movies/music, summarize links they paste, talk about their day, or just chat.
 - Two special skills on top of that: building roleplay characters for the app (below) and explaining how Chati-AI works (APP HELP below).
-- Use the web search results for anything current or factual you aren't sure about (news, prices, release dates, scores, who/what/when). Say when something may have changed since.
+
+WEB SEARCH — only when it's really needed
+- Most messages need NO search: greetings and slang ("queonda", "holi", "xd"), small talk, feelings, advice, opinions, writing, translation, math, code, explanations, recommendations, the app, and anything you already know well. Just answer.
+- Search only for things you can't answer reliably from what you know: recent news, prices, release dates, scores, today's info, or a specific little-known person, place, product or character. Then reply with ONLY this and nothing else: [[SEARCH: short search query]]
+- When web results ARE included, use only what answers the user's actual message and ignore unrelated results. Never turn a casual message into a report about something you found. Say when info may have changed since.
 
 HOW YOU TALK — like a real person, not a robot
 - Reply in the user's language and match their vibe: if they write casual Spanish with slang, answer the same way; if they're formal, be formal.
@@ -426,17 +430,25 @@ export async function fetchPageText(rawUrl, { fetchImpl = fetch, resolve = looku
   throw new Error("Too many redirects");
 }
 
-// Web search adds a few seconds to every answer. Skip it for small talk
-// ("hola", "gracias", "jaja ok") and for questions about the app itself;
-// keep it for everything else (facts, news, characters, links).
-const SMALL_TALK = /^(?:h?ola+|hey+|hi+|hello+|buenas?(?: noches| tardes| d[ií]as)?|qu[eé] (?:tal|onda|pedo|hay)|c[oó]mo (?:est[aá]s|vas|te va)|gracias|thanks?(?: you)?|thx|ok(?:ay|a)?|vale|va|sale|s[ií]+|no+|nel|bien|cool|nice|genial|perfecto|jaja+|jeje+|lol|xd+|bye|ad[ií]os|nos vemos|buenas noches|te quiero|ily|:\)|<3)[\s!.?¡¿,]*$/i;
-const APP_QUESTION = /\b(?:app|chati|settings|ajustes|configuraci[oó]n|editor|bot[oó]n|button|nsfw|memoria|memory|backup|cuenta|account|sign in|iniciar sesi[oó]n)\b/i;
+// Web search adds seconds to an answer and, worse, makes the model talk about
+// whatever it found ("queonda" → a taco restaurant). So Chati answers without
+// it unless the user clearly asks for research or a character; otherwise the
+// model itself asks for a search with [[SEARCH: query]] when it needs one.
+const RESEARCH_CUE = /(?:^|[^\p{L}])(?:busca\p{L}*|búsca\p{L}*|investiga\p{L}*|research\p{L}*|search|look (?:it )?up|googl\p{L}*|noticias?|news|[uú]ltim[oa]s?|latest|reciente\p{L}*|recent|hoy|today|ayer|yesterday|esta semana|this week|precios?|prices?|cu[aá]nto cuesta|how much (?:is|does)|estreno|release date|resultados?|score|marcador|clima|weather|wiki|fandom)(?![\p{L}])/iu;
+const CHARACTER_REQUEST = /\b(?:cr[eé]a(?:me)?|haz(?:me)?|arma(?:me)?|make(?: me)?|build|create)\b[^.!?\n]{0,60}\b(?:personajes?|characters?|bots?)\b|^(?:cr[eé]ame|make me|build me)\s+(?:a\s+)?\S/i;
 
-export function shouldSearchWeb(text) {
+export function wantsWebSearch(text) {
   const value = String(text || "").trim();
-  if (!value) return false;
-  if (/https?:\/\//i.test(value)) return false; // the page itself is read instead
-  if (SMALL_TALK.test(value)) return false;
-  if (APP_QUESTION.test(value) && !/\b(?:anime|manga|game|juego|serie|movie|pel[ií]cula|wiki|fandom)\b/i.test(value) && !/\b(?:personajes?|characters?)\b/i.test(value)) return false;
-  return true;
+  if (!value || /https?:\/\//i.test(value)) return false; // pasted pages are read directly
+  return RESEARCH_CUE.test(value) || CHARACTER_REQUEST.test(value);
+}
+
+// "[[SEARCH: one piece episode 1100 date]]" → "one piece episode 1100 date".
+export function extractSearchRequest(text) {
+  const match = String(text || "").match(/\[\[\s*SEARCH\s*:\s*([^\]\n]{2,200})\]\]/i);
+  return match ? match[1].trim() : "";
+}
+
+export function stripSearchMarkers(text) {
+  return String(text || "").replace(/\[\[\s*SEARCH\s*:[^\]\n]*\]\]/gi, "").trim();
 }
