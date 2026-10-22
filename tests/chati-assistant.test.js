@@ -164,3 +164,20 @@ test('minor scrub works on one-attribute-per-line sheets', () => {
   const draft = sanitizeCharacterDraft({ name: 'Kid', age: 16, appearance: { physical: '[Height("168 cm")]\n[Figure("highly curvaceous hourglass")]\n[Measurements("34D-24-36")]\n[Hair("black, shoulder length")] [Bust("large")]\nShe moves like a trained fighter.' } });
   assert.equal(draft.appearance.physical, '[Height("168 cm")]\n[Hair("black, shoulder length")]\nShe moves like a trained fighter.');
 });
+
+test('Chati is a general assistant that talks like a person', async () => {
+  const { shouldSearchWeb } = await import('../chati-assistant.js');
+  const prompt = buildChatiInstructions({ rootDir: '/nonexistent' });
+  assert.match(prompt, /help with ANYTHING/);
+  assert.match(prompt, /like a real person/);
+  assert.match(prompt, /Understand what they MEAN/);
+  assert.match(prompt, /Only when the user asks for a character/);
+  assert.match(prompt, /code in ``` blocks/);
+  // Small talk and app questions skip the slow web search; facts keep it.
+  assert.equal(shouldSearchWeb('hola!!'), false);
+  assert.equal(shouldSearchWeb('gracias'), false);
+  assert.equal(shouldSearchWeb('¿Cómo funciona la app?'), false);
+  assert.equal(shouldSearchWeb('make me Gojo'), true);
+  assert.equal(shouldSearchWeb('¿quién ganó el mundial 2022?'), true);
+  assert.equal(shouldSearchWeb('créame un personaje de la app de Naruto'), true);
+});

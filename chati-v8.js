@@ -86,18 +86,35 @@
   }
 
   function format(text) {
-    let html = escapeHtml(text || "");
+    // ``` code blocks are cut out first so nothing inside them is formatted.
+    const blocks = [];
+    let html = String(text || "").replace(/```[\w-]*\n?([\s\S]*?)```/g, (match, code) => {
+      blocks.push('<pre class="v8-chati-code"><code>' + escapeHtml(code.replace(/\n$/, "")) + "</code></pre>");
+      return "\u0000" + (blocks.length - 1) + "\u0000";
+    });
+    html = escapeHtml(html);
+    html = html.replace(/`([^`\n]+)`/g, "<code>$1</code>");
     html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
       '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     html = html.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g,
       '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
     html = html.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
     html = html.replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<em>$2</em>");
-    html = html
+    // Headings, list items and code blocks are blocks of their own: no extra
+    // line break next to them, or the answer gets big gaps.
+    const lines = html
       .split("\n")
-      .map(line => /^\s*[-•]\s+/.test(line) ? "<span class=\"v8-chati-li\">" + line.replace(/^\s*[-•]\s+/, "") + "</span>" : line)
-      .join("<br>");
-    return html;
+      .map(line => {
+        if (/^\s*#{1,4}\s+/.test(line)) return { block: true, html: "<strong class=\"v8-chati-h\">" + line.replace(/^\s*#{1,4}\s+/, "") + "</strong>" };
+        if (/^\s*[-•*]\s+/.test(line)) return { block: true, html: "<span class=\"v8-chati-li\">" + line.replace(/^\s*[-•*]\s+/, "") + "</span>" };
+        const numbered = line.match(/^\s*(\d{1,2})[.)]\s+(.*)$/);
+        if (numbered) return { block: true, html: "<span class=\"v8-chati-li v8-chati-ol\" data-n=\"" + numbered[1] + ".\">" + numbered[2] + "</span>" };
+        return { block: /^\s*\u0000\d+\u0000\s*$/.test(line), html: line };
+      });
+    html = lines
+      .map((line, index) => line.html + (index < lines.length - 1 && !line.block && !lines[index + 1].block ? "<br>" : ""))
+      .join("");
+    return html.replace(/\u0000(\d+)\u0000/g, (match, index) => blocks[Number(index)] || "");
   }
 
   function hostOf(url) {
@@ -295,16 +312,16 @@
       welcome.innerHTML =
         '<div class="v8-chati-welcome-bot">' + robot() + '</div>' +
         '<h3>' + escapeHtml(t("Hi! I'm Chati")) + '</h3>' +
-        '<p>' + escapeHtml(t("Tell me a character from any anime, game, movie or book and I'll research it and build the bot for you. You can also send me photos, or ask me how the app works.")) + '</p>' +
+        '<p>' + escapeHtml(t("Ask me anything — questions, homework, ideas, writing, advice, or just to talk. I can also research any anime, game or movie character and build the bot for you, or explain how the app works.")) + '</p>' +
         '<div class="v8-chati-chips">' +
-          ["Make me a character from an anime or game", "Help me create an original character", "How does the app work?", "How do characters send me pictures?", "How do I give a character a voice?"]
-            .map(chip => '<button type="button" data-chip="' + escapeHtml(t(chip)) + '">' + escapeHtml(t(chip)) + '</button>').join("") +
+          ["Make me a character from an anime or game", "Help me create an original character", "What anime should I watch next?", "Explain something to me simply:", "Help me write a message:", "How does the app work?"]
+            .map(chip => '<button type="button" data-chip="' + escapeHtml(t(chip)) + '">' + escapeHtml(t(chip).trim().replace(/:$/, "…")) + '</button>').join("") +
         '</div>';
       welcome.addEventListener("click", event => {
         const chip = event.target.closest("[data-chip]")?.dataset.chip;
         if (!chip) return;
         const input = panel.querySelector(".v8-chati-input");
-        input.value = chip;
+        input.value = /[?]$/.test(chip) ? chip : chip + " ";
         // Questions about the app are sent right away; the others are
         // starters the user finishes.
         if (/[?]$/.test(chip)) send();
@@ -466,7 +483,7 @@
     panel.innerHTML =
       '<header class="v8-chati-header">' +
         '<span class="v8-chati-header-bot">' + robot() + '</span>' +
-        '<div class="v8-chati-title"><strong>Chati</strong><small>' + escapeHtml(t("Your character-building assistant")) + '</small></div>' +
+        '<div class="v8-chati-title"><strong>Chati</strong><small>' + escapeHtml(t("Your assistant for anything")) + '</small></div>' +
         '<button type="button" class="v8-chati-icon-btn" data-action="new" title="' + escapeHtml(t("New conversation")) + '" aria-label="' + escapeHtml(t("New conversation")) + '">' +
           '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>' +
         '<button type="button" class="v8-chati-icon-btn" data-action="close" title="' + escapeHtml(t("Close")) + '" aria-label="' + escapeHtml(t("Close")) + '">' +

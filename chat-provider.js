@@ -25,7 +25,7 @@ export function createChatProvider(env, openai) {
         model,
         messages,
         max_tokens: max_output_tokens,
-        temperature: 0.4,
+        temperature: 0.6,
         ...(web ? { plugins: [{ id: "web", max_results: 6 }] } : {})
       });
       const message = result.choices?.[0]?.message || {};
@@ -74,9 +74,9 @@ export function createChatProvider(env, openai) {
         // OPENROUTER_FALLBACK_MODEL: if the main model is down or busy (e.g.
         // its only provider fails), OpenRouter answers with this one instead.
         const fallback = String(env.OPENROUTER_FALLBACK_MODEL || "").trim();
-        const result = await router.chat.completions.create({
-          model: request.model,
-          ...(fallback && fallback !== request.model ? { models: [request.model, fallback] } : {}),
+        const call = (model, withFallback, signal) => router.chat.completions.create({
+          model,
+          ...(withFallback && fallback && fallback !== model ? { models: [model, fallback] } : {}),
           messages,
           max_tokens: request.max_output_tokens,
           ...(request.sampling || {}),
@@ -87,8 +87,12 @@ export function createChatProvider(env, openai) {
           // Stop if the model starts writing the user's turn.
           stop: ROLEPLAY_STOP_SEQUENCES,
           stream: Boolean(request.stream)
-        });
-        if (!request.stream) return { output_text: result.choices?.[0]?.message?.content || "" };
+        }, signal ? { signal } : undefined);
+        if (!request.stream) {
+          const result = await call(request.model, true);
+          return { output_text: result.choices?.[0]?.message?.content || "" };
+        }
+        const result = await openFastStream(call, request.model, fallback, firstTokenTimeout(env));
         return (async function* () {
           let text = "";
           for await (const chunk of result) {
@@ -108,6 +112,55 @@ export function createChatProvider(env, openai) {
       }
     }
   };
+}
+
+function firstTokenTimeout(env = {}) {
+  const value = Number(env.CHAT_FIRST_TOKEN_TIMEOUT_MS);
+  return Number.isFinite(value) && value >= 0 ? value : 12000;
+}
+
+// A busy provider can sit for 30+ seconds before the first word, which reads
+// as "the character takes forever to type". If the main model has not started
+// writing within the timeout, drop it and stream the fallback model instead.
+// Returns an async iterable of chunks (the ones already read come first).
+async function openFastStream(call, model, fallback, timeoutMs) {
+  if (!fallback || fallback === model || !timeoutMs) return call(model, true);
+  const controller = new AbortController();
+  const started = (async () => {
+    const stream = await call(model, false, controller.signal);
+    const iterator = stream[Symbol.asyncIterator]();
+    const early = [];
+    while (true) {
+      const next = await iterator.next();
+      if (next.done) return { early, iterator, done: true };
+      early.push(next.value);
+      if (next.value?.choices?.[0]?.delta?.content || next.value?.error) return { early, iterator, done: false };
+    }
+  })();
+  started.catch(() => {});
+  let timer;
+  const timedOut = new Promise(resolve => { timer = setTimeout(() => resolve(null), timeoutMs); });
+  let first;
+  try {
+    first = await Promise.race([started, timedOut]);
+  } catch {
+    first = null;
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!first) {
+    controller.abort();
+    return call(fallback, false);
+  }
+  return (async function* () {
+    yield* first.early;
+    if (first.done) return;
+    while (true) {
+      const next = await first.iterator.next();
+      if (next.done) return;
+      yield next.value;
+    }
+  })();
 }
 
 function providerSort(env = {}) {

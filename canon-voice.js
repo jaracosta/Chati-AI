@@ -119,7 +119,7 @@
   // Used by requestCharacterReply() in script.js. Waits only briefly for a
   // card that is still being written (it is prefetched when the chat opens);
   // waiting longer made the first reply feel slow. Later replies use it.
-  async function cardFor(character, waitMs = 2500) {
+  async function cardFor(character, waitMs = 600) {
     if (!character?.name || isGroup(character)) return "";
     const known = stored(character);
     if (known !== undefined) return known === ORIGINAL ? "" : known;
