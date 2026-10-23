@@ -1,7 +1,9 @@
-// Mini window (desktop): ⌘/Ctrl + P pops Chati-AI out into a phone-sized
-// window that stays on top of every tab and app and can be dragged anywhere.
-// Chrome and Edge use Document Picture-in-Picture (always on top); other
-// browsers get a normal small popup window.
+// Mini window (desktop): the mini-window button in the icon rail pops
+// Chati-AI out into a phone-sized window that can be dragged anywhere.
+// Chromium browsers (Chrome, Edge, Brave, Opera) use Document
+// Picture-in-Picture, which stays on top of every tab and app; Safari and
+// Firefox have no always-on-top for web pages, so they get a small popup
+// window instead. No keyboard shortcut: ⌘/Ctrl + P stays Print.
 //
 // The mini window loads the app itself (/?mini=1) in an iframe, so it is
 // the full phone layout with everything working. The tab behind shows a
@@ -15,31 +17,13 @@
   const MINI_HEIGHT = 820;
   const isMini = /[?&]mini=1\b/.test(location.search);
   const es = () => (document.documentElement.lang || navigator.language || "").toLowerCase().startsWith("es");
-  const mac = /Mac|iP(hone|ad|od)/.test(navigator.platform);
-  const shortcut = mac ? "⌘P" : "Ctrl+P";
 
   let pipWindow = null;
   let popup = null;
 
-  function isShortcut(event) {
-    return (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey &&
-      (event.key?.toLowerCase() === "p" || event.code === "KeyP");
-  }
-
   // ---- Inside the mini window --------------------------------------------
   if (isMini) {
     document.documentElement.classList.add("chati-mini", "splash-skip");
-    // ⌘/Ctrl + P again puts the app back in the tab.
-    document.addEventListener("keydown", event => {
-      if (!isShortcut(event)) return;
-      event.preventDefault();
-      try {
-        if (window.top !== window) window.top.close();
-        else window.close();
-      } catch (_) {
-        window.close();
-      }
-    });
     return;
   }
 
@@ -66,8 +50,12 @@
     }
     notice.querySelector("h2").textContent = es() ? "Chati-AI está en la mini ventana" : "Chati-AI is in the mini window";
     notice.querySelector("p").textContent = es()
-      ? `Muévela a donde quieras; se queda encima mientras usas otras pestañas. ${shortcut} otra vez para regresarla.`
-      : `Drag it anywhere; it stays on top while you use other tabs. Press ${shortcut} again to bring it back.`;
+      ? (pipWindow
+          ? "Muévela a donde quieras; se queda encima mientras usas otras pestañas y apps."
+          : "Muévela a donde quieras. Ciérrala o usa el botón de abajo para regresarla.")
+      : (pipWindow
+          ? "Drag it anywhere; it stays on top while you use other tabs and apps."
+          : "Drag it anywhere. Close it or use the button below to bring it back.");
     notice.querySelector(".chati-mini-back").textContent = es() ? "Traer de vuelta aquí" : "Bring it back here";
     notice.hidden = false;
   }
@@ -111,13 +99,6 @@
         frame.allow = "microphone; camera; autoplay; clipboard-read; clipboard-write; fullscreen";
         doc.body.appendChild(frame);
         pipWindow.addEventListener("pagehide", miniClosed, { once: true });
-        // ⌘/Ctrl + P inside the mini window's own frame (outside the iframe).
-        pipWindow.addEventListener("keydown", event => {
-          if (isShortcut(event)) {
-            event.preventDefault();
-            pipWindow?.close();
-          }
-        });
         showNotice();
         return;
       } catch (error) {
@@ -134,7 +115,9 @@
       return;
     }
     showNotice();
-    toast(es() ? "Para que se quede siempre encima, usa Chrome o Edge." : "To keep it always on top, use Chrome or Edge.");
+    toast(es()
+      ? "Este navegador no deja que una ventana se quede siempre encima. En Chrome, Edge, Brave u Opera sí."
+      : "This browser can't keep a window always on top. Chrome, Edge, Brave and Opera can.");
     const watch = setInterval(() => {
       if (popup?.closed) {
         clearInterval(watch);
@@ -142,16 +125,6 @@
       }
     }, 800);
   }
-
-  function isDesktop() {
-    return window.matchMedia("(min-width: 761px) and (hover: hover)").matches;
-  }
-
-  document.addEventListener("keydown", event => {
-    if (!isShortcut(event) || !isDesktop()) return;
-    event.preventDefault(); // instead of the browser's Print dialog
-    openMini();
-  });
 
   // A button in the desktop icon rail, under Chats and Create.
   function addButton() {
@@ -162,8 +135,8 @@
     button.type = "button";
     button.id = "miniWindowBtn";
     button.className = "nav-btn chati-mini-btn";
-    button.setAttribute("aria-label", `${label} (${shortcut})`);
-    button.dataset.tooltip = `${label} (${shortcut})`;
+    button.setAttribute("aria-label", label);
+    button.dataset.tooltip = label;
     button.innerHTML =
       '<span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="13" rx="2.5"></rect><rect x="11.5" y="10.5" width="7" height="6" rx="1.4"></rect></svg></span>' +
       '<span class="sidebar-label"></span>';

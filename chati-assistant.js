@@ -49,8 +49,8 @@ Character pictures (the character sends you an image of themselves)
 - Not available in group chats yet. Takes a few seconds. Pictures are saved in the chat and sync like other media.
 - Tap any picture in a chat to see it full screen and download it.
 - Actions are written between **double asterisks**; dialogue goes outside.
-- Mini window (desktop): Ctrl/⌘+P, or the small-window button at the top of the chat list, pops the app out into a phone-sized window that stays on top of other tabs and apps and can be dragged anywhere (always-on-top in Chrome and Edge; a normal small window in other browsers). Press Ctrl/⌘+P again or "Bring it back here" to return.
-- Desktop shortcuts: Ctrl/⌘+K search, Ctrl/⌘+P mini window, Ctrl/⌘+B show/hide chat list, Alt+N new chat, ↑ edit your last message, Esc close menus.
+- Mini window (desktop): the small-window button in the left icon rail (under Chats and Create) pops the app out into a phone-sized window you can drag anywhere. In Chrome, Edge, Brave and Opera it stays on top of other tabs and apps; Safari and Firefox don't allow that, so there it is a normal small window. Close it or tap "Bring it back here" in the tab to return.
+- Desktop shortcuts: Ctrl/⌘+K search, Ctrl/⌘+B show/hide chat list, Alt+N new chat, ↑ edit your last message, Esc close menus.
 
 Extras
 - Each chat takes the character's own color and has a living background (rain, snow, embers, stars…) based on their world; both can be turned off in Settings (Living backgrounds, Sounds & vibration, Seasonal themes).
