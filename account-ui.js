@@ -1122,6 +1122,26 @@
   );
 
 
+  // "My profile & accounts": the full account menu (profile, switch
+  // accounts, security, appearance).
+  document
+    .getElementById("accountOpenProfileBtn")
+    ?.addEventListener(
+      "click",
+      event => {
+        // Otherwise this same click reaches the profile menu's
+        // "click outside closes it" handler and shuts it right away.
+        event.stopPropagation();
+
+        if (typeof closeSettings === "function") {
+          closeSettings();
+        }
+
+        window.ChatiProfileV6?.open?.();
+      }
+    );
+
+
   signOutBtn?.addEventListener(
     "click",
     async () => {
@@ -1129,6 +1149,25 @@
         busy ||
         !window.ChatiAuth
       ) {
+        return;
+      }
+
+      // The profile module signs out properly: it saves this account's
+      // chats in its own space and restores the local one, then reloads.
+      if (
+        typeof window.ChatiProfileV6?.signOutCurrent ===
+        "function"
+      ) {
+        setBusy(true);
+
+        try {
+          await window.ChatiProfileV6.signOutCurrent();
+        }
+
+        finally {
+          setBusy(false);
+        }
+
         return;
       }
 
