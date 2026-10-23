@@ -397,9 +397,11 @@ app.use(
     );
 
 
+    // SAMEORIGIN, not DENY: the desktop mini window (mini-window.js) loads
+    // the app in a frame of its own. Other sites still cannot frame it.
     res.setHeader(
       "X-Frame-Options",
-      "DENY"
+      "SAMEORIGIN"
     );
 
 
@@ -832,6 +834,8 @@ const PUBLIC_ROOT_FILES =
     "ui-smooth-v7.css",
     "app-shell-v8.css",
     "app-shell-v8.js",
+    "mini-window.js",
+    "mini-window.css",
     "i18n-v8.js",
     "explore-v8.js",
     "chati-v8.js",

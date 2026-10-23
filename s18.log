@@ -1,0 +1,19 @@
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+=================================
+🤖 Chati-AI is running
+🌐 http://localhost:7842
+💬 Chat provider: OpenRouter; model: gryphe/mythomax-l2-13b
+🤖 Chati model: google/gemini-2.5-flash
+🧠 Memory model: gryphe/mythomax-l2-13b
+🎧 Audio model: gpt-audio-mini
+⚡ Streaming enabled
+🎬 Cinematic roleplay enabled
+🎭 Roleplay levels enabled
+🧠 Per-chat memory enabled
+📌 Pinned memory enabled
+↔ Response variants enabled
+⚙ Character editing enabled
+🖼 Battle scene image input enabled
+=================================
+
