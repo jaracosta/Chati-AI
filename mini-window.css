@@ -1,0 +1,79 @@
+/* Mini window: the notice in the tab while the app is popped out, and the
+   header button that opens it (mini-window.js). */
+.chati-mini-notice {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(10, 10, 18, 0.86);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.chati-mini-notice[hidden] {
+  display: none;
+}
+
+.chati-mini-notice-card {
+  max-width: 380px;
+  text-align: center;
+  color: #f4f3ff;
+  font-family: inherit;
+}
+
+.chati-mini-notice-phone {
+  width: 64px;
+  height: 108px;
+  margin: 0 auto 20px;
+  border: 3px solid #8b7cf6;
+  border-radius: 16px;
+  box-shadow: 0 0 40px rgba(139, 124, 246, 0.45);
+  position: relative;
+}
+
+.chati-mini-notice-phone::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 18px;
+  height: 3px;
+  margin-left: -9px;
+  border-radius: 3px;
+  background: #8b7cf6;
+}
+
+.chati-mini-notice h2 {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+}
+
+.chati-mini-notice p {
+  margin: 0 0 20px;
+  color: #b9b6d3;
+  line-height: 1.5;
+}
+
+.chati-mini-back {
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 22px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #a78bfa, #6366f1);
+  cursor: pointer;
+}
+
+/* No mini button on phones or inside the mini window itself. */
+@media (max-width: 760px), (hover: none) {
+  .chati-mini-btn {
+    display: none !important;
+  }
+}
+
+.chati-mini .chati-mini-btn {
+  display: none !important;
+}

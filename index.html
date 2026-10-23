@@ -78,11 +78,12 @@
   <link rel="stylesheet" href="character-voice.css?v=14.6.0">
   <link rel="stylesheet" href="home-v15.css?v=15.0.0">
   <link rel="stylesheet" href="chat-v15.css?v=15.1.0">
+  <link rel="stylesheet" href="mini-window.css?v=15.5.0">
 
   <!-- Returning visitors skip the cinematic splash entirely. -->
   <script>
     try {
-      if (localStorage.getItem("chatiSplashSeenV1") === "1") {
+      if (localStorage.getItem("chatiSplashSeenV1") === "1" || /[?&]mini=1\b/.test(location.search)) {
         document.documentElement.classList.add("splash-skip");
       }
     } catch (_) {}
@@ -3323,6 +3324,7 @@
   <script src="canon-voice.js?v=15.4.0"></script>
   <script src="character-voice.js?v=14.2.0"></script>
   <script src="home-v15.js?v=15.0.0"></script>
+  <script src="mini-window.js?v=15.5.0"></script>
 
 </body>
 </html>
