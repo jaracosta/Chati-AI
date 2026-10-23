@@ -520,9 +520,19 @@ html[data-chati-theme="light"] .v6-theme-grid button {
 }
 
 
-/* Account controls now live in the sidebar profile menu when signed in. */
-body:not(.v6-signed-out) .account-settings-section {
+/* Signed in, Settings keeps a short account card (email, "My profile &
+   accounts", Sign Out); the full controls live in the profile menu. The
+   sign-in form is never shown then. */
+body:not(.v6-signed-out) .account-settings-section #accountSignedOutView,
+body:not(.v6-signed-out) .account-settings-section #accountAuthForm {
   display: none !important;
+}
+
+.account-signed-in-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 

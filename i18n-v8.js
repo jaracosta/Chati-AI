@@ -223,6 +223,7 @@
     "Remove": "Quitar",
     "Ready": "Listo",
     "Local": "Local",
+    "Connected": "Conectado",
     "N/A": "N/D",
 
     // Home
@@ -450,6 +451,7 @@
     "Sign in": "Iniciar sesión",
     "Sign In": "Iniciar sesión",
     "Sign Out": "Cerrar sesión",
+    "My profile & accounts": "Mi perfil y cuentas",
     "Signed in": "Sesión iniciada",
     "Not signed in": "Sin sesión",
     "Switch account": "Cambiar de cuenta",
