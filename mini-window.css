@@ -56,6 +56,28 @@
   line-height: 1.5;
 }
 
+.chati-mini-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.chati-mini-show {
+  border: 1px solid rgba(167, 139, 250, 0.6);
+  border-radius: 999px;
+  padding: 10px 20px;
+  font: inherit;
+  font-weight: 600;
+  color: #e9e5ff;
+  background: transparent;
+  cursor: pointer;
+}
+
+.chati-mini-show[hidden] {
+  display: none;
+}
+
 .chati-mini-back {
   border: 0;
   border-radius: 999px;

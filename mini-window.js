@@ -43,21 +43,40 @@
         '<div class="chati-mini-notice-card">' +
           '<div class="chati-mini-notice-phone" aria-hidden="true"></div>' +
           "<h2></h2><p></p>" +
-          '<button type="button" class="chati-mini-back"></button>' +
+          '<div class="chati-mini-actions">' +
+            '<button type="button" class="chati-mini-show"></button>' +
+            '<button type="button" class="chati-mini-back"></button>' +
+          "</div>" +
         "</div>";
       notice.querySelector(".chati-mini-back").addEventListener("click", closeMini);
+      notice.querySelector(".chati-mini-show").addEventListener("click", showPopup);
       document.body.appendChild(notice);
     }
-    notice.querySelector("h2").textContent = es() ? "Chati-AI está en la mini ventana" : "Chati-AI is in the mini window";
+    const floating = Boolean(pipWindow);
+    notice.querySelector("h2").textContent = es()
+      ? (floating ? "Chati-AI está en la mini ventana" : "Chati-AI está en una ventanita aparte")
+      : (floating ? "Chati-AI is in the mini window" : "Chati-AI is in a separate small window");
+    // Safari and Firefox cannot keep a web window always on top: when the big
+    // window is clicked it covers the small one, so say so and offer a button
+    // to bring it to the front again.
     notice.querySelector("p").textContent = es()
-      ? (pipWindow
+      ? (floating
           ? "Muévela a donde quieras; se queda encima mientras usas otras pestañas y apps."
-          : "Muévela a donde quieras. Ciérrala o usa el botón de abajo para regresarla.")
-      : (pipWindow
+          : "Este navegador no deja que una ventana se quede siempre encima, así que la ventana grande la puede tapar. Toca «Mostrar ventanita» para traerla al frente. Para que flote encima de todo, usa Chrome, Edge o Brave.")
+      : (floating
           ? "Drag it anywhere; it stays on top while you use other tabs and apps."
-          : "Drag it anywhere. Close it or use the button below to bring it back.");
+          : "This browser can't keep a window always on top, so the big window can cover it. Tap \"Show the small window\" to bring it to the front. To keep it floating over everything, use Chrome, Edge or Brave.");
+    const show = notice.querySelector(".chati-mini-show");
+    show.hidden = floating;
+    show.textContent = es() ? "Mostrar ventanita" : "Show the small window";
     notice.querySelector(".chati-mini-back").textContent = es() ? "Traer de vuelta aquí" : "Bring it back here";
     notice.hidden = false;
+  }
+
+  function showPopup() {
+    try {
+      popup?.focus();
+    } catch (_) {}
   }
 
   function miniClosed() {
@@ -107,20 +126,26 @@
       }
     }
 
-    const left = Math.max(0, (window.screenX || 0) + (window.outerWidth || 1200) - MINI_WIDTH - 40);
-    const top = Math.max(0, (window.screenY || 0) + 60);
-    popup = window.open(url.href, "chati-mini", `popup=yes,width=${MINI_WIDTH},height=${MINI_HEIGHT},left=${left},top=${top}`);
+    // Right edge of the screen, as tall as fits.
+    const height = Math.min(MINI_HEIGHT, Math.max(560, (screen.availHeight || MINI_HEIGHT + 80) - 80));
+    const left = Math.max(0, (screen.availLeft || 0) + (screen.availWidth || 1280) - MINI_WIDTH - 24);
+    const top = Math.max(0, (screen.availTop || 0) + 40);
+    popup = window.open(url.href, "chati-mini", `popup=yes,width=${MINI_WIDTH},height=${height},left=${left},top=${top}`);
     if (!popup) {
-      toast(es() ? "Tu navegador bloqueó la mini ventana. Permite ventanas emergentes para chati-ai.com." : "Your browser blocked the mini window. Allow pop-ups for chati-ai.com.");
+      toast(es() ? "Tu navegador bloqueó la ventanita. Permite ventanas emergentes para chati-ai.com." : "Your browser blocked the small window. Allow pop-ups for chati-ai.com.");
       return;
     }
+    showPopup();
     showNotice();
-    toast(es()
-      ? "Este navegador no deja que una ventana se quede siempre encima. En Chrome, Edge, Brave u Opera sí."
-      : "This browser can't keep a window always on top. Chrome, Edge, Brave and Opera can.");
+    // Coming back to this tab brings the small window to the front again.
+    const raise = () => {
+      if (document.visibilityState === "visible" && popup && !popup.closed) showPopup();
+    };
+    document.addEventListener("visibilitychange", raise);
     const watch = setInterval(() => {
       if (popup?.closed) {
         clearInterval(watch);
+        document.removeEventListener("visibilitychange", raise);
         miniClosed();
       }
     }, 800);
