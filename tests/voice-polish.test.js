@@ -45,3 +45,20 @@ test('polish removes sentences copied from earlier replies and loops', () => {
   assert.equal(polishReply(keep, ['You are late again, recruit.']), keep, 'never empties a reply');
   assert.equal(polishReply('Fine.\n\n**Turns away.** Whatever.'), 'Fine.\n\n**Turns away.** Whatever.');
 });
+
+test('Chinese characters that slip into a Spanish reply are removed', async () => {
+  const { stripForeignScript, hasForeignScript, buildVoiceAnchor } = await import('../voice-polish.js');
+  const reply = '**Levi frunce el ceño.** Tch. 你在干什么 ¿Llegas tarde otra vez? Limpia eso（清洁）.';
+  const cleaned = stripForeignScript(reply, 'hola capitán');
+  assert.equal(cleaned, '**Levi frunce el ceño.** Tch. ¿Llegas tarde otra vez? Limpia eso.');
+  assert.equal(hasForeignScript(reply, 'hola'), true);
+  // Users who write in Japanese keep their script.
+  assert.equal(stripForeignScript('こんにちは、元気？', 'こんにちは'), 'こんにちは、元気？');
+  assert.equal(stripForeignScript('Sin cambios.', 'hola'), 'Sin cambios.');
+  assert.match(buildVoiceAnchor({ characterName: 'Levi', language: 'es' }), /write only in Spanish/);
+});
+
+test('canon cards lose stray Chinese characters', async () => {
+  const { sanitizeCanonProfile } = await import('../canon-profile.js');
+  assert.equal(sanitizeCanonProfile('VOICE: blunt 冷静 and cold.'), 'VOICE: blunt and cold.');
+});

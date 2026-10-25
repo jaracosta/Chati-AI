@@ -206,3 +206,17 @@ test('a reply cut by the token limit ends on a complete sentence', () => {
   assert.equal(trimToCompleteSentence('**Waves.**'), '**Waves.**');
   assert.equal(trimToCompleteSentence('Hi. ' + 'word '.repeat(40)).endsWith('…'), true);
 });
+
+test('18+ refusals are detected and retried on the mature fallback model', async () => {
+  const { looksLikeRefusal, matureFallbackModel } = await import('../roleplay-guard.js');
+  assert.equal(looksLikeRefusal("I'm sorry, but I can't continue with this request."), true);
+  assert.equal(looksLikeRefusal('Lo siento, pero no puedo continuar con este contenido.'), true);
+  assert.equal(looksLikeRefusal('Como IA, no puedo escribir eso.'), true);
+  // In-character lines are not refusals.
+  assert.equal(looksLikeRefusal('**Levi te mira.** No puedo creer que llegues tarde otra vez.'), false);
+  assert.equal(looksLikeRefusal('Tch. No puedo dejarte solo ni un minuto.'), false);
+  assert.equal(matureFallbackModel({ OPENROUTER_API_KEY: 'k' }, 'deepseek/deepseek-v4.1-flash-1017'), 'sao10k/l3.3-euryale-70b');
+  assert.equal(matureFallbackModel({ OPENROUTER_API_KEY: 'k' }, 'sao10k/l3.3-euryale-70b'), '');
+  assert.equal(matureFallbackModel({ OPENROUTER_API_KEY: 'k', MATURE_FALLBACK_MODEL: 'off' }, 'x'), '');
+  assert.equal(matureFallbackModel({}, 'x'), '');
+});

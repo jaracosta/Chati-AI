@@ -62,7 +62,7 @@ A) EXISTING CHARACTER: write their canon card. Facts must be canon (search the w
 B) ORIGINAL CHARACTER (made up by the creator, or you cannot identify them with confidence): write the card FROM THE SHEET. The creator's personality, rules and lines are the truth — turn them into concrete, specific speaking and behaviour notes. Invent only small details that fit and never contradict the sheet. SOURCE must start with "Original character".
 Only if the sheet is empty or says almost nothing about who they are, reply with exactly: ${ORIGINAL_MARKER}
 
-Be specific to THIS character, never generic. Use this exact format, in English except where noted, at most about 520 words:
+Be specific to THIS character, never generic. Use this exact format, in English except where noted (never Chinese, Japanese or Korean characters — write names in Latin letters), at most about 520 words:
 
 SOURCE: the work and which point of the story this version is from — or "Original character (creator's profile)".
 WHO: 2-3 lines — who they are and what drives them.
@@ -106,7 +106,12 @@ export function sanitizeCanonProfile(value) {
   const text = String(value || "").trim();
   if (!text || text === ORIGINAL_MARKER) return "";
   if (!/VOICE\s*:/i.test(text)) return "";
-  return text.slice(0, MAX_CARD_CHARS);
+  // Cards are written by a Qwen model by default; stray Chinese in the card
+  // would be copied into the character's replies.
+  return text
+    .replace(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff00-\uffef]+/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .slice(0, MAX_CARD_CHARS);
 }
 
 export function buildCanonPromptSection(characterName, card) {

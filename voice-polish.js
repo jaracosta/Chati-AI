@@ -184,6 +184,9 @@ export function buildVoiceAnchor({ characterName = "the character", card = null,
   if (gestures.length) lines.push(`Gestures already used — pick a different one: ${gestures.map(gesture => `"${gesture}"`).join(", ")}.`);
   const storyLine = formatStoryLine(story);
   if (storyLine) lines.push(`Where the story is (stay inside it — don't contradict, reset or skip it): ${storyLine}`);
+  lines.push(language === "es"
+    ? `Language: write only in Spanish (natural, spoken). No English sentences, no Chinese or any other script.`
+    : `Language: write only in the user's language. No Chinese characters or any other script.`);
   if (userAsked) lines.push(`They asked ${name} something: answer it first, in ${name}'s own way.`);
   if (shape) lines.push(`This reply: ${shape}`);
   lines.push(appearanceCue
@@ -212,6 +215,29 @@ export function formatStoryLine(story) {
   ].filter(Boolean);
   if (!parts.length && story.scenario) parts.push(`it started as — ${clip(story.scenario, 220)}`);
   return parts.join(" | ");
+}
+
+// Chinese/Japanese/Korean characters that slip into a Spanish or English
+// reply (Qwen-family and some Llama finetunes do this). Removed only when
+// the user is not writing in those scripts themselves.
+const CJK_RUN = /[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff00-\uffef]+/g;
+const HAS_CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/;
+
+export function hasForeignScript(text, userText = "") {
+  return HAS_CJK.test(String(text || "")) && !HAS_CJK.test(String(userText || ""));
+}
+
+export function stripForeignScript(text, userText = "") {
+  const value = String(text || "");
+  if (!hasForeignScript(value, userText)) return value;
+  return value
+    .replace(CJK_RUN, " ")
+    .replace(/[(（]\s*[)）]/g, "")
+    .replace(/[ \t]+([,.!?;:…])/g, "$1")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/^[ \t]+|[ \t]+$/gm, "")
+    .replace(/\*\*\s*\*\*/g, "")
+    .trim();
 }
 
 // Removes repetition the model produced anyway. Never removes so much that
