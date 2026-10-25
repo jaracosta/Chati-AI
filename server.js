@@ -50,7 +50,9 @@ import {
   pickReplyShape,
   recentGestures,
   findOverusedPhrases,
-  polishReply
+  polishReply,
+  stripForeignScript,
+  hasForeignScript
 } from "./voice-polish.js";
 
 import {
@@ -3750,10 +3752,29 @@ ${groupContinuation
         if (generatedText) {
 
           const polished =
-            polishReply(
-              generatedText,
-              previousReplies
+            stripForeignScript(
+              polishReply(
+                generatedText,
+                previousReplies
+              ),
+              messages
+                .filter(message => message?.sender === "user")
+                .slice(-6)
+                .map(message => String(message.text || ""))
+                .join("\n")
             );
+
+          if (
+            hasForeignScript(
+              generatedText,
+              String(latestUserMessage?.text || "")
+            )
+          ) {
+            console.warn(
+              "⚠️ Reply had Chinese/Japanese/Korean characters; removed. Model:",
+              MODEL
+            );
+          }
 
           if (polished !== generatedText) {
 
