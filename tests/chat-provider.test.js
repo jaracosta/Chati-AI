@@ -101,3 +101,19 @@ test('a model that does not start writing in time is replaced by the fallback', 
     assert.equal(quick.at(-1).response.output_text, 'Fast hello');
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('DeepSeek answers without thinking first; other models are left alone', async () => {
+  const originalFetch = globalThis.fetch;
+  const payloads = [];
+  globalThis.fetch = async (url, options) => {
+    payloads.push(JSON.parse(options.body));
+    return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const provider = createChatProvider({ OPENROUTER_API_KEY: 'k' }, {});
+    await provider.responses.create({ model: 'deepseek/deepseek-v4.1-flash-1017', instructions: '', input: [], stream: false });
+    await provider.responses.create({ model: 'sao10k/l3.3-euryale-70b', instructions: '', input: [], stream: false });
+    assert.deepEqual(payloads[0].reasoning, { enabled: false });
+    assert.equal(payloads[1].reasoning, undefined);
+  } finally { globalThis.fetch = originalFetch; }
+});

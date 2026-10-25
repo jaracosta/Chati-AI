@@ -39,7 +39,9 @@ import {
   buildCharacterLock,
   buildEarlierChatSection,
   guessLanguage,
-  trimToCompleteSentence
+  trimToCompleteSentence,
+  looksLikeRefusal,
+  matureFallbackModel
 } from "./roleplay-guard.js";
 
 import {
@@ -3740,6 +3742,85 @@ ${groupContinuation
               }) +
               "\n"
 
+            );
+
+          }
+
+        }
+
+
+        // 18+ on and the model refused to write the scene: retry once on
+        // the mature fallback model and show that reply instead.
+        const matureFallback =
+          matureContent
+            ? matureFallbackModel(
+                process.env,
+                MODEL
+              )
+            : "";
+
+        if (
+          matureFallback &&
+          looksLikeRefusal(
+            generatedText
+          )
+        ) {
+
+          try {
+
+            const retry =
+              await chatProvider
+                .responses
+                .create({
+                  ...responseRequest,
+                  model:
+                    matureFallback,
+                  stream:
+                    false
+                });
+
+            const retryText =
+              cleanRoleplayReply(
+                extractResponseText(
+                  retry
+                ),
+                character.name
+              );
+
+            if (
+              retryText &&
+              !looksLikeRefusal(
+                retryText
+              )
+            ) {
+
+              console.log(
+                "🔁 Main model refused an 18+ scene; answered with",
+                matureFallback
+              );
+
+              generatedText =
+                retryText;
+
+              res.write(
+                JSON.stringify({
+                  type:
+                    "replace",
+                  text:
+                    retryText
+                }) +
+                "\n"
+              );
+
+            }
+
+          }
+
+          catch (error) {
+
+            console.warn(
+              "⚠️ Mature fallback failed:",
+              error?.message || error
             );
 
           }

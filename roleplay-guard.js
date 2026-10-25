@@ -559,3 +559,30 @@ export function buildEarlierChatSection({ characterName = "the character", earli
     `- ${name} remembers these moments the way a person remembers them: bring them up naturally when they matter (\"you said…\", \"like that time…\"). Never say you forgot something written here, and never contradict it.`
   ].filter(Boolean).join("\n\n");
 }
+
+
+// A model "breaking character" to refuse ("I can't continue this…", "Lo
+// siento, no puedo…"). Only the opening of the reply is checked, so a
+// character saying "no puedo creerlo" mid-scene is not a refusal.
+const REFUSAL_PATTERNS = [
+  /\b(?:i can(?:'|’|no)t|i cannot|i'm (?:sorry|unable|not able)|i am (?:sorry|unable|not able)|i won(?:'|’)t)\b[^.!?\n]{0,90}\b(?:continue|help|assist|write|create|engage|generate|provide|produce|roleplay|role-play|fulfil|comply|content|request)/i,
+  /\b(?:as an ai|language model|content (?:policy|policies|guidelines)|my guidelines|usage polic(?:y|ies))\b/i,
+  /\b(?:no puedo|no me es posible|lo siento,? pero no)\b[^.!?\n]{0,90}\b(?:continuar|ayudar|escribir|crear|generar|participar|seguir con|cumplir|contenido|solicitud|petici[oó]n)/i,
+  /\b(?:como (?:una )?(?:ia|inteligencia artificial)|modelo de lenguaje|mis directrices|pol[ií]ticas? de (?:contenido|uso))\b/i
+];
+
+export function looksLikeRefusal(text) {
+  const opening = String(text || "").replace(/\*\*[^*]*\*\*/g, " ").trim().slice(0, 260);
+  if (!opening) return false;
+  return REFUSAL_PATTERNS.some(pattern => pattern.test(opening));
+}
+
+// With 18+ on, a refusal from the main model is retried once on a model
+// that allows adult fiction. MATURE_FALLBACK_MODEL overrides it; "off"
+// disables the retry.
+export function matureFallbackModel(env = {}, mainModel = "") {
+  if (!env.OPENROUTER_API_KEY) return "";
+  const value = String(env.MATURE_FALLBACK_MODEL ?? "sao10k/l3.3-euryale-70b").trim();
+  if (!value || value.toLowerCase() === "off" || value === mainModel) return "";
+  return value;
+}
