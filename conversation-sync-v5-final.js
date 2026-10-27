@@ -224,6 +224,16 @@
         table: "cloud_messages",
         filter: filter
       }, () => schedule("realtime-message", REALTIME_DELAY, false))
+      // Characters (cloud_items) sync right away too, instead of on the
+      // 30-second timer.
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "cloud_items",
+        filter: filter
+      }, () => {
+        try { window.ChatiSync?.requestSync?.("realtime-character"); } catch (_) {}
+      })
       .subscribe(status => {
         if (myGeneration !== generation) return;
         realtimeStatus = String(status || "unknown");

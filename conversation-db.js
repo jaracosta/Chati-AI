@@ -1235,6 +1235,11 @@
     );
 
 
+    // Its messages are gone too (on delete cascade or purged one by one).
+    messageCache?.forgetConversation();
+
+
+
     return (
       Array.isArray(
         data
@@ -1510,7 +1515,194 @@
   // MESSAGES — GET MANY
   // ============================================================
 
+  // Sync used to download every message of every chat on every run. The
+  // cache (message-cache.js) keeps what was downloaded and asks only for
+  // rows changed since then, with one query for the whole account.
+  const messageCache =
+    window.ChatiMessageCache
+      ? window.ChatiMessageCache.createMessageCache({
+          fetchConversation:
+            conversationId =>
+              fetchMessages(
+                conversationId,
+                {
+                  includeDeleted:
+                    true
+                }
+              ),
+          fetchChangedSince:
+            fetchMessagesChangedSince,
+          fetchNewestUpdatedAt:
+            fetchNewestMessageUpdatedAt
+        })
+      : null;
+
+
+  async function fetchMessagesChangedSince(
+    isoSince
+  ) {
+
+    const session =
+      await getSession();
+
+    const pageSize =
+      1000;
+
+    const rows =
+      [];
+
+    let from =
+      isoSince;
+
+    // Pages by updated_at; overlapping rows are merged by id.
+    for (
+      let page = 0;
+      page < 20;
+      page += 1
+    ) {
+
+      const {
+        data,
+        error
+      } =
+        await getClient()
+          .from(
+            MESSAGES_TABLE
+          )
+          .select("*")
+          .eq(
+            "user_id",
+            session.user.id
+          )
+          .gte(
+            "updated_at",
+            from
+          )
+          .order(
+            "updated_at",
+            {
+              ascending:
+                true
+            }
+          )
+          .limit(
+            pageSize
+          );
+
+      throwIfError(
+        error
+      );
+
+      const list =
+        Array.isArray(data)
+          ? data
+          : [];
+
+      rows.push(
+        ...list
+      );
+
+      if (
+        list.length < pageSize
+      ) {
+        break;
+      }
+
+      const last =
+        list[list.length - 1].updated_at;
+
+      if (last === from) {
+        break;
+      }
+
+      from =
+        last;
+
+    }
+
+    return rows;
+
+  }
+
+
+  async function fetchNewestMessageUpdatedAt() {
+
+    const session =
+      await getSession();
+
+    const {
+      data,
+      error
+    } =
+      await getClient()
+        .from(
+          MESSAGES_TABLE
+        )
+        .select("updated_at")
+        .eq(
+          "user_id",
+          session.user.id
+        )
+        .order(
+          "updated_at",
+          {
+            ascending:
+              false
+          }
+        )
+        .limit(
+          1
+        );
+
+    throwIfError(
+      error
+    );
+
+    return Array.isArray(data) && data.length
+      ? data[0].updated_at
+      : null;
+
+  }
+
+
   async function getMessages(
+    conversationId,
+    options = {}
+  ) {
+
+    if (
+      !messageCache ||
+      options.since != null
+    ) {
+      return fetchMessages(
+        conversationId,
+        options
+      );
+    }
+
+    const cloudConversationId =
+      assertId(
+        conversationId,
+        "Cloud conversation ID"
+      );
+
+    const session =
+      await getSession();
+
+    return messageCache.getMessages(
+      cloudConversationId,
+      {
+        includeDeleted:
+          Boolean(options.includeDeleted),
+        currentUserId:
+          session.user.id
+      }
+    );
+
+  }
+
+
+  async function fetchMessages(
     conversationId,
     {
       includeDeleted = false,
@@ -1912,6 +2104,12 @@
     );
 
 
+    messageCache?.forgetMessage(
+      cloudConversationId,
+      localMessageId
+    );
+
+
     return (
       Array.isArray(
         data
@@ -2034,10 +2232,22 @@
     });
 
 
+  // Rows this device writes go straight into the message cache, so the
+  // next sync sees them without downloading anything.
+  const rememberWrite =
+    write =>
+      async (...args) => {
+        const row =
+          await write(...args);
+        messageCache?.remember(row);
+        return row;
+      };
+
+
   window.ChatiMessages =
     Object.freeze({
       create:
-        createMessage,
+        rememberWrite(createMessage),
 
       get:
         getMessage,
@@ -2046,13 +2256,16 @@
         getMessages,
 
       updateIfVersion:
-        updateMessageIfVersion,
+        rememberWrite(updateMessageIfVersion),
 
       removeIfVersion:
-        removeMessageIfVersion,
+        rememberWrite(removeMessageIfVersion),
 
       restoreIfVersion:
-        restoreMessageIfVersion,
+        rememberWrite(restoreMessageIfVersion),
+
+      cacheStats:
+        () => messageCache?.stats() || null,
 
       purge:
         purgeMessage

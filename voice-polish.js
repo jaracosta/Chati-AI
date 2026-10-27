@@ -165,7 +165,7 @@ export function pickReplyShape(previousReplies = [], random = Math.random) {
   return pool[0].text;
 }
 
-export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, appearanceCue = "", story = null, language = "en" } = {}) {
+export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, appearanceCue = "", story = null, remembered = [], language = "en" } = {}) {
   const name = String(characterName || "the character").trim();
   const lines = [];
   const voice = card?.voice || String(profile || "").replace(/\s+/g, " ").trim().slice(0, 300);
@@ -187,6 +187,8 @@ export function buildVoiceAnchor({ characterName = "the character", card = null,
   lines.push(language === "es"
     ? `Language: write only in Spanish (natural, spoken). No English sentences, no Chinese or any other script.`
     : `Language: write only in the user's language. No Chinese characters or any other script.`);
+  const details = (Array.isArray(remembered) ? remembered : []).map(item => String(item || "").replace(/\s+/g, " ").trim().slice(0, 200)).filter(Boolean).slice(0, 3);
+  if (details.length) lines.push(`The user told ${name} this before — remember it and use it if it fits: ${details.join("; ")}`);
   if (userAsked) lines.push(`They asked ${name} something: answer it first, in ${name}'s own way.`);
   if (shape) lines.push(`This reply: ${shape}`);
   lines.push(appearanceCue
