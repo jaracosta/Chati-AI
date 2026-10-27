@@ -63,6 +63,9 @@
     let cursor = null; // ms; null until the starting point is known
     let lastDeltaAt = 0;
     let deltaPromise = null;
+    // Set by realtime events: the next read must ask for changes, however
+    // recently the last change query ran.
+    let stale = false;
     const chats = new Map(); // conversationId -> { rows: Map(id -> row), loadedAt }
     const stats = { fullLoads: 0, deltaQueries: 0, deltaRows: 0, cacheHits: 0 };
 
@@ -71,6 +74,7 @@
       cursor = null;
       lastDeltaAt = 0;
       deltaPromise = null;
+      stale = false;
       chats.clear();
     }
 
@@ -98,13 +102,26 @@
     }
 
     async function refreshChanges() {
-      if (now() - lastDeltaAt < deltaIntervalMs) return;
+      // A query already running may have started before the newest change:
+      // wait for it, then run again if something changed meanwhile.
+      if (deltaPromise) await deltaPromise.catch(() => {});
+      if (!stale && now() - lastDeltaAt < deltaIntervalMs) return;
       if (!deltaPromise) {
-        deltaPromise = runDelta().finally(() => {
-          deltaPromise = null;
-        });
+        stale = false;
+        deltaPromise = runDelta()
+          .catch(error => {
+            stale = true;
+            throw error;
+          })
+          .finally(() => {
+            deltaPromise = null;
+          });
       }
       await deltaPromise;
+    }
+
+    function markStale() {
+      stale = true;
     }
 
     async function getMessages(conversationId, { includeDeleted = false, since = null, currentUserId = null } = {}) {
@@ -164,6 +181,7 @@
       remember,
       forgetMessage,
       forgetConversation,
+      markStale,
       reset,
       stats: () => Object.assign({ cachedChats: chats.size, cursor }, stats)
     };

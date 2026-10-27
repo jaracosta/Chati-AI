@@ -2267,6 +2267,10 @@
       cacheStats:
         () => messageCache?.stats() || null,
 
+      // Realtime saw a change: the next sync must fetch it.
+      markStale:
+        () => messageCache?.markStale(),
+
       purge:
         purgeMessage
     });
