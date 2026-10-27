@@ -89,6 +89,11 @@
 
   function schedule(reason, delay, announce) {
     if (!started) return;
+    // Anything but the safety-net timer means something changed: make the
+    // message cache ask the cloud instead of trusting its last answer.
+    if (reason !== "fallback") {
+      try { window.ChatiMessages?.markStale?.(); } catch (_) {}
+    }
     queued = true;
     queuedReason = reason || "scheduled";
 

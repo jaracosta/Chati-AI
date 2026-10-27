@@ -115,3 +115,21 @@ test('empty chats are not cached, so their first messages are not missed', async
   time += 2000;
   assert.equal((await cache.getMessages('c1')).length, 1);
 });
+
+test('a message that arrives right after a sync shows up on the next sync (no "one behind")', async () => {
+  const db = fakeTable();
+  db.insert('c1', 'a', 'hola', 1);
+  let time = 0;
+  const cache = createMessageCache({ ...db.api, now: () => time });
+  await cache.getMessages('c1');
+  // Phone sends a message: realtime -> sync on the computer.
+  time += 5000;
+  db.insert('c1', 'b', 'mensaje del teléfono', 2);
+  cache.markStale();
+  assert.equal((await cache.getMessages('c1')).length, 2);
+  // Half a second later the character's reply lands: another realtime event.
+  time += 500;
+  db.insert('c1', 'c', 'respuesta del personaje', 3);
+  cache.markStale();
+  assert.deepEqual((await cache.getMessages('c1')).map(r => r.id), ['a', 'b', 'c']);
+});
