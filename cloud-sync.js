@@ -5703,7 +5703,16 @@
 
       startAutoSync,
 
-      stopAutoSync
+      stopAutoSync,
+
+      // Realtime: a character changed on another device.
+      requestSync:
+        reason =>
+          scheduleAutoSync(
+            reason ||
+              "realtime",
+            150
+          )
     });
 
 

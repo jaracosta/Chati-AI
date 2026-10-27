@@ -4371,6 +4371,8 @@ function createEmptyMemory(
 
     summary: "",
 
+    userDetails: [],
+
     importantFacts: [],
 
     currentScene: "",
@@ -4501,6 +4503,22 @@ function normalizeMemory(
       "string"
         ? memory.summary
         : "",
+
+
+    userDetails:
+      Array.isArray(
+        memory.userDetails
+      )
+        ? memory
+            .userDetails
+            .filter(
+
+              item =>
+                typeof item ===
+                "string"
+
+            )
+        : [],
 
 
     importantFacts:
@@ -16354,6 +16372,9 @@ function createMemoryPayload(
     summary:
       normalized.summary,
 
+    userDetails:
+      normalized.userDetails,
+
     importantFacts:
       normalized.importantFacts,
 
@@ -16866,6 +16887,17 @@ async function updateMemoryForChat(
           summary:
             data.memory.summary ||
             "",
+
+          userDetails:
+            Array.isArray(
+              data.memory
+                .userDetails
+            )
+              ? data.memory
+                  .userDetails
+              : latest
+                  .userDetails ||
+                [],
 
           importantFacts:
             Array.isArray(
@@ -17504,6 +17536,10 @@ function renderMemoryViewer() {
         .trim() ||
 
       memory
+        .userDetails
+        .length ||
+
+      memory
         .importantFacts
         .length ||
 
@@ -17577,12 +17613,21 @@ function renderMemoryViewer() {
     "No summary yet.";
 
 
+  // What the user told the character comes first, marked with 👤.
   fillMemoryList(
 
     memoryFacts,
 
-    memory
-      .importantFacts,
+    [
+      ...memory
+        .userDetails
+        .map(
+          detail =>
+            "👤 " + detail
+        ),
+      ...memory
+        .importantFacts
+    ],
 
     "No important memories stored yet."
 

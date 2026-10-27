@@ -43,6 +43,11 @@ import {
   looksLikeRefusal,
   matureFallbackModel
 } from "./roleplay-guard.js";
+import {
+  mergeUserDetails,
+  protectFacts,
+  relevantDetails
+} from "./memory-guard.js";
 
 import {
   CLICHE_PHRASES,
@@ -839,6 +844,7 @@ const PUBLIC_ROOT_FILES =
     "app-shell-v8.css",
     "app-shell-v8.js",
     "mini-window.js",
+    "message-cache.js",
     "mini-window.css",
     "i18n-v8.js",
     "explore-v8.js",
@@ -1448,6 +1454,13 @@ function normalizeMemory(
         memory?.importantFacts
       )
         ? memory.importantFacts
+        : [],
+
+    userDetails:
+      Array.isArray(
+        memory?.userDetails
+      )
+        ? memory.userDetails
         : [],
 
     currentScene:
@@ -2388,6 +2401,9 @@ function formatMemoryForPrompt(
 PINNED MEMORIES — user-selected and especially important:
 ${bullets(clean.pinnedMemories)}
 
+WHAT THE USER HAS TOLD YOU — about themselves and their character. Remember all of it, bring it up naturally when it fits, never contradict it:
+${bullets(clean.userDetails)}
+
 CHAT SUMMARY:
 ${clean.summary || "No long-term summary yet."}
 
@@ -3278,6 +3294,11 @@ ${groupContinuation
               ),
               previousReplies
             ),
+          remembered:
+            relevantDetails(
+              normalizeMemory(memory).userDetails,
+              latestUserMessage?.text || ""
+            ),
           story: {
             scene:
               normalizeMemory(memory).currentScene,
@@ -4148,6 +4169,9 @@ ${JSON.stringify(
     summary:
       oldMemory.summary,
 
+    userDetails:
+      oldMemory.userDetails,
+
     importantFacts:
       oldMemory.importantFacts,
 
@@ -4208,7 +4232,8 @@ RULES
 - Preserve important older information unless new messages clearly update it.
 
 - summary is the story so far IN ORDER, from how the chat began to now. Never drop the beginning: when it gets long, shorten older parts to one line each instead of deleting them. Keep the first meeting, how the user was introduced, and every turning point.
-- importantFacts must keep, permanently, everything the user has said about themselves or their character (name, age, looks, job, likes and dislikes, family, past, goals, secrets) and every promise, deal, gift, nickname or inside joke between them and the character. Never remove these unless the user changes them.
+- userDetails is the most important list. It keeps, permanently, every detail the USER has written about themselves or their character: name and nicknames, age, looks, clothes they described, job or studies, family, pets, friends, where they live, likes and dislikes, fears, dreams, past, secrets, opinions, and things they did or said that matter. One short, specific line each, with the exact names, places and words the user used (e.g. "Has a cat called Mochi", "Hates thunderstorms since a childhood accident"). Start from the existing list: keep every item, add new details, and rewrite an item only when the user changed it. If userDetails is empty, move the details about the user out of importantFacts into it.
+- importantFacts keeps the rest that must last: every promise, deal, gift, nickname or inside joke between the user and the character, key events and revealed secrets. Never remove these unless they change.
 - Keep the story summary under about 350 words.
 
 - Track the current location and immediate situation in currentScene.
@@ -4269,6 +4294,21 @@ RULES
                         summary: {
                           type:
                             "string"
+                        },
+
+                        userDetails: {
+
+                          type:
+                            "array",
+
+                          items: {
+                            type:
+                              "string"
+                          },
+
+                          maxItems:
+                            60
+
                         },
 
                         importantFacts: {
@@ -4408,6 +4448,8 @@ RULES
 
                         "summary",
 
+                        "userDetails",
+
                         "importantFacts",
 
                         "currentScene",
@@ -4455,8 +4497,12 @@ RULES
                     "completed",
                   output_text:
                     await chatProvider.completeJson({
+                      // A second try uses the chat model, in case the
+                      // memory model is down or returns nothing.
                       model:
-                        MEMORY_MODEL,
+                        attempt === 2 && MODEL !== MEMORY_MODEL
+                          ? MODEL
+                          : MEMORY_MODEL,
                       instructions:
                         memoryInstructions,
                       input:
@@ -4656,6 +4702,20 @@ RULES
         );
 
       }
+
+
+      // Never lose what the user told the character (memory-guard.js).
+      updatedMemory.userDetails =
+        mergeUserDetails(
+          oldMemory.userDetails,
+          updatedMemory.userDetails
+        );
+
+      updatedMemory.importantFacts =
+        protectFacts(
+          oldMemory.importantFacts,
+          updatedMemory.importantFacts
+        );
 
 
       console.log(
