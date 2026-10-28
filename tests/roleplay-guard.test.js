@@ -190,7 +190,7 @@ test('the character lock restates the canon voice, a budget and anti-drift', () 
   assert.match(lock, /Do not copy the length, style or phrases of your earlier replies/);
   const original = buildCharacterLock({ characterName: 'Luna', card: null, replyLength: 'auto' });
   assert.match(original, /Talk exactly the way Luna talks/);
-  assert.match(original, /usually under 80 words/);
+  assert.match(original, /an emotional moment can take up to 180 words/);
 });
 
 test('guesses the reply language from the user message', () => {
