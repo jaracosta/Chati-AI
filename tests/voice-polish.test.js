@@ -62,3 +62,14 @@ test('canon cards lose stray Chinese characters', async () => {
   const { sanitizeCanonProfile } = await import('../canon-profile.js');
   assert.equal(sanitizeCanonProfile('VOICE: blunt 冷静 and cold.'), 'VOICE: blunt and cold.');
 });
+
+test('replies that went off the rails are recognised as gibberish', async () => {
+  const { looksLikeGibberish } = await import('../voice-polish.js');
+  const broken = 'Knuckles white, temple pulsing ber aristine caselence. ochrom advicedock Veryconnection నక్ nakhee clinინ Tz dated Monthlyiska Sax∂азанеме tod depended مشکل Ini behavedUtilities moshi व snake';
+  assert.equal(looksLikeGibberish(broken, 'hola, ¿cómo estás?'), true);
+  assert.equal(looksLikeGibberish('Everything fine <|place_holder_mm_span_0094|> ok', 'hi'), true);
+  assert.equal(looksLikeGibberish('**Levi frunce el ceño.** Tch. ¿Llegas tarde otra vez?', 'hola'), false);
+  // A character who says one word in Japanese, or a user who writes in Russian, is fine.
+  assert.equal(looksLikeGibberish('**Gojo sonríe.** Arigatou… 先生.', 'hola'), false);
+  assert.equal(looksLikeGibberish('Привет, как дела?', 'Привет'), false);
+});

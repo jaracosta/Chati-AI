@@ -225,6 +225,22 @@ export function formatStoryLine(story) {
 const CJK_RUN = /[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff00-\uffef]+/g;
 const HAS_CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/;
 
+// A sampling run that went off the rails: the model's internal tokens
+// ("<|place_holder_…|>") or lots of letters from scripts the user does not
+// write in (Cyrillic, Arabic, Hebrew, Thai, Indic, Georgian, CJK…).
+const SPECIAL_TOKEN = /<\|[^|>\n]{2,60}\|>|place[_▁ ]?holder[_▁ ]?(?:no|mm)/i;
+const OTHER_SCRIPT = /[\u0370-\u03ff\u0400-\u052f\u0590-\u05ff\u0600-\u06ff\u0900-\u0dff\u0e00-\u0e7f\u10a0-\u10ff\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/gu;
+
+export function looksLikeGibberish(text, userText = "") {
+  const value = String(text || "");
+  if (SPECIAL_TOKEN.test(value)) return true;
+  const foreign = (value.match(OTHER_SCRIPT) || []).length;
+  if (!foreign) return false;
+  if ((String(userText || "").match(OTHER_SCRIPT) || []).length) return false;
+  const letters = (value.match(/\p{L}/gu) || []).length || 1;
+  return foreign >= 12 || (foreign >= 5 && foreign / letters > 0.08);
+}
+
 export function hasForeignScript(text, userText = "") {
   return HAS_CJK.test(String(text || "")) && !HAS_CJK.test(String(userText || ""));
 }

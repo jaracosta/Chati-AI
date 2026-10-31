@@ -59,7 +59,8 @@ import {
   findOverusedPhrases,
   polishReply,
   stripForeignScript,
-  hasForeignScript
+  hasForeignScript,
+  looksLikeGibberish
 } from "./voice-polish.js";
 
 import {
@@ -3772,6 +3773,95 @@ ${groupContinuation
 
         // 18+ on and the model refused to write the scene: retry once on
         // the mature fallback model and show that reply instead.
+        // Sampling went off the rails (mixed alphabets, the model's internal
+        // tokens): generate the reply again, cooler, and show that instead.
+        const recentUserText =
+          messages
+            .filter(message => message?.sender === "user")
+            .slice(-6)
+            .map(message => String(message.text || ""))
+            .join("\n");
+
+        if (
+          looksLikeGibberish(
+            generatedText,
+            recentUserText
+          )
+        ) {
+
+          console.warn(
+            "⚠️ Reply came out as gibberish; regenerating at a lower temperature. Model:",
+            MODEL
+          );
+
+          try {
+
+            const retry =
+              await chatProvider
+                .responses
+                .create({
+                  ...responseRequest,
+                  ...(responseRequest.sampling
+                    ? {
+                        sampling: {
+                          ...responseRequest.sampling,
+                          temperature:
+                            Math.min(
+                              0.9,
+                              responseRequest.sampling.temperature
+                            )
+                        }
+                      }
+                    : {}),
+                  stream:
+                    false
+                });
+
+            const retryText =
+              cleanRoleplayReply(
+                extractResponseText(
+                  retry
+                ),
+                character.name
+              );
+
+            if (
+              retryText &&
+              !looksLikeGibberish(
+                retryText,
+                recentUserText
+              )
+            ) {
+
+              generatedText =
+                retryText;
+
+              res.write(
+                JSON.stringify({
+                  type:
+                    "replace",
+                  text:
+                    retryText
+                }) +
+                "\n"
+              );
+
+            }
+
+          }
+
+          catch (error) {
+
+            console.warn(
+              "⚠️ Gibberish retry failed:",
+              error?.message || error
+            );
+
+          }
+
+        }
+
+
         const matureFallback =
           matureContent
             ? matureFallbackModel(
