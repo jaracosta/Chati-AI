@@ -60,7 +60,8 @@ import {
   polishReply,
   stripForeignScript,
   hasForeignScript,
-  looksLikeGibberish
+  looksLikeGibberish,
+  hasUnexpectedScript
 } from "./voice-polish.js";
 
 import {
@@ -3442,8 +3443,21 @@ ${groupContinuation
       }
 
 
+      // What the user wrote lately, to tell gibberish from a language the
+      // user really uses.
+      const recentUserText =
+        messages
+          .filter(message => message?.sender === "user")
+          .slice(-6)
+          .map(message => String(message.text || ""))
+          .join("\n");
+
+
       let generatedText =
         "";
+
+      let heldBack =
+        false;
 
       let refusalText =
         "";
@@ -3558,15 +3572,47 @@ ${groupContinuation
               generatedText +=
                 safeDelta;
 
-              res.write(
-                JSON.stringify({
-                  type:
-                    "delta",
-                  delta:
-                    safeDelta
-                }) +
-                "\n"
-              );
+              // The reply is turning into gibberish: stop showing it now
+              // and let the retry below replace it.
+              if (
+                looksLikeGibberish(
+                  generatedText,
+                  recentUserText
+                )
+              ) {
+
+                break;
+
+              }
+
+              // A letter from an alphabet the user doesn't use: hold the
+              // rest back until it is clear whether this is gibberish.
+              if (
+                !heldBack &&
+                hasUnexpectedScript(
+                  safeDelta,
+                  recentUserText
+                )
+              ) {
+
+                heldBack =
+                  true;
+
+              }
+
+              if (!heldBack) {
+
+                res.write(
+                  JSON.stringify({
+                    type:
+                      "delta",
+                    delta:
+                      safeDelta
+                  }) +
+                  "\n"
+                );
+
+              }
 
             }
 
@@ -3775,13 +3821,6 @@ ${groupContinuation
         // the mature fallback model and show that reply instead.
         // Sampling went off the rails (mixed alphabets, the model's internal
         // tokens): generate the reply again, cooler, and show that instead.
-        const recentUserText =
-          messages
-            .filter(message => message?.sender === "user")
-            .slice(-6)
-            .map(message => String(message.text || ""))
-            .join("\n");
-
         if (
           looksLikeGibberish(
             generatedText,
@@ -3836,6 +3875,9 @@ ${groupContinuation
               generatedText =
                 retryText;
 
+              heldBack =
+                false;
+
               res.write(
                 JSON.stringify({
                   type:
@@ -3858,6 +3900,32 @@ ${groupContinuation
             );
 
           }
+
+        }
+
+
+        // Held back for a stray foreign word that turned out fine: show it.
+        if (
+          heldBack &&
+          generatedText &&
+          !looksLikeGibberish(
+            generatedText,
+            recentUserText
+          )
+        ) {
+
+          heldBack =
+            false;
+
+          res.write(
+            JSON.stringify({
+              type:
+                "replace",
+              text:
+                generatedText
+            }) +
+            "\n"
+          );
 
         }
 

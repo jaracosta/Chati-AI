@@ -231,6 +231,13 @@ const HAS_CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/;
 const SPECIAL_TOKEN = /<\|[^|>\n]{2,60}\|>|place[_▁ ]?holder[_▁ ]?(?:no|mm)/i;
 const OTHER_SCRIPT = /[\u0370-\u03ff\u0400-\u052f\u0590-\u05ff\u0600-\u06ff\u0900-\u0dff\u0e00-\u0e7f\u10a0-\u10ff\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/gu;
 
+// Any letter from a script the user does not write in: while streaming,
+// stop showing the reply until it is clear whether it is gibberish.
+export function hasUnexpectedScript(text, userText = "") {
+  return (String(text || "").match(OTHER_SCRIPT) || []).length > 0 &&
+    !(String(userText || "").match(OTHER_SCRIPT) || []).length;
+}
+
 export function looksLikeGibberish(text, userText = "") {
   const value = String(text || "");
   if (SPECIAL_TOKEN.test(value)) return true;
