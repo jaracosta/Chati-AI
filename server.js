@@ -20,7 +20,8 @@ import {
   fetchPageText,
   wantsWebSearch,
   extractSearchRequest,
-  stripSearchMarkers
+  stripSearchMarkers,
+  visibleChatiText
 } from "./chati-assistant.js";
 import {
   buildCoreRoleplayRules,
@@ -5353,23 +5354,76 @@ app.post(
       const webAllowed =
         req.body?.web !== false;
 
+      // The app asks for a live reply (NDJSON): text appears as Chati
+      // writes it, like any AI assistant. Without it, one JSON at the end.
+      const streaming =
+        req.body?.stream === true &&
+        typeof chatProvider.assistantStream === "function";
+
+      if (streaming) {
+        res.status(200);
+        res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+        res.setHeader("Cache-Control", "no-cache, no-transform");
+        res.setHeader("X-Accel-Buffering", "no");
+        res.flushHeaders?.();
+      }
+
+      const send =
+        packet =>
+          res.write(
+            JSON.stringify(packet) + "\n"
+          );
+
+      const ask =
+        async (extraMessages, web) => {
+          const request = {
+            model:
+              CHATI_MODEL,
+            messages: [
+              ...chatiMessages,
+              ...extraMessages
+            ],
+            max_output_tokens:
+              3500,
+            web
+          };
+
+          if (!streaming) {
+            return chatProvider.assistant(request);
+          }
+
+          // Only what the user should see: no search request, no
+          // character block (visibleChatiText).
+          let full = "";
+          let shown = "";
+
+          return chatProvider.assistantStream({
+            ...request,
+            onDelta: delta => {
+              full += delta;
+              const visible = visibleChatiText(full);
+              if (visible.length > shown.length && visible.startsWith(shown)) {
+                send({
+                  type: "delta",
+                  delta: visible.slice(shown.length)
+                });
+                shown = visible;
+              }
+            }
+          });
+        };
+
       // Search right away only when the user clearly asks for research or a
       // character; otherwise Chati answers directly and asks for a search
       // itself ([[SEARCH: …]]) when it really needs one.
       let result =
-        await chatProvider.assistant({
-          model:
-            CHATI_MODEL,
-          messages:
-            chatiMessages,
-          max_output_tokens:
-            3500,
-          web:
-            webAllowed &&
-            wantsWebSearch(
-              lastUser.text
-            )
-        });
+        await ask(
+          [],
+          webAllowed &&
+          wantsWebSearch(
+            lastUser.text
+          )
+        );
 
       const searchQuery =
         extractSearchRequest(
@@ -5377,12 +5431,13 @@ app.post(
         );
 
       if (searchQuery) {
+        if (streaming) {
+          send({ type: "reset", status: "searching" });
+        }
+
         result =
-          await chatProvider.assistant({
-            model:
-              CHATI_MODEL,
-            messages: [
-              ...chatiMessages,
+          await ask(
+            [
               {
                 role: "system",
                 content:
@@ -5391,11 +5446,8 @@ app.post(
                     : "Web search is turned off by the user. Answer from what you know, say briefly that it may be out of date, and do not ask for a search."
               }
             ],
-            max_output_tokens:
-              3500,
-            web:
-              webAllowed
-          });
+            webAllowed
+          );
       }
 
       result.text =
@@ -5458,14 +5510,23 @@ app.post(
       }
 
 
-      res.json({
+      const answer = {
         reply:
           text ||
           (draft ? "" : "…"),
         draft,
         sources:
           sources.slice(0, 8)
-      });
+      };
+
+      if (streaming) {
+        send({ type: "done", ...answer });
+        res.end();
+      }
+
+      else {
+        res.json(answer);
+      }
 
     }
 
@@ -5475,6 +5536,18 @@ app.post(
         "❌ Chati error:",
         error
       );
+
+      // A live reply already started: report the error in the stream.
+      if (res.headersSent) {
+        res.write(
+          JSON.stringify({
+            type: "error",
+            error: "Chati couldn't answer right now. Please try again."
+          }) + "\n"
+        );
+        res.end();
+        return;
+      }
 
       res
         .status(502)

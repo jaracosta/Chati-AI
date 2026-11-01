@@ -37,6 +37,34 @@ export function createChatProvider(env, openai) {
         }));
       return { text: message.content || "", citations };
     },
+    // Same as assistant(), streamed: onDelta(text) gets each piece as the
+    // model writes it. Returns the full text and the cited web pages.
+    async assistantStream({ model, messages, max_output_tokens, web, onDelta }) {
+      const stream = await router.chat.completions.create({
+        model,
+        messages,
+        max_tokens: max_output_tokens,
+        temperature: 0.6,
+        stream: true,
+        ...(web ? { plugins: [{ id: "web", max_results: 6 }] } : {})
+      });
+      let text = "";
+      const citations = [];
+      for await (const chunk of stream) {
+        if (chunk.error) throw new Error(chunk.error.message || "OpenRouter stream failed.");
+        const delta = chunk.choices?.[0]?.delta || {};
+        for (const annotation of Array.isArray(delta.annotations) ? delta.annotations : []) {
+          if (annotation?.type === "url_citation" && annotation.url_citation?.url) {
+            citations.push({ url: annotation.url_citation.url, title: annotation.url_citation.title || "" });
+          }
+        }
+        if (delta.content) {
+          text += delta.content;
+          onDelta?.(delta.content);
+        }
+      }
+      return { text, citations };
+    },
     async completeJson({ model, instructions, input, schema, max_output_tokens }) {
       const result = await router.chat.completions.create({
         model,
