@@ -168,8 +168,9 @@ test('minor scrub works on one-attribute-per-line sheets', () => {
 test('Chati is a general assistant that talks like a person', async () => {
   const { wantsWebSearch, extractSearchRequest, stripSearchMarkers } = await import('../chati-assistant.js');
   const prompt = buildChatiInstructions({ rootDir: '/nonexistent' });
-  assert.match(prompt, /help with ANYTHING/);
-  assert.match(prompt, /like a real person/);
+  assert.match(prompt, /you work like a top AI assistant/);
+  assert.match(prompt, /Do the thing\./);
+  assert.match(prompt, /Lead with the answer/);
   assert.match(prompt, /Understand what they MEAN/);
   assert.match(prompt, /Only when the user asks for a character/);
   assert.match(prompt, /code in ``` blocks/);
@@ -185,4 +186,16 @@ test('Chati is a general assistant that talks like a person', async () => {
   assert.equal(extractSearchRequest('[[SEARCH: one piece 1100 fecha]]'), 'one piece 1100 fecha');
   assert.equal(extractSearchRequest('¡Hola! ¿Qué tal?'), '');
   assert.equal(stripSearchMarkers('Listo [[SEARCH: x]]'), 'Listo');
+});
+
+test('streaming shows the answer but never the search request or the character block', async () => {
+  const { visibleChatiText } = await import('../chati-assistant.js');
+  assert.equal(visibleChatiText('[[SEARCH: one piece'), '');
+  assert.equal(visibleChatiText('[['), '');
+  assert.equal(visibleChatiText('¡Listo! Aquí está Gojo.\n``'), '¡Listo! Aquí está Gojo.\n');
+  assert.equal(visibleChatiText('¡Listo! Aquí está Gojo.\n```chati-character\n{"name":'), '¡Listo! Aquí está Gojo.\n');
+  // Ordinary code blocks show; a fence right at the end waits one chunk.
+  assert.equal(visibleChatiText('Un bucle:\n```js\nfor (;;) {}\n```\nListo.'), 'Un bucle:\n```js\nfor (;;) {}\n```\nListo.');
+  assert.equal(visibleChatiText('Un bucle:\n```js\nfor (;;) {}\n```'), 'Un bucle:\n```js\nfor (;;) {}\n');
+  assert.equal(visibleChatiText('Hola, ¿qué tal?'), 'Hola, ¿qué tal?');
 });

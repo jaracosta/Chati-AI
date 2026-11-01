@@ -332,6 +332,8 @@
     }
 
     messages.forEach((message, index) => {
+      // A live reply that hasn't written anything yet shows as "typing".
+      if (message.streaming && !message.text) return;
       const row = document.createElement("div");
       row.className = "v8-chati-msg is-" + message.role;
 
@@ -383,13 +385,14 @@
       if (message.draft) list.appendChild(draftCard(message.draft, index));
     });
 
-    if (busy) {
+    const live = messages[messages.length - 1];
+    if (busy && !(live?.streaming && live.text)) {
       const typing = document.createElement("div");
       typing.className = "v8-chati-msg is-assistant is-typing";
       typing.innerHTML =
         '<span class="v8-chati-msg-avatar">' + robot() + '</span>' +
         '<div class="v8-chati-bubble"><span class="v8-chati-dots"><i></i><i></i><i></i></span> ' +
-        escapeHtml(webEnabled() ? t("Researching…") : t("Thinking…")) + '</div>';
+        escapeHtml(live?.status === "searching" ? t("Searching the web…") : t("Thinking…")) + '</div>';
       list.appendChild(typing);
     }
 
@@ -431,15 +434,29 @@
     renderMessages();
     save();
 
+    // The reply is written live into this message as it arrives.
+    const reply = { role: "assistant", text: "", streaming: true };
+    messages.push(reply);
+    let paintFrame = 0;
+    const paint = () => {
+      if (!paintFrame) {
+        paintFrame = requestAnimationFrame(() => {
+          paintFrame = 0;
+          renderMessages();
+        });
+      }
+    };
+
     try {
       const response = await fetch("/api/chati", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          stream: true,
           web: webEnabled(),
           lang: window.ChatiI18n?.lang || "en",
           matureContent: typeof isMatureContentEnabled === "function" && isMatureContentEnabled() === true,
-          messages: messages.slice(-30).map(message => ({
+          messages: messages.filter(message => message !== reply).slice(-30).map(message => ({
             role: message.role,
             text: message.draft
               ? (message.text + "\n[I proposed the character " + message.draft.name + ".]").trim()
@@ -448,21 +465,51 @@
           }))
         })
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "HTTP " + response.status);
 
-      messages.push({
-        role: "assistant",
-        text: data.reply || "",
-        draft: data.draft || null,
-        sources: data.sources || []
-      });
+      let data = null;
+      if (response.ok && /ndjson/.test(response.headers.get("content-type") || "") && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (!data) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            let packet;
+            try { packet = JSON.parse(line); } catch (_) { continue; }
+            if (packet.type === "delta") {
+              reply.text += packet.delta || "";
+              paint();
+            } else if (packet.type === "reset") {
+              reply.text = "";
+              reply.status = packet.status || "";
+              paint();
+            } else if (packet.type === "error") {
+              throw new Error(packet.error || "Chati error");
+            } else if (packet.type === "done") {
+              data = packet;
+            }
+          }
+        }
+        if (!data) throw new Error(t("Chati couldn't answer right now. Please try again."));
+      } else {
+        data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "HTTP " + response.status);
+      }
+
+      reply.text = data.reply || "";
+      reply.draft = data.draft || null;
+      reply.sources = data.sources || [];
     } catch (error) {
-      messages.push({
-        role: "assistant",
-        text: "⚠️ " + (error?.message || t("Chati couldn't answer right now. Please try again."))
-      });
+      reply.text = "⚠️ " + (error?.message || t("Chati couldn't answer right now. Please try again."));
     } finally {
+      delete reply.streaming;
+      delete reply.status;
+      if (paintFrame) cancelAnimationFrame(paintFrame);
       busy = false;
       save();
       renderMessages();

@@ -494,6 +494,7 @@
     "Ask Chati…": "Pregúntale a Chati…",
     "Hi! I'm Chati": "¡Hola! Soy Chati",
     "Your assistant for anything": "Tu asistente para lo que sea",
+    "Searching the web…": "Buscando en internet…",
     "Ask me anything — questions, homework, ideas, writing, advice, or just to talk. I can also research any anime, game or movie character and build the bot for you, or explain how the app works.": "Pregúntame lo que sea: dudas, tareas, ideas, textos, consejos o solo platicar. También investigo cualquier personaje de anime, juego o película y te armo el bot, o te explico cómo funciona la app.",
     "What anime should I watch next?": "¿Qué anime me recomiendas ver?",
     "Explain something to me simply:": "Explícame algo fácil:",
