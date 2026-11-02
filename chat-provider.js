@@ -112,9 +112,9 @@ export function createChatProvider(env, openai) {
           // default leans on price). OPENROUTER_PROVIDER_SORT=price|throughput
           // changes it; "off" leaves OpenRouter's default.
           ...(providerSort(env) ? { provider: { sort: providerSort(env) } } : {}),
-          // DeepSeek can "think" before answering, which only adds seconds
-          // to a chat reply. CHAT_REASONING=on keeps it.
-          ...(/deepseek/i.test(model) && String(env.CHAT_REASONING || "").toLowerCase() !== "on"
+          // DeepSeek, GLM and Kimi can "think" before answering, which only
+          // adds seconds and cost to a chat reply. CHAT_REASONING=on keeps it.
+          ...(/deepseek|glm|kimi|moonshot/i.test(model) && String(env.CHAT_REASONING || "").toLowerCase() !== "on"
             ? { reasoning: { enabled: false } }
             : {}),
           // Stop if the model starts writing the user's turn.
