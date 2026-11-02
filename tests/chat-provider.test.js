@@ -113,7 +113,9 @@ test('DeepSeek answers without thinking first; other models are left alone', asy
     const provider = createChatProvider({ OPENROUTER_API_KEY: 'k' }, {});
     await provider.responses.create({ model: 'deepseek/deepseek-v4.1-flash-1017', instructions: '', input: [], stream: false });
     await provider.responses.create({ model: 'sao10k/l3.3-euryale-70b', instructions: '', input: [], stream: false });
+    await provider.responses.create({ model: 'z-ai/glm-5.3-prime', instructions: '', input: [], stream: false });
     assert.deepEqual(payloads[0].reasoning, { enabled: false });
     assert.equal(payloads[1].reasoning, undefined);
+    assert.deepEqual(payloads[2].reasoning, { enabled: false });
   } finally { globalThis.fetch = originalFetch; }
 });
