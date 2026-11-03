@@ -578,11 +578,12 @@ export function looksLikeRefusal(text) {
 }
 
 // With 18+ on, a refusal from the main model is retried once on a model
-// that allows adult fiction. MATURE_FALLBACK_MODEL overrides it; "off"
+// that allows adult fiction (Magnum v4 72B, a roleplay finetune that knows
+// canon characters well). MATURE_FALLBACK_MODEL overrides it; "off"
 // disables the retry.
 export function matureFallbackModel(env = {}, mainModel = "") {
   if (!env.OPENROUTER_API_KEY) return "";
-  const value = String(env.MATURE_FALLBACK_MODEL ?? "sao10k/l3.3-euryale-70b").trim();
+  const value = String(env.MATURE_FALLBACK_MODEL ?? "anthracite-org/magnum-v4-72b").trim();
   if (!value || value.toLowerCase() === "off" || value === mainModel) return "";
   return value;
 }

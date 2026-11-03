@@ -215,8 +215,9 @@ test('18+ refusals are detected and retried on the mature fallback model', async
   // In-character lines are not refusals.
   assert.equal(looksLikeRefusal('**Levi te mira.** No puedo creer que llegues tarde otra vez.'), false);
   assert.equal(looksLikeRefusal('Tch. No puedo dejarte solo ni un minuto.'), false);
-  assert.equal(matureFallbackModel({ OPENROUTER_API_KEY: 'k' }, 'deepseek/deepseek-v4.1-flash-1017'), 'sao10k/l3.3-euryale-70b');
-  assert.equal(matureFallbackModel({ OPENROUTER_API_KEY: 'k' }, 'sao10k/l3.3-euryale-70b'), '');
+  assert.equal(matureFallbackModel({ OPENROUTER_API_KEY: 'k' }, 'z-ai/glm-5.3'), 'anthracite-org/magnum-v4-72b');
+  assert.equal(matureFallbackModel({ OPENROUTER_API_KEY: 'k' }, 'anthracite-org/magnum-v4-72b'), '');
+  assert.equal(matureFallbackModel({ OPENROUTER_API_KEY: 'k', MATURE_FALLBACK_MODEL: 'sao10k/l3.3-euryale-70b' }, 'z-ai/glm-5.3'), 'sao10k/l3.3-euryale-70b');
   assert.equal(matureFallbackModel({ OPENROUTER_API_KEY: 'k', MATURE_FALLBACK_MODEL: 'off' }, 'x'), '');
   assert.equal(matureFallbackModel({}, 'x'), '');
 });
