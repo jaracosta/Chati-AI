@@ -107,11 +107,12 @@ test('the app guide covers pictures, NSFW (18+) and Explore', () => {
   assert.match(text, /Surprise me/);
 });
 
-test('character drafts carry a reply length', () => {
+test('old drafts with a reply length still load; Chati no longer asks for one', () => {
   const block = (extra) => 'ok\n```chati-character\n' + JSON.stringify({ name: 'Sukuna', ...extra }) + '\n```';
   assert.equal(extractCharacterDraft(block({ replyLength: 'short' })).draft.replyLength, 'short');
   assert.equal(extractCharacterDraft(block({ replyLength: 'giant' })).draft.replyLength, 'auto');
-  assert.match(buildChatiInstructions({ rootDir: '/nonexistent' }), /replyLength: "short" for terse/);
+  // One reply range for every character now (roleplay-guard.js).
+  assert.doesNotMatch(buildChatiInstructions({ rootDir: '/nonexistent' }), /replyLength/);
 });
 
 import { sanitizeCharacterDraft, buildChatiInstructions as buildInstructionsV2, isMinorAge } from '../chati-assistant.js';

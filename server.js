@@ -30,6 +30,7 @@ import {
   fitInputToContext,
   buildVoiceRules,
   buildLengthRules,
+  buildCallRules,
   capTokensForLength,
   normalizeReplyLength,
   findRepeatedPhrases,
@@ -850,6 +851,8 @@ const PUBLIC_ROOT_FILES =
     "app-shell-v8.css",
     "app-shell-v8.js",
     "mini-window.js",
+    "voice-call.js",
+    "voice-call.css",
     "message-cache.js",
     "mini-window.css",
     "i18n-v8.js",
@@ -2811,6 +2814,39 @@ app.post(
 );
 
 
+// Voice calls: what the user just said, as text. The browser sends a short
+// recording when it can't transcribe on its own (no Web Speech API).
+app.post(
+  "/api/transcribe",
+  chatRateLimiter,
+  async (req, res) => {
+    const base64 = String(req.body?.audio || "");
+    const mimeType = String(req.body?.mimeType || "audio/webm").split(";")[0].trim().toLowerCase();
+    if (!base64 || !/^audio\/[a-z0-9.+-]+$/.test(mimeType)) {
+      return res.status(400).json({ error: "No audio to transcribe." });
+    }
+    const buffer = Buffer.from(base64, "base64");
+    if (!buffer.length || buffer.length > 8 * 1024 * 1024) {
+      return res.status(400).json({ error: "The recording is empty or too long." });
+    }
+    try {
+      const file = await toFile(buffer, safeMediaFilename("call", mimeType, "audio"), { type: mimeType });
+      const language = /^[a-z]{2}$/.test(String(req.body?.language || "")) ? req.body.language : undefined;
+      const result = await openai.audio.transcriptions.create({
+        model: TRANSCRIBE_MODEL,
+        file,
+        ...(language ? { language } : {})
+      });
+      res.json({ text: String(result?.text || "").trim() });
+    }
+    catch (error) {
+      console.warn("⚠️ Call transcription failed:", error?.message || error);
+      res.status(502).json({ error: "Couldn't hear that. Try again." });
+    }
+  }
+);
+
+
 // Canon voice card for one character. The app asks for it when a chat opens
 // and stores the answer, so it is written once, not on every message.
 app.post(
@@ -2911,6 +2947,13 @@ app.post(
       // Adults who switched on "Mature content (18+)" in Settings.
       const matureContent =
         req.body.matureContent === true;
+
+
+      // A voice call (voice-call.js): the reply is spoken by the
+      // character's voice, so it is speech only and short.
+      const voiceCall =
+        req.body.voiceCall === true &&
+        !character.isGroup;
 
 
       const contentRules =
@@ -3156,17 +3199,21 @@ ${groupContinuation
             )
           : "") +
         "\n\n" +
-        buildLengthRules({
-          characterName:
-            character.name,
-          replyLength:
-            character.replyLength,
-          lastUserMessage:
-            [...messages]
-              .reverse()
-              .find(message => message.sender === "user")
-              ?.text || ""
-        }) +
+        (voiceCall
+          ? buildCallRules(
+              character.name
+            )
+          : buildLengthRules({
+              characterName:
+                character.name,
+              replyLength:
+                character.replyLength,
+              lastUserMessage:
+                [...messages]
+                  .reverse()
+                  .find(message => message.sender === "user")
+                  ?.text || ""
+            })) +
         (compactPrompt
           ? "\n\n" +
             buildCoreRoleplayRules(
@@ -3268,14 +3315,16 @@ ${groupContinuation
 
 
       const maxOutputTokens =
-        capTokensForLength(
-          compactPrompt
-            ? Math.min(
-                roleplayConfig.maxOutputTokens,
-                500
-              )
-            : roleplayConfig.maxOutputTokens
-        );
+        voiceCall
+          ? 260
+          : capTokensForLength(
+              compactPrompt
+                ? Math.min(
+                    roleplayConfig.maxOutputTokens,
+                    500
+                  )
+                : roleplayConfig.maxOutputTokens
+            );
 
 
       const input =
@@ -3334,7 +3383,9 @@ ${groupContinuation
               previousReplies
             ),
           // Their look comes up now and then, not every reply.
+          voiceCall,
           appearanceCue:
+            !voiceCall &&
             Math.random() < 0.35
               ? pickAppearanceCue(
                   characterAppearanceCues(
