@@ -32,6 +32,7 @@ test('big moments are recognised and get a full emotional reaction', () => {
   assert.doesNotMatch(anchor, /1 to 3 spoken sentences/, 'a big moment overrides the short shape');
   assert.match(anchor, /Don't retell what the user just described/);
   assert.match(anchor, /only hold a weapon or prop when the scene calls for it/);
+  assert.match(anchor, /Don't narrate their own body/);
 });
 
 test('looks are shown through clothes and gear, never by narrating the body', () => {
@@ -47,6 +48,22 @@ test('the base prompt asks for emotion that matches the moment and no retelling'
   const prompt = buildPersonaPrompt({ character: { name: 'Astrid' } });
   assert.match(prompt, /Match the weight of the moment/);
   assert.match(prompt, /Never retell what the user just described/);
-  assert.match(prompt, /never describe their own body or features like a narrator/);
+  assert.match(prompt, /don't narrate their own body or features out of nowhere/);
+  assert.match(prompt, /in an intimate scene their body and how it reacts do belong in the moment, kept non-explicit/);
+  assert.match(buildPersonaPrompt({ character: { name: 'Astrid' }, matureContent: true }), /do belong in the moment, described openly/);
   assert.match(prompt, /met for the first time, not "heard of"/);
+});
+
+test('in intimate scenes the body belongs in the reply (openly only with 18+ on)', () => {
+  const moment = detectMoment('She slowly undresses and pulls him into bed.');
+  assert.equal(moment?.kind, 'intimate');
+  assert.equal(detectMoment('Se quita la ropa y se acerca a la cama.')?.kind, 'intimate');
+  const mature = buildVoiceAnchor({ characterName: 'Yennefer', moment, matureContent: true });
+  assert.match(mature, /body, touch and how they react belong in it — describe them openly/);
+  assert.doesNotMatch(mature, /Don't narrate their own body/);
+  const standard = buildVoiceAnchor({ characterName: 'Yennefer', moment, matureContent: false });
+  assert.match(standard, /kept non-explicit/);
+  // Outside intimate scenes the "no body narration" line stays.
+  assert.match(buildVoiceAnchor({ characterName: 'Astrid', moment: detectMoment('Stoick has died.') }), /Don't narrate their own body or features out of nowhere/);
+  assert.match(buildVoiceAnchor({ characterName: 'Astrid' }), /Don't narrate their own body or features out of nowhere/);
 });

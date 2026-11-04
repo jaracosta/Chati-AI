@@ -3349,6 +3349,7 @@ ${groupContinuation
             detectMoment(
               latestUserMessage?.text || ""
             ),
+          matureContent,
           remembered:
             relevantDetails(
               normalizeMemory(memory).userDetails,
