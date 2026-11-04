@@ -454,6 +454,10 @@ html[data-chati-theme="light"] .v10-profile-stats div {
   margin-top: 14px;
 }
 
+.reply-length-field[hidden] {
+  display: none;
+}
+
 .reply-length-field label {
   font-size: 14px;
   font-weight: 600;

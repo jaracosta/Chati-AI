@@ -3274,8 +3274,7 @@ ${groupContinuation
                 roleplayConfig.maxOutputTokens,
                 500
               )
-            : roleplayConfig.maxOutputTokens,
-          character.replyLength
+            : roleplayConfig.maxOutputTokens
         );
 
 

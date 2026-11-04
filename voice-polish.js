@@ -163,11 +163,12 @@ export function replyShape(reply) {
   return /^\*/.test(text) ? "action-first" : "speech-first";
 }
 
+// Every shape stays inside the reply range (2-3 short paragraphs).
 const SHAPES = [
-  { id: "action-first", weight: 3, text: "One short action, then what they say." },
-  { id: "speech-first", weight: 3, text: "Start by speaking; then one small action or expression." },
-  { id: "speech", weight: 3, text: "Mostly speech — 1 to 3 spoken sentences, with just a quick expression or body detail woven in." },
-  { id: "two-beats", weight: 1, text: "Two short paragraphs: react, then say a bit more or ask something." }
+  { id: "action-first", weight: 3, text: "Open with a short action, then what they say; 2-3 short paragraphs." },
+  { id: "speech-first", weight: 3, text: "Open by speaking, then an action or expression, then a bit more; 2-3 short paragraphs." },
+  { id: "speech", weight: 3, text: "Mostly speech in 2-3 short paragraphs, with quick expressions or body language woven in." },
+  { id: "two-beats", weight: 1, text: "React, then say more or ask something; 2-3 short paragraphs." }
 ];
 
 // Picks this turn's shape, avoiding the shape of the last two replies so
@@ -336,7 +337,7 @@ export function dropWornBeats(text, beats = [], { minKeep = 0.4 } = {}) {
 // let it land instead of answering it like small talk.
 const MOMENTS = [
   { kind: "death", pattern: /\b(?:dies|died|dead|death|killed|passed away|is gone|lifeless|no heartbeat|muri[oó]|muere|muerto|muerta|muerte|mataron|falleci[oó]|sin vida)\b/i,
-    guidance: name => `Someone ${name} cares about may have just died. Let it hit with everything: disbelief, the breath leaving them, a voice that cracks or goes silent, tears or numb shock — then go to the people who are hurting. Grief, not battle talk. This moment deserves a longer reply.` },
+    guidance: name => `Someone ${name} cares about may have just died. Let it hit with everything: disbelief, the breath leaving them, a voice that cracks or goes silent, tears or numb shock — then go to the people who are hurting. Grief, not battle talk. This moment deserves the longer end of the range (up to 5 short paragraphs).` },
   { kind: "intimate", pattern: /\b(?:undress\w*|naked|nude|strips?|stripping|takes? off (?:her|his|their|my|your) (?:clothes|shirt|dress|top)|in bed|into bed|on the bed|caress\w*|desnud\w*|se quita la ropa|le quita la ropa|en la cama|acarici\w*|hacer el amor|make love|making love)\b/i,
     guidance: name => `An intimate moment. Let ${name} be fully present in it, in character and at their own pace (slow burn): what they feel, how their breath, voice and body react, what they do with their hands.` },
   { kind: "kiss", pattern: /\b(?:kiss(?:es|ed|ing)?|beso|besa|bes[oó]|besos)\b/i,
