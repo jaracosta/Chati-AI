@@ -60,6 +60,9 @@ import {
   findOverusedPhrases,
   polishReply,
   stripForeignScript,
+  wornBeats,
+  dropWornBeats,
+  detectMoment,
   hasForeignScript,
   looksLikeGibberish,
   hasUnexpectedScript
@@ -3226,6 +3229,44 @@ ${groupContinuation
         );
 
 
+      // Beats this character keeps repeating ("I grip my battle axe", "my
+      // voice a fierce growl"): taken out of the history the model sees, so
+      // it stops copying itself, and out of the new reply (voice-polish.js).
+      const characterReplies =
+        messages
+          .filter(message => message?.sender === "character")
+          .map(message => String(message.text || ""))
+          .slice(-12);
+
+      const worn =
+        wornBeats(
+          characterReplies,
+          {
+            characterName:
+              character.name
+          }
+        );
+
+      if (worn.length) {
+        for (const item of rawInput) {
+          if (
+            item?.role === "assistant" &&
+            typeof item.content === "string"
+          ) {
+            item.content =
+              dropWornBeats(
+                item.content,
+                worn,
+                {
+                  minKeep:
+                    0
+                }
+              );
+          }
+        }
+      }
+
+
       const maxOutputTokens =
         capTokensForLength(
           compactPrompt
@@ -3293,13 +3334,20 @@ ${groupContinuation
             pickReplyShape(
               previousReplies
             ),
+          // Their look comes up now and then, not every reply.
           appearanceCue:
-            pickAppearanceCue(
-              characterAppearanceCues(
-                character,
-                memory
-              ),
-              previousReplies
+            Math.random() < 0.35
+              ? pickAppearanceCue(
+                  characterAppearanceCues(
+                    character,
+                    memory
+                  ),
+                  previousReplies
+                )
+              : "",
+          moment:
+            detectMoment(
+              latestUserMessage?.text || ""
             ),
           remembered:
             relevantDetails(
@@ -4018,9 +4066,12 @@ ${groupContinuation
 
           const polished =
             stripForeignScript(
-              polishReply(
-                generatedText,
-                previousReplies
+              dropWornBeats(
+                polishReply(
+                  generatedText,
+                  previousReplies
+                ),
+                worn
               ),
               messages
                 .filter(message => message?.sender === "user")
