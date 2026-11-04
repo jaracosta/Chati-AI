@@ -102,9 +102,10 @@ export function findOverusedPhrases(replies, { characterName = "", minReplies = 
 }
 
 
-// Body and face features are never cues: a reminder to show "her large
-// chest" or "his ocean-blue eyes" makes characters describe themselves like
-// a narrator in scenes where it makes no sense. Cues are what they wear,
+// Body and face features are never random cues: a reminder to show "her
+// large chest" or "his ocean-blue eyes" makes characters describe
+// themselves like a narrator in scenes where it makes no sense (intimate
+// scenes bring the body in through the anchor instead). Cues are what they wear,
 // carry, or how they look right now (wet hair, a torn sleeve).
 const BODY_CUE = /\b(?:chest|breasts?|bust|cleavage|boobs?|thighs?|hips?|waist|curv\w*|figure|butt|buttocks|ass|abs|muscles?|muscular|physique|build|body|cup|measurements?|tall|height|toned|athletic|slender|petite|voluptuous|lean|chubby|plump|curvy|eyes?|irises|skin|complexion|face|lips|pecho|busto|senos?|muslos?|caderas?|cintura|curvas?|figura|trasero|cuerpo|m[uú]sculos?|ojos|piel|rostro|labios)\b/i;
 
@@ -184,7 +185,7 @@ export function pickReplyShape(previousReplies = [], random = Math.random) {
   return pool[0].text;
 }
 
-export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, appearanceCue = "", story = null, remembered = [], moment = null, language = "en" } = {}) {
+export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, appearanceCue = "", story = null, remembered = [], moment = null, matureContent = false, language = "en" } = {}) {
   const name = String(characterName || "the character").trim();
   const lines = [];
   const voice = card?.voice || String(profile || "").replace(/\s+/g, " ").trim().slice(0, 300);
@@ -213,9 +214,18 @@ export function buildVoiceAnchor({ characterName = "the character", card = null,
   if (big) lines.push(`BIG MOMENT — ${big}`);
   else if (shape) lines.push(`This reply: ${shape}`);
   lines.push(`Don't retell what the user just described. React to it as ${name}, with real feeling, and add something of their own — a choice, a line, a move — that takes the scene forward.`);
-  lines.push(appearanceCue && !big
-    ? `Show ${name} through what they do: an expression or body language that fits the moment, and this time something they wear or carry — ${appearanceCue} (adjusting it, how it looks right now). Never describe their own body or features like a narrator.`
-    : `Show ${name} through what they do: an expression, their voice, their hands, their body language in this moment. Never describe their own body or features like a narrator, and only hold a weapon or prop when the scene calls for it.`);
+  // Intimate scenes are the exception: there the body belongs in the
+  // reply (explicitly only with 18+ on; the content rules still apply).
+  const intimate = moment && ["intimate", "kiss", "love"].includes(moment.kind);
+  if (intimate) {
+    lines.push(matureContent
+      ? `This scene is intimate: ${name}'s body, touch and how they react belong in it — describe them openly and specifically, in ${name}'s own voice and pace, never clinical or like a list. Only hold a weapon or prop if the scene calls for it.`
+      : `This scene is intimate: closeness, touch, breath and how ${name}'s body reacts belong in it, kept non-explicit, in ${name}'s own voice.`);
+  } else {
+    lines.push(appearanceCue && !big
+      ? `Show ${name} through what they do: an expression or body language that fits the moment, and this time something they wear or carry — ${appearanceCue} (adjusting it, how it looks right now). Don't narrate their own body or features out of nowhere.`
+      : `Show ${name} through what they do: an expression, their voice, their hands, their body language in this moment. Don't narrate their own body or features out of nowhere, and only hold a weapon or prop when the scene calls for it.`);
+  }
   lines.push(`No stock AI phrases (${ANCHOR_CLICHES.map(phrase => `"${phrase}"`).join(", ")}…). Fresh words, ${name}'s words.`);
   return `[Stay in character as ${name}. Answer the user's last message the way ${name} really would.\n${lines.map(line => "- " + line).join("\n")}]`;
 }
@@ -327,6 +337,8 @@ export function dropWornBeats(text, beats = [], { minKeep = 0.4 } = {}) {
 const MOMENTS = [
   { kind: "death", pattern: /\b(?:dies|died|dead|death|killed|passed away|is gone|lifeless|no heartbeat|muri[oó]|muere|muerto|muerta|muerte|mataron|falleci[oó]|sin vida)\b/i,
     guidance: name => `Someone ${name} cares about may have just died. Let it hit with everything: disbelief, the breath leaving them, a voice that cracks or goes silent, tears or numb shock — then go to the people who are hurting. Grief, not battle talk. This moment deserves a longer reply.` },
+  { kind: "intimate", pattern: /\b(?:undress\w*|naked|nude|strips?|stripping|takes? off (?:her|his|their|my|your) (?:clothes|shirt|dress|top)|in bed|into bed|on the bed|caress\w*|desnud\w*|se quita la ropa|le quita la ropa|en la cama|acarici\w*|hacer el amor|make love|making love)\b/i,
+    guidance: name => `An intimate moment. Let ${name} be fully present in it, in character and at their own pace (slow burn): what they feel, how their breath, voice and body react, what they do with their hands.` },
   { kind: "kiss", pattern: /\b(?:kiss(?:es|ed|ing)?|beso|besa|bes[oó]|besos)\b/i,
     guidance: name => `A kiss. Let ${name} feel it — the surprise, the heat in their face, how their breath and voice change — and answer the way ${name} really would: teasing, flustered, melting or kissing back. Not a flat "thank you".` },
   { kind: "love", pattern: /\b(?:i love you|love you|te amo|te quiero|me gustas|estoy enamorad[oa]|i'?m in love)\b/i,

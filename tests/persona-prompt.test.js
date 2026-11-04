@@ -50,7 +50,7 @@ test('every reply is asked to show the character physically, with a fresh look d
   assert.equal(pickAppearanceCue([], []), '');
   const anchor = buildVoiceAnchor({ characterName: 'Levi', appearanceCue: 'white cravat' });
   assert.match(anchor, /Show Levi through what they do: .*white cravat/);
-  assert.match(anchor, /Never describe their own body or features like a narrator/);
+  assert.match(anchor, /Don't narrate their own body or features out of nowhere/);
   assert.match(buildVoiceAnchor({ characterName: 'Mia' }), /Show Mia through what they do/);
   assert.match(buildPersonaPrompt({ character: { name: 'Levi' } }), /Show Levi physically in every reply/);
 });
