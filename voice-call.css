@@ -1,0 +1,523 @@
+/* Voice calls (voice-call.js): the call screen with its orb, the 📞 button
+   in the chat header and the Calls panel. */
+
+/* ---------- Chat header button ---------- */
+.chati-call-header-btn {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.chati-call-header-btn:hover {
+  background: rgba(167, 139, 250, 0.16);
+  transform: translateY(-1px);
+}
+
+.chati-call-header-btn[hidden] {
+  display: none;
+}
+
+.chati-call-header-btn svg,
+.chati-calls svg,
+.chati-call svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- Call screen ---------- */
+.chati-call {
+  --level: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto auto;
+  justify-items: center;
+  padding: max(22px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+  color: #f5f3ff;
+  background: #07060d;
+  opacity: 0;
+  transform: scale(1.02);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  overflow: hidden;
+}
+
+.chati-call.is-open {
+  opacity: 1;
+  transform: none;
+}
+
+.chati-call.is-closing {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.chati-call-bg {
+  position: absolute;
+  inset: -40px;
+  background-size: cover;
+  background-position: center;
+  filter: blur(38px) saturate(1.25) brightness(0.55);
+  transform: scale(1.1);
+}
+
+.chati-call-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(99, 102, 241, 0.18), transparent 55%),
+    linear-gradient(180deg, rgba(7, 6, 13, 0.55), rgba(7, 6, 13, 0.85));
+}
+
+.chati-call > :not(.chati-call-bg):not(.chati-call-shade) {
+  position: relative;
+}
+
+.chati-call-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  align-self: start;
+}
+
+.chati-call-top strong {
+  display: block;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+}
+
+.chati-call-timer {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  color: rgba(245, 243, 255, 0.6);
+  font-size: 0.82rem;
+}
+
+.chati-call-avatar,
+.chati-calls-avatar {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #a78bfa, #6366f1);
+  font-weight: 700;
+  color: #fff;
+}
+
+.chati-call-avatar img,
+.chati-calls-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The orb: three soft blobs turning inside a glowing sphere. It breathes
+   while listening, swirls while thinking and follows the voice. */
+.chati-call-orb-wrap {
+  align-self: center;
+  width: min(62vw, 300px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chati-call-orb {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(circle at 35% 30%, #c4b5fd 0%, #7c3aed 38%, #312e81 72%, #0f0b2a 100%);
+  box-shadow:
+    0 0 calc(40px + var(--level) * 90px) rgba(139, 92, 246, calc(0.35 + var(--level) * 0.5)),
+    inset 0 0 60px rgba(255, 255, 255, 0.12);
+  transform: scale(calc(0.92 + var(--level) * 0.16));
+  transition: transform 0.12s linear, box-shadow 0.12s linear, background 0.6s ease;
+}
+
+.chati-call-orb i {
+  position: absolute;
+  will-change: transform;
+  inset: -20%;
+  border-radius: 46% 54% 48% 52%;
+  mix-blend-mode: screen;
+  filter: blur(18px);
+  opacity: 0.75;
+  animation: chati-orb-spin 9s linear infinite;
+}
+
+.chati-call-orb i:nth-child(1) {
+  background: radial-gradient(circle at 30% 35%, rgba(103, 232, 249, 0.85), transparent 45%);
+}
+
+.chati-call-orb i:nth-child(2) {
+  background: radial-gradient(circle at 70% 60%, rgba(244, 114, 182, 0.7), transparent 45%);
+  animation-duration: 12s;
+  animation-direction: reverse;
+}
+
+.chati-call-orb i:nth-child(3) {
+  background: radial-gradient(circle at 50% 80%, rgba(129, 140, 248, 0.85), transparent 50%);
+  animation-duration: 15s;
+}
+
+@keyframes chati-orb-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes chati-orb-breathe {
+  0%, 100% { transform: scale(0.94); }
+  50% { transform: scale(1); }
+}
+
+.chati-call[data-state="connecting"] .chati-call-orb,
+.chati-call[data-state="thinking"] .chati-call-orb {
+  animation: chati-orb-breathe 1.8s ease-in-out infinite;
+}
+
+.chati-call[data-state="thinking"] .chati-call-orb i {
+  animation-duration: 3.5s;
+}
+
+.chati-call[data-state="listening"] .chati-call-orb {
+  background: radial-gradient(circle at 35% 30%, #a5f3fc 0%, #6366f1 40%, #1e1b4b 74%, #0b0a24 100%);
+}
+
+.chati-call[data-state="speaking"] .chati-call-orb {
+  background: radial-gradient(circle at 35% 30%, #f5d0fe 0%, #a855f7 38%, #4c1d95 72%, #12082b 100%);
+}
+
+.chati-call[data-state="error"] .chati-call-orb {
+  filter: grayscale(0.6) brightness(0.8);
+}
+
+.chati-call-status {
+  margin: 18px 0 6px;
+  min-height: 1.3em;
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(245, 243, 255, 0.85);
+}
+
+.chati-call-caption {
+  margin: 0 0 22px;
+  max-width: min(560px, 92vw);
+  min-height: 3em;
+  text-align: center;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: rgba(245, 243, 255, 0.78);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.chati-call-caption[data-who="user"] {
+  color: rgba(165, 243, 252, 0.85);
+}
+
+.chati-call-controls {
+  display: flex;
+  gap: 22px;
+}
+
+.chati-call-btn {
+  width: 62px;
+  height: 62px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.chati-call-btn:hover {
+  transform: translateY(-2px);
+}
+
+.chati-call-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.chati-call-btn.is-on {
+  background: rgba(255, 255, 255, 0.9);
+  color: #111;
+}
+
+.chati-call-btn.is-end {
+  background: #ef4444;
+  border-color: transparent;
+}
+
+.chati-call-btn.is-end svg {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* ---------- Calls panel ---------- */
+.chati-calls {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(5, 5, 12, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.chati-calls[hidden] {
+  display: none;
+}
+
+.chati-calls.is-open {
+  opacity: 1;
+}
+
+.chati-calls-card {
+  width: min(460px, 100%);
+  max-height: min(680px, 92vh);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  background: #121019;
+  color: #f4f3ff;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  transform: translateY(10px);
+  transition: transform 0.22s ease;
+  overflow: hidden;
+}
+
+.chati-calls.is-open .chati-calls-card {
+  transform: none;
+}
+
+.chati-calls-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.chati-calls-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.chati-calls-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  cursor: pointer;
+}
+
+.chati-calls-icon[hidden] {
+  display: none;
+}
+
+.chati-calls-body {
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.chati-calls-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chati-calls-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.chati-calls-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.chati-calls-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.chati-calls-text small {
+  color: #a3a0b8;
+}
+
+.chati-calls-text em {
+  font-style: normal;
+  color: #c9c6dc;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chati-calls-again {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.14);
+  color: #4ade80;
+}
+
+.chati-calls-again:hover {
+  background: rgba(34, 197, 94, 0.25);
+}
+
+.chati-calls-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 40px 20px;
+  text-align: center;
+  color: #a3a0b8;
+}
+
+.chati-calls-empty svg {
+  width: 34px;
+  height: 34px;
+  color: #a78bfa;
+}
+
+.chati-calls-empty p {
+  margin: 6px 0 0;
+  color: #f4f3ff;
+  font-weight: 600;
+}
+
+.chati-calls-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 12px;
+  color: #a3a0b8;
+}
+
+.chati-calls-transcript {
+  display: grid;
+  gap: 8px;
+  padding: 0 6px 12px;
+}
+
+.chati-calls-transcript p {
+  margin: 0;
+  max-width: 86%;
+  padding: 9px 12px;
+  border-radius: 14px;
+  line-height: 1.45;
+  font-size: 0.94rem;
+}
+
+.chati-calls-transcript p b {
+  display: block;
+  font-size: 0.75rem;
+  color: #c4b5fd;
+  margin-bottom: 2px;
+}
+
+.chati-calls-transcript .is-character {
+  background: rgba(255, 255, 255, 0.06);
+  justify-self: start;
+}
+
+.chati-calls-transcript .is-user {
+  background: rgba(139, 92, 246, 0.22);
+  justify-self: end;
+}
+
+.chati-calls-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 10px;
+  padding: 12px 6px 6px;
+  background: linear-gradient(180deg, transparent, #121019 30%);
+}
+
+.chati-calls-primary {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #22c55e;
+  color: #052e16;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chati-calls-secondary {
+  padding: 12px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: none;
+  color: #f4f3ff;
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chati-call-orb i,
+  .chati-call-orb {
+    animation: none !important;
+  }
+}

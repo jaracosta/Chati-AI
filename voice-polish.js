@@ -186,7 +186,7 @@ export function pickReplyShape(previousReplies = [], random = Math.random) {
   return pool[0].text;
 }
 
-export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, appearanceCue = "", story = null, remembered = [], moment = null, matureContent = false, language = "en" } = {}) {
+export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, appearanceCue = "", story = null, remembered = [], moment = null, matureContent = false, voiceCall = false, language = "en" } = {}) {
   const name = String(characterName || "the character").trim();
   const lines = [];
   const voice = card?.voice || String(profile || "").replace(/\s+/g, " ").trim().slice(0, 300);
@@ -211,9 +211,12 @@ export function buildVoiceAnchor({ characterName = "the character", card = null,
   const details = (Array.isArray(remembered) ? remembered : []).map(item => String(item || "").replace(/\s+/g, " ").trim().slice(0, 200)).filter(Boolean).slice(0, 3);
   if (details.length) lines.push(`The user told ${name} this before — remember it and use it if it fits: ${details.join("; ")}`);
   if (userAsked) lines.push(`They asked ${name} something: answer it first, in ${name}'s own way.`);
-  const big = moment && typeof moment.guidance === "function" ? moment.guidance(name) : "";
+  let big = moment && typeof moment.guidance === "function" ? moment.guidance(name) : "";
+  // On a call the feeling goes into the voice, not into more paragraphs.
+  if (big && voiceCall) big = big.replace(/\s*This moment deserves[^.]*\.(?:\))?\.?/, "").replace(/ This moment deserves.*$/, "");
   if (big) lines.push(`BIG MOMENT — ${big}`);
-  else if (shape) lines.push(`This reply: ${shape}`);
+  else if (shape && !voiceCall) lines.push(`This reply: ${shape}`);
+  if (voiceCall) lines.push(`VOICE CALL: write only what ${name} says out loud — 1 to 3 natural spoken sentences, emotion in the voice (at most one tiny **cue** like **laughs** or **sighs**), no narration.`);
   lines.push(`Don't retell what the user just described. React to it as ${name}, with real feeling, and add something of their own — a choice, a line, a move — that takes the scene forward.`);
   // Intimate scenes are the exception: there the body belongs in the
   // reply (explicitly only with 18+ on; the content rules still apply).

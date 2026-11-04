@@ -569,3 +569,21 @@ export function matureFallbackModel(env = {}, mainModel = "") {
   if (!value || value.toLowerCase() === "off" || value === mainModel) return "";
   return value;
 }
+
+// ---------------------------------------------------------------------------
+// Voice call: everything the character writes is spoken by its voice
+// (ElevenLabs), so the reply is speech only — short, like a real call —
+// with at most one tiny **cue** that the voice turns into a laugh, a sigh
+// or a whisper (voice-provider.js). Replaces the reply length rules.
+// ---------------------------------------------------------------------------
+export function buildCallRules(characterName) {
+  const name = String(characterName || "the character").trim();
+  return `
+VOICE CALL (overrides the reply length and format rules above)
+- ${name} is on a voice call with the user right now. Everything ${name} writes is spoken aloud in their own voice.
+- Write ONLY what ${name} says out loud: natural spoken sentences, like a real call — usually 1 to 3 sentences, sometimes just a few words. No narration, no descriptions of the place, the weather or their body, no stage directions.
+- Emotion lives in the voice: let it show in the words, the rhythm and the sounds people make — a laugh, a sigh, a pause, a shaky breath, a voice that rises or cracks. When the tone changes you may add one tiny cue in double asterisks (**laughs**, **sighs**, **whispers**, **voice breaking**, **shouting**); it is not read aloud, it shapes how the line sounds.
+- Talk like on a real call: react first, ask back, tease, hesitate, cut yourself off ("wait—"), go quiet when it hurts. ${name} can bring up something of their own and keep the conversation alive.
+- Never mention texting, messages, typing or reading — this is a call.
+  `.trim();
+}

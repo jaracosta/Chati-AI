@@ -67,3 +67,16 @@ test('in intimate scenes the body belongs in the reply (openly only with 18+ on)
   assert.match(buildVoiceAnchor({ characterName: 'Astrid', moment: detectMoment('Stoick has died.') }), /Don't narrate their own body or features out of nowhere/);
   assert.match(buildVoiceAnchor({ characterName: 'Astrid' }), /Don't narrate their own body or features out of nowhere/);
 });
+
+test('voice calls: spoken lines only, short, with the feeling in the voice', async () => {
+  const { buildCallRules } = await import('../roleplay-guard.js');
+  const rules = buildCallRules('Draven');
+  assert.match(rules, /VOICE CALL \(overrides the reply length and format rules above\)/);
+  assert.match(rules, /Write ONLY what Draven says out loud/);
+  assert.match(rules, /usually 1 to 3 sentences/);
+  assert.match(rules, /\*\*laughs\*\*, \*\*sighs\*\*/);
+  const anchor = buildVoiceAnchor({ characterName: 'Draven', voiceCall: true, shape: 'Open with a short action, then what they say; 2-3 short paragraphs.', moment: detectMoment('Stoick has died') });
+  assert.match(anchor, /VOICE CALL: write only what Draven says out loud/);
+  assert.doesNotMatch(anchor, /2-3 short paragraphs|up to 5 short paragraphs/, 'no paragraph shapes on a call');
+  assert.match(anchor, /BIG MOMENT — Someone Draven cares about/);
+});
