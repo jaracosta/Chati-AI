@@ -415,9 +415,10 @@ export function getSamplingSettings(env = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Reply length: "auto" follows how much the character talks in canon / in
-// their profile; "short" | "medium" | "long" are set by the user in the
-// character editor.
+// Reply length: one range for every character (the per-character
+// short/medium/long setting is gone; old values are ignored). Usually 2-3
+// short paragraphs; up to 2 more when the character has more to tell. The
+// token cap leaves room for the longest reply, so it never stops mid-word.
 // ---------------------------------------------------------------------------
 export const REPLY_LENGTHS = ["auto", "short", "medium", "long"];
 
@@ -425,37 +426,25 @@ export function normalizeReplyLength(value) {
   return REPLY_LENGTHS.includes(value) ? value : "auto";
 }
 
-const LENGTH_TOKEN_CAPS = { short: 260, medium: 480, auto: 600 };
+const REPLY_TOKEN_CAP = 700;
 
-export function capTokensForLength(maxTokens, replyLength) {
-  const cap = LENGTH_TOKEN_CAPS[normalizeReplyLength(replyLength)];
-  return cap ? Math.min(maxTokens, cap) : maxTokens;
+export function capTokensForLength(maxTokens) {
+  return Math.min(maxTokens, REPLY_TOKEN_CAP);
 }
 
-export function buildLengthRules({ characterName, replyLength, lastUserMessage = "" }) {
+export const REPLY_RANGE =
+  "usually 2-3 short paragraphs (about 50-110 words); up to 2 more (5 at most, about 200 words) only when there is really more to tell — always ending on a finished sentence";
+
+export function buildLengthRules({ characterName }) {
   const name = String(characterName || "the character").trim();
-  const length = normalizeReplyLength(replyLength);
-  const userWords = String(lastUserMessage || "").trim().split(/\s+/).filter(Boolean).length;
-
-  const byLength = {
-    short:
-      `- The user set ${name}'s replies to SHORT: 1-3 sentences, usually under 50 words — one short action plus a line or two of dialogue. Only go a bit longer for a truly major moment.`,
-    medium:
-      `- The user set ${name}'s replies to MEDIUM: usually 3-6 sentences (about 50-120 words). A short action, the dialogue, maybe one more beat. No long paragraphs.`,
-    long:
-      `- The user set ${name}'s replies to LONG: rich, detailed replies (about 120-250 words) with atmosphere and several beats — but still no rambling, no repeated ideas, and no speeches that ignore the user.`,
-    auto:
-      `- Decide the length from WHO ${name} is. If they are known (canon) or written as terse, cold, arrogant, laconic, stoic or a person of few words, most replies must be SHORT: a brief action and one or two cutting lines. If they are chatty, energetic or dramatic by nature, they may talk more — but still keep casual replies to a few sentences.
-- Mirror the user: short messages get short replies.${userWords && userWords <= 12 ? " The user's last message was short, so answer briefly." : ""} Only big moments (a fight, a reveal, an emotional turning point) earn a longer reply.
-- Casual replies stay under about 80 words.`
-  };
-
   return `
 REPLY LENGTH (VERY IMPORTANT — overrides any other length guidance)
-${byLength[length]}
+- ${name}'s replies are ${REPLY_RANGE}.
+- A paragraph is short: an action or expression, what ${name} says, or both. Two or three of them make a normal reply.
+- When ${name} has more to give — a big emotional moment, a story, a fight — they may use up to two more paragraphs. Never more than five, and never a wall of text.
 - Never deliver monologues or speeches. Real people say one thing, then let the other person answer.
 - Say each idea once. Do not restate the same threat, boast, feeling or description twice in one reply, and do not repeat what ${name} already said in earlier replies.
-- Stop as soon as the point is made. No summaries, no extra closing lines.
+- Finish cleanly: end on a complete sentence, never mid-thought. No summaries, no extra closing lines.
   `.trim();
 }
 
@@ -465,13 +454,6 @@ ${byLength[length]}
 // canon voice card when there is one), a hard length budget, and tells the
 // model not to copy its own earlier replies if they drifted.
 // ---------------------------------------------------------------------------
-const WORD_BUDGETS = {
-  short: "under 50 words",
-  medium: "under 110 words",
-  long: "under 250 words",
-  auto: "as long as the moment needs — a quick exchange stays short, an emotional moment can take up to 180 words"
-};
-
 export function guessLanguage(text) {
   const value = String(text || "").toLowerCase();
   if (/[ñ¿¡]|[áéíóú]/.test(value)) return "es";
@@ -482,7 +464,7 @@ export function guessLanguage(text) {
 
 export function buildCharacterLock({ characterName, card = null, replyLength = "auto", language = "en", examples = [], profile = "" }) {
   const name = String(characterName || "the character").trim();
-  const budget = WORD_BUDGETS[normalizeReplyLength(replyLength)];
+  const budget = REPLY_RANGE;
   const samples = card?.samples?.[language === "es" ? "es" : "en"] || [];
   // Lines the creator wrote in the editor (only the character's own words).
   const creatorLines = (Array.isArray(examples) ? examples : [])

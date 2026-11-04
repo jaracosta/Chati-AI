@@ -110,28 +110,25 @@ test('recent openings are listed once each', () => {
   assert.deepEqual(recentOpenings(['Hola, ¿qué tal estás hoy?', 'Hola, ¿qué tal estás hoy?']), ['hola qué tal estás hoy']);
 });
 
-test('reply length: rules and token caps follow the character setting', async () => {
+test('reply length: one range for every character, never cut mid-sentence', async () => {
   const { buildLengthRules, capTokensForLength, normalizeReplyLength } = await import('../roleplay-guard.js');
 
+  // Old saved values are still read without breaking anything.
   assert.equal(normalizeReplyLength('short'), 'short');
   assert.equal(normalizeReplyLength('huge'), 'auto');
-  assert.equal(normalizeReplyLength(undefined), 'auto');
 
-  assert.equal(capTokensForLength(1150, 'short'), 260);
-  assert.equal(capTokensForLength(1150, 'medium'), 480);
-  assert.equal(capTokensForLength(1150, 'auto'), 600);
-  assert.equal(capTokensForLength(1600, 'long'), 1600);
-  assert.equal(capTokensForLength(500, 'auto'), 500);
+  // The same room for everyone: enough for 5 short paragraphs.
+  assert.equal(capTokensForLength(1150), 700);
+  assert.equal(capTokensForLength(1600), 700);
+  assert.equal(capTokensForLength(500), 500);
 
-  const auto = buildLengthRules({ characterName: 'Sukuna', replyLength: 'auto', lastUserMessage: 'hola' });
-  assert.match(auto, /from WHO Sukuna is/);
-  assert.match(auto, /terse, cold, arrogant/);
-  assert.match(auto, /last message was short/);
-  assert.match(auto, /Never deliver monologues/);
-  assert.match(auto, /Say each idea once/);
-
-  assert.match(buildLengthRules({ characterName: 'X', replyLength: 'short' }), /SHORT: 1-3 sentences/);
-  assert.match(buildLengthRules({ characterName: 'X', replyLength: 'long' }), /LONG/);
+  const rules = buildLengthRules({ characterName: 'Sukuna', replyLength: 'short', lastUserMessage: 'hola' });
+  assert.match(rules, /usually 2-3 short paragraphs/);
+  assert.match(rules, /up to two more paragraphs. Never more than five/);
+  assert.match(rules, /end on a complete sentence/);
+  assert.match(rules, /Never deliver monologues/);
+  assert.match(rules, /Say each idea once/);
+  assert.doesNotMatch(rules, /SHORT|LONG/);
 });
 
 test('core rules fix the "You" perspective and ask for the canon voice', async () => {
@@ -186,11 +183,11 @@ test('the character lock restates the canon voice, a budget and anti-drift', () 
   assert.match(lock, /would NEVER: Never humble/);
   assert.match(lock, /¿Me extrañaste\?/);
   assert.doesNotMatch(lock, /Miss me\?/);
-  assert.match(lock, /under 50 words/);
+  assert.match(lock, /usually 2-3 short paragraphs/);
   assert.match(lock, /Do not copy the length, style or phrases of your earlier replies/);
   const original = buildCharacterLock({ characterName: 'Luna', card: null, replyLength: 'auto' });
   assert.match(original, /Talk exactly the way Luna talks/);
-  assert.match(original, /an emotional moment can take up to 180 words/);
+  assert.match(original, /5 at most, about 200 words/);
 });
 
 test('guesses the reply language from the user message', () => {
