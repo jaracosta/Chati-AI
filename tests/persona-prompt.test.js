@@ -44,12 +44,14 @@ test('sampling keeps penalties light so ordinary words are not punished', () => 
 
 test('every reply is asked to show the character physically, with a fresh look detail', () => {
   const cues = appearanceCues({ physical: 'Short black hair, grey eyes', outfit: 'Survey Corps jacket, white cravat', accessories: 'Not specified.', condition: 'mud on his boots' });
-  assert.deepEqual(cues, ['mud on his boots', 'Survey Corps jacket', 'white cravat', 'Short black hair', 'grey eyes']);
+  // Eyes, body and figure are never cues (no "my grey eyes" narration).
+  assert.deepEqual(cues, ['mud on his boots', 'Survey Corps jacket', 'white cravat', 'Short black hair']);
   assert.notEqual(pickAppearanceCue(cues, ['**He fixes his white cravat.**', 'Tch.'], () => 0.5), 'white cravat', 'skips what was just shown');
   assert.equal(pickAppearanceCue([], []), '');
   const anchor = buildVoiceAnchor({ characterName: 'Levi', appearanceCue: 'white cravat' });
-  assert.match(anchor, /Show Levi physically: a facial expression or body language.*white cravat/);
-  assert.match(buildVoiceAnchor({ characterName: 'Mia' }), /Show Mia physically/);
+  assert.match(anchor, /Show Levi through what they do: .*white cravat/);
+  assert.match(anchor, /Never describe their own body or features like a narrator/);
+  assert.match(buildVoiceAnchor({ characterName: 'Mia' }), /Show Mia through what they do/);
   assert.match(buildPersonaPrompt({ character: { name: 'Levi' } }), /Show Levi physically in every reply/);
 });
 

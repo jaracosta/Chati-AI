@@ -20,6 +20,8 @@ export const CLICHE_PHRASES = [
   "can't help but", "couldn't help but", "her heart pounding", "his heart pounding", "heart skips a beat", "breath hitches",
   "a mix of", "a blend of", "eyes locking", "eyes lock onto", "the air is thick", "electricity in the air", "ministrations",
   "testament to", "palpable", "for what feels like an eternity", "little did", "dance of", "sly grin", "knowing smile",
+  "my voice a fierce", "voice a fierce growl", "my voice a firm", "voice a soft whisper", "a fierce determination", "my eyes narrowing",
+  "my eyes widening in", "i watch in awe", "i watch in horror", "i watch in shock", "i watch the scene unfold", "watch as the scene unfolds",
   "un toque de", "un atisbo de", "apenas un susurro", "un brillo travieso", "no puede evitar", "una mezcla de", "el corazón le late"
 ];
 
@@ -50,8 +52,8 @@ function splitSentences(text) {
 
 // Phrases (3-5 words, or a repeated opening) that appear in at least
 // `minReplies` of the character's recent replies.
-export function findOverusedPhrases(replies, { characterName = "", minReplies = 2, limit = 8 } = {}) {
-  const recent = (Array.isArray(replies) ? replies : []).filter(Boolean).slice(-8);
+export function findOverusedPhrases(replies, { characterName = "", minReplies = 2, limit = 8, window = 8, all = false } = {}) {
+  const recent = (Array.isArray(replies) ? replies : []).filter(Boolean).slice(-window);
   if (recent.length < 2) return [];
   const nameWords = new Set(words(characterName));
   const seen = new Map();
@@ -75,19 +77,36 @@ export function findOverusedPhrases(replies, { characterName = "", minReplies = 
   });
   const repeated = [...seen]
     .filter(([, indexes]) => indexes.size >= minReplies)
-    .map(([phrase, indexes]) => ({ phrase, count: indexes.size, length: phrase.split(" ").length }))
-    .sort((a, b) => b.count - a.count || b.length - a.length);
+    .map(([phrase, indexes]) => ({ phrase, count: indexes.size, length: phrase.split(" ").length, named: phrase.split(" ").some(word => nameWords.has(word)) }))
+    // Most repeated first; a phrase without the character's name ("clicks
+    // his tongue in annoyance") reads better than one with it.
+    .sort((a, b) => b.count - a.count || a.named - b.named || b.length - a.length);
   // Keep the longest phrases; drop ones contained in a phrase already kept.
+  // Overlapping pieces of one long beat ("grip my battle axe my", "my
+  // battle axe my voice") count as one.
   const kept = [];
+  const content = phrase => phrase.split(" ").filter(word => !STOP.has(word));
+  const overlaps = (a, b) => {
+    const left = new Set(content(a));
+    const right = content(b);
+    const shared = right.filter(word => left.has(word)).length;
+    return shared >= 2 && shared >= Math.min(left.size, right.length) * 0.5;
+  };
   for (const item of repeated) {
     const text = item.phrase.replace(/^OPEN:/, "");
-    if (kept.some(other => other.includes(text) || text.includes(other))) continue;
+    if (kept.some(other => other.includes(text) || text.includes(other) || (!all && overlaps(other, text)))) continue;
     kept.push(text);
     if (kept.length >= limit) break;
   }
   return kept;
 }
 
+
+// Body and face features are never cues: a reminder to show "her large
+// chest" or "his ocean-blue eyes" makes characters describe themselves like
+// a narrator in scenes where it makes no sense. Cues are what they wear,
+// carry, or how they look right now (wet hair, a torn sleeve).
+const BODY_CUE = /\b(?:chest|breasts?|bust|cleavage|boobs?|thighs?|hips?|waist|curv\w*|figure|butt|buttocks|ass|abs|muscles?|muscular|physique|build|body|cup|measurements?|tall|height|toned|athletic|slender|petite|voluptuous|lean|chubby|plump|curvy|eyes?|irises|skin|complexion|face|lips|pecho|busto|senos?|muslos?|caderas?|cintura|curvas?|figura|trasero|cuerpo|m[uú]sculos?|ojos|piel|rostro|labios)\b/i;
 
 // Short, concrete features of how the character looks right now ("silver
 // hair tied back", "black leather gloves"), taken from their appearance
@@ -100,14 +119,14 @@ export function appearanceCues({ physical = "", outfit = "", accessories = "", c
     const bracket = /\[\s*([\w /&-]+?)\s*\(\s*["'“”]?([^"'“”)]*)["'“”]?\s*\)\s*\]/g;
     for (const [, key, value] of String(raw || "").matchAll(bracket)) {
       const cue = value.replace(/\s+/g, " ").trim();
-      if (!cue || /height|weight|measure|age|bust|waist|hip|figure/i.test(key) || cue.split(" ").length > 12) continue;
+      if (!cue || /height|weight|measure|age|bust|waist|hip|figure|body|build|physique|muscul|chest|eye|skin|face/i.test(key) || BODY_CUE.test(cue) || cue.split(" ").length > 12) continue;
       if (!cues.some(other => other.toLowerCase() === cue.toLowerCase())) cues.push(cue);
     }
     const source = String(raw || "").replace(bracket, " ");
     for (const piece of String(source || "").split(/[,.;\n]|\s+(?:and|with|y|con)\s+/i)) {
       const cue = piece.replace(/\s+/g, " ").replace(/^[-•\s]+/, "").trim();
       const count = cue.split(" ").length;
-      if (!cue || count < 2 || count > 9 || /not specified|no temporary|none stored|no especificado/i.test(cue)) continue;
+      if (!cue || count < 2 || count > 9 || BODY_CUE.test(cue) || /not specified|no temporary|none stored|no especificado/i.test(cue)) continue;
       if (!cues.some(other => other.toLowerCase() === cue.toLowerCase())) cues.push(cue);
     }
   }
@@ -165,7 +184,7 @@ export function pickReplyShape(previousReplies = [], random = Math.random) {
   return pool[0].text;
 }
 
-export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, appearanceCue = "", story = null, remembered = [], language = "en" } = {}) {
+export function buildVoiceAnchor({ characterName = "the character", card = null, profile = "", examples = [], overused = [], gestures = [], shape = "", userAsked = false, appearanceCue = "", story = null, remembered = [], moment = null, language = "en" } = {}) {
   const name = String(characterName || "the character").trim();
   const lines = [];
   const voice = card?.voice || String(profile || "").replace(/\s+/g, " ").trim().slice(0, 300);
@@ -190,10 +209,13 @@ export function buildVoiceAnchor({ characterName = "the character", card = null,
   const details = (Array.isArray(remembered) ? remembered : []).map(item => String(item || "").replace(/\s+/g, " ").trim().slice(0, 200)).filter(Boolean).slice(0, 3);
   if (details.length) lines.push(`The user told ${name} this before — remember it and use it if it fits: ${details.join("; ")}`);
   if (userAsked) lines.push(`They asked ${name} something: answer it first, in ${name}'s own way.`);
-  if (shape) lines.push(`This reply: ${shape}`);
-  lines.push(appearanceCue
-    ? `Show ${name} physically: a facial expression or body language that fits the moment, and this time something about their look — ${appearanceCue} (touching or adjusting it, how it looks right now, what they do with it).`
-    : `Show ${name} physically: a facial expression or body language that fits the moment, and now and then their look — hair, clothes, what their hands do with them.`);
+  const big = moment && typeof moment.guidance === "function" ? moment.guidance(name) : "";
+  if (big) lines.push(`BIG MOMENT — ${big}`);
+  else if (shape) lines.push(`This reply: ${shape}`);
+  lines.push(`Don't retell what the user just described. React to it as ${name}, with real feeling, and add something of their own — a choice, a line, a move — that takes the scene forward.`);
+  lines.push(appearanceCue && !big
+    ? `Show ${name} through what they do: an expression or body language that fits the moment, and this time something they wear or carry — ${appearanceCue} (adjusting it, how it looks right now). Never describe their own body or features like a narrator.`
+    : `Show ${name} through what they do: an expression, their voice, their hands, their body language in this moment. Never describe their own body or features like a narrator, and only hold a weapon or prop when the scene calls for it.`);
   lines.push(`No stock AI phrases (${ANCHOR_CLICHES.map(phrase => `"${phrase}"`).join(", ")}…). Fresh words, ${name}'s words.`);
   return `[Stay in character as ${name}. Answer the user's last message the way ${name} really would.\n${lines.map(line => "- " + line).join("\n")}]`;
 }
@@ -263,6 +285,69 @@ export function stripForeignScript(text, userText = "") {
     .replace(/^[ \t]+|[ \t]+$/gm, "")
     .replace(/\*\*\s*\*\*/g, "")
     .trim();
+}
+
+// Beats (an action, a gesture, a stock description) the character has
+// already used in at least `minReplies` of its recent replies: "I grip my
+// battle axe", "my voice a fierce growl". Telling the model to avoid them
+// is not enough — it copies the pattern it sees in its own history.
+export function wornBeats(replies, { characterName = "", minReplies = 3, window = 12 } = {}) {
+  return findOverusedPhrases(replies, { characterName, minReplies, window, limit: 40, all: true })
+    .filter(phrase => phrase.split(" ").length >= 3);
+}
+
+// Removes the sentences that carry a worn-out beat. Used on the history
+// sent to the model (so it stops copying itself; minKeep 0 there) and on a
+// new reply, which is never cut below 40% of its length.
+export function dropWornBeats(text, beats = [], { minKeep = 0.4 } = {}) {
+  const value = String(text || "");
+  if (!value.trim() || !beats.length) return value;
+  let removed = 0;
+  const cleaned = value.split(/(\n+)/).map(line => {
+    if (/^\n+$/.test(line)) return line;
+    const parts = splitSentences(line);
+    if (!parts.length) return line;
+    const kept = parts.filter(sentence => {
+      const key = normalizeSentence(sentence);
+      if (beats.some(beat => key.includes(beat))) {
+        removed += sentence.length;
+        return false;
+      }
+      return true;
+    });
+    return kept.join("").replace(/\s{2,}/g, " ").trim();
+  }).join("").replace(/\n{3,}/g, "\n\n").trim();
+  if (!removed) return value;
+  if (!cleaned) return minKeep > 0 ? value : "…";
+  return cleaned.length >= value.trim().length * minKeep ? cleaned : value;
+}
+
+// Big moments in what the user just wrote. Each one tells the character to
+// let it land instead of answering it like small talk.
+const MOMENTS = [
+  { kind: "death", pattern: /\b(?:dies|died|dead|death|killed|passed away|is gone|lifeless|no heartbeat|muri[oó]|muere|muerto|muerta|muerte|mataron|falleci[oó]|sin vida)\b/i,
+    guidance: name => `Someone ${name} cares about may have just died. Let it hit with everything: disbelief, the breath leaving them, a voice that cracks or goes silent, tears or numb shock — then go to the people who are hurting. Grief, not battle talk. This moment deserves a longer reply.` },
+  { kind: "kiss", pattern: /\b(?:kiss(?:es|ed|ing)?|beso|besa|bes[oó]|besos)\b/i,
+    guidance: name => `A kiss. Let ${name} feel it — the surprise, the heat in their face, how their breath and voice change — and answer the way ${name} really would: teasing, flustered, melting or kissing back. Not a flat "thank you".` },
+  { kind: "love", pattern: /\b(?:i love you|love you|te amo|te quiero|me gustas|estoy enamorad[oa]|i'?m in love)\b/i,
+    guidance: name => `A confession of love. This changes everything for ${name}: let it show — what they feel, what they're afraid of, what they finally say or can't say.` },
+  { kind: "hurt", pattern: /\b(?:hurt|wounded|bleeding|blood|injured|unconscious|stabbed|shot|herid[oa]|sangr\w*|inconsciente|desmay\w*|apu[nñ]al\w*)\b/i,
+    guidance: name => `Someone is hurt or in danger. ${name} reacts with real fear and urgency first — rushing in, hands shaking, the instinct to protect — before anything else.` },
+  { kind: "tears", pattern: /\b(?:cr(?:y|ies|ying|ied)|tears|sobs?|sobbing|weeps?|llor\w*|l[aá]grimas|sollo\w*)\b/i,
+    guidance: name => `Someone is crying or breaking down. ${name} answers with real warmth or real pain, the way they truly would — a touch, a quiet word, staying close. Not a speech.` },
+  { kind: "reunion", pattern: /\b(?:alive|came back|comes back|returned|reunit\w*|you'?re back|est[aá]s viv[oa]|sigue viv[oa]|regres[oó]|volvi[oó]|has vuelto)\b/i,
+    guidance: name => `A return or someone found alive. Let ${name} feel it — relief, disbelief, joy, maybe anger that they were scared — before words come.` },
+  { kind: "goodbye", pattern: /\b(?:goodbye|farewell|leaving forever|adi[oó]s|despedida|me voy para siempre)\b/i,
+    guidance: name => `A goodbye. Let ${name} show what it costs them.` },
+  { kind: "betrayal", pattern: /\b(?:betray\w*|lied to|traici\w*|traidor\w*|me mentiste)\b/i,
+    guidance: name => `A betrayal. ${name} feels it as a wound — hurt and anger, in their own way.` },
+  { kind: "proposal", pattern: /\b(?:marry me|wedding|propos\w*|c[aá]sate conmigo|boda|matrimonio)\b/i,
+    guidance: name => `Marriage comes up. A huge, personal moment for ${name}: let them react with real feeling — flustered, moved, teasing, overwhelmed — as they truly would.` }
+];
+
+export function detectMoment(text) {
+  const value = String(text || "");
+  return MOMENTS.find(moment => moment.pattern.test(value)) || null;
 }
 
 // Removes repetition the model produced anyway. Never removes so much that
