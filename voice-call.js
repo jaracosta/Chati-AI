@@ -232,6 +232,12 @@
       silenceTimer: null,
       aborter: null,
       audio: null,
+      speechQueue: [],
+      voiceAborters: [],
+      playing: false,
+      replyDone: false,
+      turnId: 0,
+      spokenSoFar: "",
       ended: false
     };
     setState("connecting");
@@ -286,7 +292,8 @@
     // Tap the orb: cut the character off and talk.
     screen.querySelector(".chati-call-orb-wrap").addEventListener("click", () => {
       if (!call) return;
-      if (call.state === "speaking") {
+      if (call.state === "speaking" || call.state === "thinking") {
+        call.aborter?.abort?.();
         stopAudio();
         listen();
       } else if (call.state === "listening" && !call.recognition && !call.recorder) {
@@ -465,6 +472,104 @@
     return card ? { ...character, canonProfile: card } : character;
   }
 
+  // Splits what the character has written so far into sentences that can
+  // be spoken now, keeping a **cue** with the words after it.
+  function takeSentences(buffer, { final = false } = {}) {
+    const sentences = [];
+    let rest = buffer;
+    const boundary = /[.!?…]+["”»)\]]*\s+|\n+/g;
+    let match;
+    let cut = 0;
+    while ((match = boundary.exec(rest))) {
+      const end = match.index + match[0].length;
+      const piece = rest.slice(cut, end);
+      // Never split inside a **cue**, and not into tiny fragments.
+      if ((rest.slice(0, end).match(/\*\*/g) || []).length % 2) continue;
+      if (piece.replace(/\*\*[^*]*\*\*/g, "").trim().length < 12 && !final) continue;
+      sentences.push(piece.trim());
+      cut = end;
+    }
+    rest = rest.slice(cut);
+    if (final && rest.trim()) {
+      sentences.push(rest.trim());
+      rest = "";
+    }
+    return { sentences: sentences.filter(Boolean), rest };
+  }
+
+  // Voice for one sentence (fetched as soon as the sentence exists, so the
+  // next one is ready while the current one plays).
+  function fetchVoice(text) {
+    const controller = new AbortController();
+    call.voiceAborters.push(controller);
+    return fetch("/api/tts", {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ voiceId: call.character.voiceId, text, call: true })
+    }).then(async response => {
+      if (!response.ok) {
+        let message = "";
+        try { message = (await response.json()).error || ""; } catch (_) {}
+        throw new Error(message || tr("Couldn't play the voice.", "No se pudo reproducir la voz."));
+      }
+      return URL.createObjectURL(await response.blob());
+    });
+  }
+
+  function queueSentence(text) {
+    if (!call || call.ended || !text.replace(/\*\*[^*]*\*\*|\*[^*]*\*/g, "").trim()) return;
+    call.speechQueue.push({ text, voice: fetchVoice(text) });
+    playQueue();
+  }
+
+  // Plays the queued sentences one after another; the caption shows each
+  // one as it is spoken.
+  async function playQueue() {
+    if (!call || call.playing) return;
+    call.playing = true;
+    const turn = call.turnId;
+    while (call && !call.ended && call.turnId === turn && call.speechQueue.length) {
+      const item = call.speechQueue.shift();
+      let url = "";
+      try {
+        url = await item.voice;
+      } catch (error) {
+        if (!call || call.ended || call.turnId !== turn) break;
+        if (error?.name !== "AbortError") setState("error", error.message);
+        continue;
+      }
+      if (!call || call.ended || call.turnId !== turn) {
+        URL.revokeObjectURL(url);
+        break;
+      }
+      const audio = new Audio(url);
+      call.audio = audio;
+      try {
+        if (call.audioContext) {
+          const source = call.audioContext.createMediaElementSource(audio);
+          call.outAnalyser = call.audioContext.createAnalyser();
+          call.outAnalyser.fftSize = 512;
+          source.connect(call.outAnalyser);
+          call.outAnalyser.connect(call.audioContext.destination);
+        }
+      } catch (_) {}
+      call.spokenSoFar = (call.spokenSoFar ? call.spokenSoFar + " " : "") + item.text.replace(/\*\*[^*]*\*\*|\*[^*]*\*/g, " ").replace(/\s+/g, " ").trim();
+      setState("speaking");
+      setCaption(call.spokenSoFar.split(/(?<=[.!?…])\s+/).slice(-2).join(" "), "character");
+      await new Promise(resolve => {
+        audio.onended = audio.onerror = audio.onpause = resolve;
+        audio.play().catch(resolve);
+      });
+      URL.revokeObjectURL(url);
+      if (call && call.audio === audio) call.audio = null;
+    }
+    if (!call) return;
+    call.playing = false;
+    // The reply is fully written and fully spoken: the user's turn.
+    if (!call.ended && call.turnId === turn && call.replyDone && !call.speechQueue.length) listen();
+  }
+
   async function reply(userText, { hidden = false } = {}) {
     if (!call || call.ended) return;
     stopListening();
@@ -474,11 +579,16 @@
       saveCall({ ...call.record });
     }
     setState("thinking");
+    call.turnId += 1;
+    call.replyDone = false;
+    call.spokenSoFar = "";
+    call.speechQueue = [];
 
     const { chat } = chatContext();
     const messages = [...call.context, ...(hidden ? [{ sender: "user", text: userText }] : [])].slice(-50);
     call.aborter = new AbortController();
     let text = "";
+    let pending = "";
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -507,86 +617,59 @@
           if (!line.trim()) continue;
           let packet;
           try { packet = JSON.parse(line); } catch (_) { continue; }
-          if (packet.type === "delta") text += packet.delta || "";
-          else if (packet.type === "replace") text = packet.text || "";
-          else if (packet.type === "error") throw new Error(packet.error || "");
+          if (packet.type === "delta") {
+            text += packet.delta || "";
+            pending += packet.delta || "";
+            // Speak each sentence as soon as it is written.
+            const { sentences, rest } = takeSentences(pending);
+            pending = rest;
+            sentences.forEach(queueSentence);
+          } else if (packet.type === "replace") {
+            // A cleaned-up version (repeats or a stray script removed):
+            // keep it for the transcript; what's not spoken yet follows it.
+            const cleaned = packet.text || "";
+            const spoken = text.length - pending.length;
+            text = cleaned;
+            pending = cleaned.slice(Math.min(spoken, cleaned.length));
+          } else if (packet.type === "error") {
+            throw new Error(packet.error || "");
+          }
         }
       }
     } catch (error) {
-      if (!call || call.ended) return;
+      if (!call || call.ended || error?.name === "AbortError") return;
       setState("error", tr("The line cut out. Say it again?", "Se cortó la línea. ¿Lo repites?"));
       setTimeout(() => listen(), 1400);
       return;
     }
     if (!call || call.ended) return;
 
+    takeSentences(pending, { final: true }).sentences.forEach(queueSentence);
+    call.replyDone = true;
     const spoken = text.replace(/\s+/g, " ").trim();
-    if (!spoken) {
-      listen();
-      return;
+    if (spoken) {
+      call.record.turns.push({ who: "character", text: spoken, at: Date.now() });
+      if (call.record.turns.length > MAX_TURNS) call.record.turns.splice(0, call.record.turns.length - MAX_TURNS);
+      call.context.push({ sender: "character", text: spoken });
+      saveCall({ ...call.record });
     }
-    call.record.turns.push({ who: "character", text: spoken, at: Date.now() });
-    if (call.record.turns.length > MAX_TURNS) call.record.turns.splice(0, call.record.turns.length - MAX_TURNS);
-    call.context.push({ sender: "character", text: spoken });
-    saveCall({ ...call.record });
-    await speak(spoken);
+    if (!call.playing && !call.speechQueue.length) listen();
   }
 
+  // Cuts the character off (tap on the orb, hang up): stops the voice and
+  // drops what was still queued.
   function stopAudio() {
-    if (call?.audio) {
-      try { call.audio.pause(); } catch (_) {}
+    if (!call) return;
+    call.turnId += 1;
+    call.speechQueue = [];
+    call.voiceAborters.forEach(controller => { try { controller.abort(); } catch (_) {} });
+    call.voiceAborters = [];
+    call.playing = false;
+    if (call.audio) {
+      const audio = call.audio;
       call.audio = null;
+      try { audio.pause(); } catch (_) {}
     }
-  }
-
-  async function speak(text) {
-    if (!call || call.ended) return;
-    // The caption shows the words only, not the **cues**.
-    setCaption(text.replace(/\*\*[^*]*\*\*|\*[^*]*\*/g, " ").replace(/\s+/g, " ").trim(), "character");
-    try {
-      const response = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ voiceId: call.character.voiceId, text })
-      });
-      if (!response.ok) {
-        let message = "";
-        try { message = (await response.json()).error || ""; } catch (_) {}
-        throw new Error(message || tr("Couldn't play the voice.", "No se pudo reproducir la voz."));
-      }
-      const url = URL.createObjectURL(await response.blob());
-      if (!call || call.ended) {
-        URL.revokeObjectURL(url);
-        return;
-      }
-      const audio = new Audio(url);
-      audio.crossOrigin = "anonymous";
-      call.audio = audio;
-      try {
-        if (call.audioContext) {
-          const source = call.audioContext.createMediaElementSource(audio);
-          call.outAnalyser = call.audioContext.createAnalyser();
-          call.outAnalyser.fftSize = 512;
-          source.connect(call.outAnalyser);
-          call.outAnalyser.connect(call.audioContext.destination);
-        }
-      } catch (_) {}
-      setState("speaking");
-      await new Promise(resolve => {
-        audio.onended = audio.onerror = audio.onpause = resolve;
-        audio.play().catch(resolve);
-      });
-      URL.revokeObjectURL(url);
-      // Cut off by a tap on the orb: listening already started.
-      if (!call || call.ended || call.audio !== audio) return;
-      call.audio = null;
-    } catch (error) {
-      if (!call || call.ended) return;
-      setState("error", error.message);
-      await new Promise(resolve => setTimeout(resolve, 1800));
-    }
-    if (!call || call.ended) return;
-    listen();
   }
 
   function endCall() {

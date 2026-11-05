@@ -2795,11 +2795,13 @@ app.post(
     // and emotion cues.
     const text = String(req.body?.text || "").trim().slice(0, 4000);
     if (!spokenText(text)) return res.status(400).json({ error: "Nothing to read aloud." });
-    const key = voiceId + "|" + text;
+    // A line of a live call (voice-call.js): lighter, faster audio.
+    const live = req.body?.call === true;
+    const key = voiceId + "|" + (live ? "call|" : "") + text;
     try {
       let audio = ttsCache.get(key);
       if (!audio) {
-        audio = await voiceProvider.speak({ voiceId, text });
+        audio = await voiceProvider.speak({ voiceId, text, call: live });
         ttsCache.set(key, audio);
         while (ttsCache.size > 80) ttsCache.delete(ttsCache.keys().next().value);
       }

@@ -322,8 +322,13 @@ export function createVoiceProvider(env = {}, fetchImpl = globalThis.fetch) {
       return { id: data.voice_id, name: cleanName };
     },
 
-    async speak({ voiceId, text }) {
+    // call: a line of a live voice call — a lighter mp3 (downloads faster)
+    // and, if ELEVENLABS_CALL_MODEL is set (e.g. eleven_flash_v2_5), that
+    // faster model instead of the expressive one.
+    async speak({ voiceId, text, call: live = false }) {
       if (!isValidVoiceId(voiceId)) throw new VoiceError("This character has no valid voice.", 400);
+      const format = live ? "mp3_22050_32" : "mp3_44100_128";
+      const voiceModel = live && String(env.ELEVENLABS_CALL_MODEL || "").trim() ? String(env.ELEVENLABS_CALL_MODEL).trim() : model;
       if (!spokenText(text)) throw new VoiceError("Nothing to read aloud.", 400);
       const request = async modelId => {
         // Eleven v3 performs emotion tags and only takes stability 0 / 0.5 / 1
@@ -334,7 +339,7 @@ export function createVoiceProvider(env = {}, fetchImpl = globalThis.fetch) {
         const speech = prepareSpeech(text, { expressive });
         const chosen = String(env.ELEVENLABS_STABILITY ?? "").trim() === "" ? NaN : Number(env.ELEVENLABS_STABILITY);
         const stability = [0, 0.5, 1].includes(chosen) ? chosen : isIntenseSpeech(speech) ? 0 : 0.5;
-        const response = await call(`/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+        const response = await call(`/text-to-speech/${voiceId}?output_format=${format}`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "audio/mpeg" },
           body: JSON.stringify({
@@ -348,11 +353,11 @@ export function createVoiceProvider(env = {}, fetchImpl = globalThis.fetch) {
         return Buffer.from(await response.arrayBuffer());
       };
       try {
-        return await request(model);
+        return await request(voiceModel);
       } catch (error) {
         // An account or voice that can't use the expressive model still
         // speaks, with pauses, on the multilingual one.
-        if (model !== fallbackModel && error instanceof VoiceError && error.status === 400) {
+        if (voiceModel !== fallbackModel && error instanceof VoiceError && error.status === 400) {
           return request(fallbackModel);
         }
         throw error;

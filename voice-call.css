@@ -126,11 +126,13 @@
   object-fit: cover;
 }
 
-/* The orb: three soft blobs turning inside a glowing sphere. It breathes
-   while listening, swirls while thinking and follows the voice. */
+/* The orb: soft light, not a cut-out circle. Its edge fades into the
+   backdrop (a feathered mask), colored clouds drift inside, and its shape
+   slowly breathes. It follows the mic while listening and the voice while
+   the character speaks (--level, set by voice-call.js). */
 .chati-call-orb-wrap {
   align-self: center;
-  width: min(62vw, 300px);
+  width: min(70vw, 340px);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -142,52 +144,86 @@
 }
 
 .chati-call-orb {
+  --c1: #c4b5fd;
+  --c2: #7c3aed;
+  --c3: #67e8f9;
+  --c4: #f472b6;
   position: relative;
-  isolation: isolate;
   width: 100%;
   height: 100%;
+  isolation: isolate;
+  transform: scale(calc(0.9 + var(--level) * 0.2));
+  transition: transform 0.1s linear;
+}
+
+/* Halo around the light. */
+.chati-call-orb::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
   border-radius: 50%;
-  overflow: hidden;
-  background: radial-gradient(circle at 35% 30%, #c4b5fd 0%, #7c3aed 38%, #312e81 72%, #0f0b2a 100%);
-  box-shadow:
-    0 0 calc(40px + var(--level) * 90px) rgba(139, 92, 246, calc(0.35 + var(--level) * 0.5)),
-    inset 0 0 60px rgba(255, 255, 255, 0.12);
-  transform: scale(calc(0.92 + var(--level) * 0.16));
-  transition: transform 0.12s linear, box-shadow 0.12s linear, background 0.6s ease;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c2) 55%, transparent) 0%, transparent 62%);
+  filter: blur(30px);
+  opacity: calc(0.55 + var(--level) * 0.45);
+  transition: opacity 0.15s linear;
+}
+
+/* The body: a glowing core whose edge dissolves. */
+.chati-call-orb::after {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 36%, color-mix(in srgb, var(--c1) 70%, #ffffff) 0%, var(--c1) 12%, var(--c2) 46%, color-mix(in srgb, var(--c2) 55%, transparent) 62%, transparent 76%);
+  filter: blur(7px);
+  opacity: 0.92;
+  animation: chati-orb-morph 7s ease-in-out infinite;
 }
 
 .chati-call-orb i {
   position: absolute;
-  will-change: transform;
-  inset: -20%;
-  border-radius: 46% 54% 48% 52%;
+  inset: 14%;
+  border-radius: 42% 58% 55% 45% / 48% 42% 58% 52%;
   mix-blend-mode: screen;
-  filter: blur(18px);
-  opacity: 0.75;
-  animation: chati-orb-spin 9s linear infinite;
+  filter: blur(20px);
+  opacity: 0.95;
+  z-index: 1;
+  will-change: transform;
+  animation: chati-orb-drift 9s ease-in-out infinite;
 }
 
 .chati-call-orb i:nth-child(1) {
-  background: radial-gradient(circle at 30% 35%, rgba(103, 232, 249, 0.85), transparent 45%);
+  background: radial-gradient(circle at 30% 35%, var(--c3), transparent 60%);
 }
 
 .chati-call-orb i:nth-child(2) {
-  background: radial-gradient(circle at 70% 60%, rgba(244, 114, 182, 0.7), transparent 45%);
-  animation-duration: 12s;
+  background: radial-gradient(circle at 70% 62%, var(--c4), transparent 60%);
+  animation-duration: 11s;
   animation-direction: reverse;
 }
 
 .chati-call-orb i:nth-child(3) {
-  background: radial-gradient(circle at 50% 80%, rgba(129, 140, 248, 0.85), transparent 50%);
-  animation-duration: 15s;
+  background: radial-gradient(circle at 50% 78%, var(--c1), transparent 62%);
+  animation-duration: 13s;
+  animation-delay: -4s;
 }
 
-@keyframes chati-orb-spin {
-  to { transform: rotate(360deg); }
+@keyframes chati-orb-drift {
+  0% { transform: rotate(0deg) translate(0, 0) scale(1); }
+  33% { transform: rotate(120deg) translate(4%, -3%) scale(1.06); }
+  66% { transform: rotate(240deg) translate(-4%, 3%) scale(0.96); }
+  100% { transform: rotate(360deg) translate(0, 0) scale(1); }
+}
+
+@keyframes chati-orb-morph {
+  0%, 100% { border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; transform: scale(1); }
+  25% { border-radius: 54% 46% 52% 48% / 47% 55% 45% 53%; transform: scale(1.02); }
+  50% { border-radius: 47% 53% 46% 54% / 54% 47% 53% 46%; transform: scale(0.98); }
+  75% { border-radius: 52% 48% 55% 45% / 46% 52% 48% 54%; transform: scale(1.01); }
 }
 
 @keyframes chati-orb-breathe {
-  0%, 100% { transform: scale(0.94); }
+  0%, 100% { transform: scale(0.92); }
   50% { transform: scale(1); }
 }
 
@@ -200,12 +236,20 @@
   animation-duration: 3.5s;
 }
 
+/* Listening: cool and clear. */
 .chati-call[data-state="listening"] .chati-call-orb {
-  background: radial-gradient(circle at 35% 30%, #a5f3fc 0%, #6366f1 40%, #1e1b4b 74%, #0b0a24 100%);
+  --c1: #a5f3fc;
+  --c2: #6366f1;
+  --c3: #67e8f9;
+  --c4: #a78bfa;
 }
 
+/* Speaking: warm violet and pink. */
 .chati-call[data-state="speaking"] .chati-call-orb {
-  background: radial-gradient(circle at 35% 30%, #f5d0fe 0%, #a855f7 38%, #4c1d95 72%, #12082b 100%);
+  --c1: #f5d0fe;
+  --c2: #a855f7;
+  --c3: #f0abfc;
+  --c4: #fb7185;
 }
 
 .chati-call[data-state="error"] .chati-call-orb {
