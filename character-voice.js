@@ -16,6 +16,16 @@
       return "A la clave de ElevenLabs le faltan permisos" + (missing[1] ? ` (${missing[1]})` : "") +
         ". Crea una clave con “Restrict key” apagado, o activa Voices: Write y Text to Speech: Access.";
     }
+    if (window.ChatiI18n?.lang === "es") {
+      const plan = String(text).match(/account of the API key on the server is on the "([^"]+)" plan(, which can't clone voices)?/);
+      if (plan) {
+        return `La clave de ElevenLabs que usa el servidor es de una cuenta con plan "${plan[1]}"` + (plan[2] ? ", que no puede clonar voces" : "") +
+          ". Si pagaste Starter en otra cuenta, pon la clave de API de esa cuenta en ELEVENLABS_API_KEY en Render.";
+      }
+      if (/no free voice slots left/.test(text)) {
+        return "Tu plan de ElevenLabs ya no tiene espacios libres para voces. Borra una voz que no uses en ElevenLabs (My Voices) y vuelve a intentar.";
+      }
+    }
     return t(text);
   };
   const toast = (text, kind) => window.ChatiToast?.(translateError(text), kind);

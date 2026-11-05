@@ -159,14 +159,22 @@ function describeError(status, body) {
       502
     );
   }
-  if (status === 401) {
-    return new VoiceError("ElevenLabs rejected the API key (it may have been deleted or mistyped). Put a valid key in ELEVENLABS_API_KEY on Render.", 502);
+  // Every other ElevenLabs error is logged as sent, so the real cause shows
+  // in the server logs (not only our short version of it).
+  console.error("ElevenLabs error:", status, code || "-", message || JSON.stringify(body || {}));
+  if (/voice[_ ]limit|maximum (?:number|amount) of (?:custom )?voices|too many voices|voice slots?/i.test(message + " " + code)) {
+    return new VoiceError("Your ElevenLabs plan has no free voice slots left. Delete a voice you don't use in ElevenLabs (My Voices) and try again.", 402);
+  }
+  if (/instant[_ ]voice[_ ]cloning|can_use_instant_voice_cloning/i.test(message + " " + code)) {
+    const error = new VoiceError("Voice cloning needs a paid ElevenLabs plan (Starter or higher).", 402);
+    error.needsPlan = true;
+    return error;
   }
   if (status === 402 || /quota|credits|character limit/i.test(message)) {
     return new VoiceError("ElevenLabs credits ran out. Add credits or upgrade the plan.", 402);
   }
-  if (/instant voice cloning|can_use_instant_voice_cloning|subscription/i.test(message)) {
-    return new VoiceError("Voice cloning needs a paid ElevenLabs plan (Starter or higher).", 402);
+  if (status === 401) {
+    return new VoiceError("ElevenLabs rejected the API key (it may have been deleted or mistyped). Put a valid key in ELEVENLABS_API_KEY on Render.", 502);
   }
   if (status === 429) return new VoiceError("ElevenLabs is busy. Try again in a moment.", 429);
   return new VoiceError(message || `ElevenLabs request failed (${status}).`, status >= 500 ? 502 : 400);
@@ -210,6 +218,22 @@ export function createVoiceProvider(env = {}, fetchImpl = globalThis.fetch) {
       return voices;
     },
 
+    // The plan of the account the API key belongs to (the key on Render may
+    // be from another ElevenLabs account than the one that was paid).
+    async subscription() {
+      try {
+        const data = await (await call("/user/subscription")).json();
+        return {
+          tier: String(data?.tier || ""),
+          canClone: data?.can_use_instant_voice_cloning !== false,
+          voices: Number(data?.voice_slots_used ?? NaN),
+          voiceLimit: Number(data?.voice_limit ?? NaN)
+        };
+      } catch (_) {
+        return null;
+      }
+    },
+
     async cloneVoice({ name, description = "", samples = [] }) {
       const cleanName = String(name || "").trim().slice(0, 80);
       if (!cleanName) throw new VoiceError("Give the voice a name.", 400);
@@ -227,7 +251,23 @@ export function createVoiceProvider(env = {}, fetchImpl = globalThis.fetch) {
         const extension = (type.split("/")[1] || "webm").split(";")[0];
         form.append("files", new Blob([sample.buffer], { type }), `sample-${index + 1}.${extension}`);
       });
-      const data = await (await call("/voices/add", { method: "POST", body: form })).json();
+      let data;
+      try {
+        data = await (await call("/voices/add", { method: "POST", body: form })).json();
+      } catch (error) {
+        // "Needs a paid plan" although the owner paid: say which plan the
+        // key's account really has, so a key from another account is obvious.
+        if (error?.needsPlan) {
+          const plan = await this.subscription();
+          if (plan?.tier) {
+            throw new VoiceError(
+              `ElevenLabs says the account of the API key on the server is on the "${plan.tier}" plan${plan.canClone ? "" : ", which can't clone voices"}. If you paid for Starter on another account, put that account's API key in ELEVENLABS_API_KEY on Render.`,
+              402
+            );
+          }
+        }
+        throw error;
+      }
       if (!isValidVoiceId(data?.voice_id)) throw new VoiceError("ElevenLabs did not return a voice.", 502);
       voicesCache = null;
       return { id: data.voice_id, name: cleanName };
