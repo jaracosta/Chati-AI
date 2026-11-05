@@ -138,3 +138,25 @@ test('uses Eleven v3 by default and falls back to multilingual v2', async () => 
   assert.equal(bodies[1].model_id, 'eleven_multilingual_v2');
   assert.equal(bodies[1].text, 'Ven aquí.');
 });
+
+test('cloning errors say the real cause: voice slots full, or the key is from a free account', async () => {
+  const { createVoiceProvider } = await import('../voice-provider.js');
+  const sample = { buffer: Buffer.from('x'.repeat(2000)), mimeType: 'audio/webm' };
+  const reply = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  const quiet = console.error; console.error = () => {};
+  try {
+    // Starter has a voice limit: full slots are not "you need to pay".
+    let provider = createVoiceProvider({ ELEVENLABS_API_KEY: 'k' }, async () => reply(400, { detail: { status: 'voice_limit_reached', message: 'You have reached your maximum amount of custom voices (10 / 10). Upgrade your subscription to add more.' } }));
+    await assert.rejects(provider.cloneVoice({ name: 'Draven', samples: [sample] }), /no free voice slots left/);
+    // The key on the server belongs to a free account.
+    provider = createVoiceProvider({ ELEVENLABS_API_KEY: 'k' }, async url => String(url).endsWith('/user/subscription')
+      ? reply(200, { tier: 'free', can_use_instant_voice_cloning: false })
+      : reply(401, { detail: { status: 'can_not_use_instant_voice_cloning', message: 'Your subscription does not include instant voice cloning.' } }));
+    await assert.rejects(provider.cloneVoice({ name: 'Draven', samples: [sample] }), /on the "free" plan, which can't clone voices.*ELEVENLABS_API_KEY/);
+    // No plan info available: the plain message.
+    provider = createVoiceProvider({ ELEVENLABS_API_KEY: 'k' }, async url => String(url).endsWith('/user/subscription')
+      ? reply(401, { detail: { status: 'missing_permissions_user_read' } })
+      : reply(401, { detail: { status: 'can_not_use_instant_voice_cloning', message: 'no' } }));
+    await assert.rejects(provider.cloneVoice({ name: 'Draven', samples: [sample] }), /needs a paid ElevenLabs plan/);
+  } finally { console.error = quiet; }
+});
