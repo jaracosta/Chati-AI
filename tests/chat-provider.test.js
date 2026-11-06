@@ -143,10 +143,10 @@ test('Claude gets one cached system prompt, the per-turn note inside the last me
   globalThis.fetch = async (url, options) => { payload = JSON.parse(options.body); return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { headers: { 'content-type': 'application/json' } }); };
   try {
     await createChatProvider({ OPENROUTER_API_KEY: 'k' }, {}).responses.create({ model: 'anthropic/claude-sonnet-5.5', instructions: 'You are Astrid.', input: [{ role: 'system', content: 'note' }, { role: 'user', content: 'hi' }], stream: false, sampling: { temperature: 0.7, top_p: 1, min_p: 0.1 } });
-    assert.equal(payload.temperature, 0.7);
+    assert.equal(payload.temperature, undefined);
     assert.equal(payload.top_p, undefined);
     assert.equal(payload.min_p, undefined);
-    assert.deepEqual(payload.reasoning, { enabled: false });
+    assert.deepEqual(payload.reasoning, { max_tokens: 1024 });
     assert.equal(payload.messages.length, 2);
   } finally { globalThis.fetch = originalFetch; }
 });

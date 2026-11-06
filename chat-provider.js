@@ -2,6 +2,9 @@ import OpenAI from "openai";
 
 // Keep the provider secret on the server. The app consumes the same response
 // events regardless of whether chat uses OpenAI or OpenRouter.
+// Thinking budget for Claude (Anthropic's minimum is 1024).
+const CLAUDE_THINKING_TOKENS = 1024;
+
 const ROLEPLAY_STOP_SEQUENCES = ["\nUser:", "\nYou:", "\nUsuario:", "\n### Instruction"];
 
 export function createChatProvider(env, openai) {
@@ -106,17 +109,21 @@ export function createChatProvider(env, openai) {
           model,
           ...(withFallback && fallback && fallback !== model ? { models: [model, fallback] } : {}),
           messages: isClaude(model) ? claudeMessages(messages) : messages,
-          max_tokens: request.max_output_tokens,
-          ...(isClaude(model) ? claudeSampling(request.sampling) : request.sampling || {}),
+          // Claude Sonnet 5.5 always thinks first (OpenRouter rejects turning it
+          // off). Give the thinking its own small budget on top of the reply's,
+          // so it neither cuts the reply short nor delays it for long.
+          max_tokens: request.max_output_tokens + (isClaude(model) ? CLAUDE_THINKING_TOKENS : 0),
+          ...(isClaude(model) ? { reasoning: { max_tokens: CLAUDE_THINKING_TOKENS } } : {}),
+          // With thinking on, Claude accepts no sampling settings (temperature
+          // must stay at its default).
+          ...(isClaude(model) ? {} : request.sampling || {}),
           // Prefer the providers that start answering soonest (OpenRouter's
           // default leans on price). OPENROUTER_PROVIDER_SORT=price|throughput
           // changes it; "off" leaves OpenRouter's default.
           ...(providerSort(env) ? { provider: { sort: providerSort(env) } } : {}),
-          // DeepSeek, GLM, Kimi and Claude can "think" before answering, which
-          // only adds seconds and cost to a chat reply — and the hidden thinking
-          // uses up max_tokens, so the visible reply gets cut mid-sentence.
-          // CHAT_REASONING=on keeps it.
-          ...(/deepseek|glm|kimi|moonshot|anthropic\/|claude/i.test(model) && String(env.CHAT_REASONING || "").toLowerCase() !== "on"
+          // DeepSeek, GLM and Kimi can "think" before answering, which only
+          // adds seconds and cost to a chat reply. CHAT_REASONING=on keeps it.
+          ...(/deepseek|glm|kimi|moonshot/i.test(model) && String(env.CHAT_REASONING || "").toLowerCase() !== "on"
             ? { reasoning: { enabled: false } }
             : {}),
           // Stop if the model starts writing the user's turn.
@@ -221,7 +228,9 @@ async function openFastStream(call, model, fallback, timeoutMs) {
       const next = await iterator.next();
       if (next.done) return { early, iterator, done: true };
       early.push(next.value);
-      if (next.value?.choices?.[0]?.delta?.content || next.value?.error) return { early, iterator, done: false };
+      // Thinking counts as started: the model is working, not stuck.
+      const delta = next.value?.choices?.[0]?.delta;
+      if (delta?.content || delta?.reasoning || delta?.reasoning_details?.length || next.value?.error) return { early, iterator, done: false };
     }
   })();
   // Say why the main model did not answer: the fallback answering in its
