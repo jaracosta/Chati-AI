@@ -73,3 +73,10 @@ test('replies that went off the rails are recognised as gibberish', async () => 
   assert.equal(looksLikeGibberish('**Gojo sonríe.** Arigatou… 先生.', 'hola'), false);
   assert.equal(looksLikeGibberish('Привет, как дела?', 'Привет'), false);
 });
+
+test('polishReply keeps a sentence that runs into an *action* without a full stop', async () => {
+  const { polishReply } = await import('../voice-polish.js');
+  const text = "*I glance at the dark water.* Not now, Heather. Hunters don't get to *feel* sorry. Let's go.";
+  assert.equal(polishReply(text, []), text);
+  assert.equal(polishReply("Fine, probably. *Probably.*", []), "Fine, probably. *Probably.*");
+});

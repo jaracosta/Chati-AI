@@ -4199,10 +4199,24 @@ ${groupContinuation
 
         // Cut off by the token limit: end on a complete sentence instead
         // of half a word, and tell the app to show the trimmed text.
+        const hitTokenLimit =
+          completedResponse?.finish_reason === "length" ||
+          completedResponse?.incomplete_details?.reason === "max_output_tokens";
+
+        if (hitTokenLimit) {
+          console.warn(
+            "⚠️ Reply hit the token limit; trimmed to a complete sentence. Model:",
+            MODEL
+          );
+        }
+
         if (
           generatedText &&
-          estimateTokens(generatedText) >=
-            maxOutputTokens * 0.88
+          (
+            hitTokenLimit ||
+            estimateTokens(generatedText) >=
+              maxOutputTokens * 0.88
+          )
         ) {
 
           const trimmed =

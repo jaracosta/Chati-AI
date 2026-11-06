@@ -46,8 +46,11 @@ function normalizeSentence(sentence) {
   return words(sentence).join(" ");
 }
 
+// Every character of the text lands in exactly one piece, so joining the
+// pieces gives the text back: a sentence that runs into an *action* without
+// a full stop ("Hunters don't get to *feel* sorry.") is kept, not dropped.
 function splitSentences(text) {
-  return String(text || "").match(/\*\*[^*]+\*\*|\*[^*]+\*|[^.!?…*\n]+(?:[.!?…]+|$)/g) || [];
+  return String(text || "").match(/\*\*[^*]+\*\*|\*[^*]+\*|[^.!?…*\n]+(?:[.!?…]+|(?=\*)|$)|[.!?…*]+/g) || [];
 }
 
 // Phrases (3-5 words, or a repeated opening) that appear in at least

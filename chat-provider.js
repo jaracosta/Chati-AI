@@ -112,9 +112,11 @@ export function createChatProvider(env, openai) {
           // default leans on price). OPENROUTER_PROVIDER_SORT=price|throughput
           // changes it; "off" leaves OpenRouter's default.
           ...(providerSort(env) ? { provider: { sort: providerSort(env) } } : {}),
-          // DeepSeek, GLM and Kimi can "think" before answering, which only
-          // adds seconds and cost to a chat reply. CHAT_REASONING=on keeps it.
-          ...(/deepseek|glm|kimi|moonshot/i.test(model) && String(env.CHAT_REASONING || "").toLowerCase() !== "on"
+          // DeepSeek, GLM, Kimi and Claude can "think" before answering, which
+          // only adds seconds and cost to a chat reply — and the hidden thinking
+          // uses up max_tokens, so the visible reply gets cut mid-sentence.
+          // CHAT_REASONING=on keeps it.
+          ...(/deepseek|glm|kimi|moonshot|anthropic\/|claude/i.test(model) && String(env.CHAT_REASONING || "").toLowerCase() !== "on"
             ? { reasoning: { enabled: false } }
             : {}),
           // Stop if the model starts writing the user's turn.
@@ -128,10 +130,12 @@ export function createChatProvider(env, openai) {
         const result = await openFastStream(call, request.model, fallback, firstTokenTimeout(env));
         return (async function* () {
           let text = "";
+          let finishReason = null;
           for await (const chunk of result) {
             if (chunk.error) throw new Error(chunk.error.message || "OpenRouter stream failed.");
             const choice = chunk.choices?.[0];
             if (choice?.finish_reason === "error") throw new Error("OpenRouter generation failed.");
+            if (choice?.finish_reason) finishReason = choice.finish_reason;
             const delta = choice?.delta?.content || "";
             if (delta) {
               text += delta;
@@ -140,7 +144,8 @@ export function createChatProvider(env, openai) {
             const refusal = choice?.delta?.refusal;
             if (refusal) yield { type: "response.refusal.delta", delta: refusal };
           }
-          yield { type: "response.completed", response: { output_text: text } };
+          // finish_reason "length": the reply hit max_tokens and ends mid-sentence.
+          yield { type: "response.completed", response: { output_text: text, finish_reason: finishReason } };
         })();
       }
     }

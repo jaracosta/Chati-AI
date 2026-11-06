@@ -146,7 +146,23 @@ test('Claude gets one cached system prompt, the per-turn note inside the last me
     assert.equal(payload.temperature, 0.7);
     assert.equal(payload.top_p, undefined);
     assert.equal(payload.min_p, undefined);
-    assert.equal(payload.reasoning, undefined);
+    assert.deepEqual(payload.reasoning, { enabled: false });
     assert.equal(payload.messages.length, 2);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('a streamed reply reports finish_reason so a reply cut by max_tokens can be trimmed', async () => {
+  const originalFetch = globalThis.fetch;
+  const sse = [
+    { choices: [{ delta: { content: 'Not now, Heather. Hunters' } }] },
+    { choices: [{ delta: {}, finish_reason: 'length' }] }
+  ].map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n';
+  globalThis.fetch = async () => new Response(sse, { headers: { 'content-type': 'text/event-stream' } });
+  try {
+    const stream = await createChatProvider({ OPENROUTER_API_KEY: 'k' }, {}).responses.create({ model: 'anthropic/claude-sonnet-5.5', instructions: 'x', input: [{ role: 'user', content: 'hi' }], stream: true });
+    let completed;
+    for await (const event of stream) if (event.type === 'response.completed') completed = event.response;
+    assert.equal(completed.output_text, 'Not now, Heather. Hunters');
+    assert.equal(completed.finish_reason, 'length');
   } finally { globalThis.fetch = originalFetch; }
 });
