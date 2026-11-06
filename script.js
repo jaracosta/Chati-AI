@@ -5088,6 +5088,10 @@ function normalizeCharacter(
         ? character.instructions
         : "",
 
+    // Filter / No Filter switch (Edit character).
+    noFilter:
+      character?.noFilter === true,
+
     replyLength:
       ["auto", "short", "medium", "long"].includes(
         character?.replyLength
@@ -6839,6 +6843,10 @@ function resetCharacterForm() {
   );
 
 
+  setNoFilterToggle(
+    false
+  );
+
   characterHasPowers.checked =
     false;
 
@@ -6916,6 +6924,11 @@ function fillCharacterForm(
   characterInstructions.value =
     normalized.instructions;
 
+
+    setNoFilterToggle(
+      normalized.noFilter &&
+        isAdultConfirmed()
+    );
 
     if (characterReplyLength) {
     characterReplyLength.value =
@@ -12619,6 +12632,12 @@ characterForm.addEventListener(
           characterInstructions
             .value
             .trim(),
+
+        noFilter:
+          $("characterNoFilterToggle")
+            ?.getAttribute(
+              "aria-checked"
+            ) === "true",
 
                 replyLength:
           characterReplyLength?.value ||
@@ -21674,13 +21693,17 @@ const MATURE_CONTENT_KEY =
   "chatiMatureContentV1";
 
 
-function isMatureContentEnabled() {
+// Someone on this device confirmed they are an adult (asked once, the first
+// time a character is switched to No Filter; the old Settings switch counts).
+const ADULT_CONFIRMED_KEY =
+  "chatiAdultConfirmedV1";
+
+function isAdultConfirmed() {
 
   try {
 
-    return localStorage.getItem(
-      MATURE_CONTENT_KEY
-    ) === "on";
+    return localStorage.getItem(ADULT_CONFIRMED_KEY) === "yes" ||
+      localStorage.getItem(MATURE_CONTENT_KEY) === "on";
 
   }
 
@@ -21691,6 +21714,126 @@ function isMatureContentEnabled() {
   }
 
 }
+
+// Unfiltered replies only for a character switched to No Filter, and only
+// after the adult confirmation. The rule about minors applies always
+// (server.js buildContentRules).
+function isMatureContentEnabled(
+  character = currentCharacter
+) {
+
+  return Boolean(
+    character &&
+      character.noFilter === true &&
+      !character.isGroup
+  ) && isAdultConfirmed();
+
+}
+
+function setNoFilterToggle(
+  on
+) {
+
+  const toggle =
+    document.getElementById(
+      "characterNoFilterToggle"
+    );
+
+  if (!toggle) {
+
+    return;
+
+  }
+
+  toggle.setAttribute(
+    "aria-checked",
+    on ? "true" : "false"
+  );
+
+  toggle.classList.toggle(
+    "is-on",
+    Boolean(on)
+  );
+
+  const label =
+    document.getElementById(
+      "characterFilterLabel"
+    );
+
+  const note =
+    document.getElementById(
+      "characterFilterNote"
+    );
+
+  if (label) {
+
+    label.textContent =
+      on ? "No Filter" : "Filter";
+
+  }
+
+  if (note) {
+
+    note.textContent =
+      on
+        ? "Replies are not filtered."
+        : "Replies stay filtered.";
+
+  }
+
+}
+
+document
+  .getElementById(
+    "characterNoFilterToggle"
+  )
+  ?.addEventListener(
+    "click",
+    () => {
+
+      const turningOn =
+        document
+          .getElementById(
+            "characterNoFilterToggle"
+          )
+          .getAttribute(
+            "aria-checked"
+          ) !== "true";
+
+      if (
+        turningOn &&
+        !isAdultConfirmed()
+      ) {
+
+        if (
+          !window.confirm(
+            "No Filter is only for adults.\n\nConfirm that you are 18 years or older."
+          )
+        ) {
+
+          return;
+
+        }
+
+        try {
+
+          localStorage.setItem(
+            ADULT_CONFIRMED_KEY,
+            "yes"
+          );
+
+        }
+
+        catch (_) {}
+
+      }
+
+      setNoFilterToggle(
+        turningOn
+      );
+
+    }
+  );
 
 
 function renderMatureContentToggle() {

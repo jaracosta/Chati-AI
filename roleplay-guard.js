@@ -565,6 +565,13 @@ export function looksLikeRefusal(text) {
 // that allows adult fiction (Magnum v4 72B, a roleplay finetune that knows
 // canon characters well). MATURE_FALLBACK_MODEL overrides it; "off"
 // disables the retry.
+// The model that writes "No Filter" characters.
+export function noFilterModel(env = {}) {
+  if (!env.OPENROUTER_API_KEY) return "";
+  const value = String(env.NO_FILTER_MODEL || env.MATURE_FALLBACK_MODEL || "anthracite-org/magnum-v4-72b").trim();
+  return value.toLowerCase() === "off" ? "" : value;
+}
+
 export function matureFallbackModel(env = {}, mainModel = "") {
   if (!env.OPENROUTER_API_KEY) return "";
   const value = String(env.MATURE_FALLBACK_MODEL ?? "anthracite-org/magnum-v4-72b").trim();
