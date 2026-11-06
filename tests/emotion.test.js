@@ -80,3 +80,19 @@ test('voice calls: spoken lines only, short, with the feeling in the voice', asy
   assert.doesNotMatch(anchor, /2-3 short paragraphs|up to 5 short paragraphs/, 'no paragraph shapes on a call');
   assert.match(anchor, /BIG MOMENT — Someone Draven cares about/);
 });
+
+test('a reply stuck in a loop is cut where the loop starts, on a finished sentence', async () => {
+  const { cutLoop } = await import('../voice-polish.js');
+  const loop = fs.readFileSync(new URL('./fixtures/loop-reply.txt', import.meta.url), 'utf8');
+  const cut = cutLoop(loop);
+  assert.ok(cut.split(/\s+/).length <= 235, String(cut.split(/\s+/).length));
+  assert.match(cut, /[.!?…]$/);
+  assert.doesNotMatch(cut, /I need us/);
+  // Short lines repeated over and over.
+  assert.equal(cutLoop('Please. I need that. I need you. Please. I need that. I need you. Please. I need that.'), 'Please. I need that. I need you. Please.');
+  // A normal reply is untouched.
+  const normal = '**Astrid se cruza de brazos.** ¿En serio? Bueno… está bien. Pero la próxima vez me avisas.';
+  assert.equal(cutLoop(normal), normal);
+  // A call line stays short.
+  assert.ok(cutLoop(loop.slice(loop.indexOf('You...')), { maxWords: 90 }).split(/\s+/).length <= 92);
+});

@@ -366,6 +366,46 @@ export function detectMoment(text) {
   return MOMENTS.find(moment => moment.pattern.test(value)) || null;
 }
 
+// A model can get stuck in a loop and keep writing the same short lines
+// ("Please. I need that. I need you. Just... a moment.") until it runs out
+// of room. cutLoop() ends the reply where the loop starts — a sentence of 3+
+// words said a second time, a short one a third time, or a 3-word phrase a
+// fourth time — or where it passes maxWords, always on a finished sentence.
+export function cutLoop(text, { maxWords = 230 } = {}) {
+  const value = String(text || "");
+  if (!value.trim()) return value;
+  const pattern = /\*\*[^*]+\*\*|\*[^*]+\*|[^.!?…*\n]+(?:[.!?…]+|$)/g;
+  const sentences = new Map();
+  const grams = new Map();
+  let words = 0;
+  let cutAt = -1;
+  for (const match of value.matchAll(pattern)) {
+    const key = normalizeSentence(match[0]);
+    if (!key) continue;
+    const list = key.split(" ");
+    const count = (sentences.get(key) || 0) + 1;
+    sentences.set(key, count);
+    let loop = (list.length >= 3 && count >= 2) || count >= 3;
+    if (!loop && !/^\s*\*/.test(match[0])) {
+      for (let index = 0; index + 3 <= list.length; index += 1) {
+        const gram = list.slice(index, index + 3).join(" ");
+        const seen = (grams.get(gram) || 0) + 1;
+        grams.set(gram, seen);
+        if (seen >= 4) loop = true;
+      }
+    }
+    if (loop || words + list.length > maxWords) {
+      cutAt = match.index;
+      break;
+    }
+    words += list.length;
+  }
+  if (cutAt < 0) return value;
+  const kept = value.slice(0, cutAt).replace(/[\s,;:—-]+$/, "");
+  // Too little left to stand on its own: keep the reply as it was.
+  return kept.split(/\s+/).length >= 8 ? kept : value;
+}
+
 // Removes repetition the model produced anyway. Never removes so much that
 // the reply would lose its meaning (keeps the original if under 50% stays).
 export function polishReply(text, previousReplies = []) {

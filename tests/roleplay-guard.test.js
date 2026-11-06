@@ -118,8 +118,8 @@ test('reply length: one range for every character, never cut mid-sentence', asyn
   assert.equal(normalizeReplyLength('huge'), 'auto');
 
   // The same room for everyone: enough for 5 short paragraphs.
-  assert.equal(capTokensForLength(1150), 700);
-  assert.equal(capTokensForLength(1600), 700);
+  assert.equal(capTokensForLength(1150), 520);
+  assert.equal(capTokensForLength(1600), 520);
   assert.equal(capTokensForLength(500), 500);
 
   const rules = buildLengthRules({ characterName: 'Sukuna', replyLength: 'short', lastUserMessage: 'hola' });
