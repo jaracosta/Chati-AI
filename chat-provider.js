@@ -131,7 +131,9 @@ export function createChatProvider(env, openai) {
         return (async function* () {
           let text = "";
           let finishReason = null;
+          let servedModel = "";
           for await (const chunk of result) {
+            if (!servedModel && chunk?.model) servedModel = String(chunk.model);
             if (chunk.error) throw new Error(chunk.error.message || "OpenRouter stream failed.");
             const choice = chunk.choices?.[0];
             if (choice?.finish_reason === "error") throw new Error("OpenRouter generation failed.");
@@ -143,6 +145,9 @@ export function createChatProvider(env, openai) {
             }
             const refusal = choice?.delta?.refusal;
             if (refusal) yield { type: "response.refusal.delta", delta: refusal };
+          }
+          if (servedModel && !sameModel(servedModel, request.model)) {
+            console.warn("⚠️ Reply written by " + servedModel + " instead of " + request.model);
           }
           // finish_reason "length": the reply hit max_tokens and ends mid-sentence.
           yield { type: "response.completed", response: { output_text: text, finish_reason: finishReason } };
@@ -219,9 +224,15 @@ async function openFastStream(call, model, fallback, timeoutMs) {
       if (next.value?.choices?.[0]?.delta?.content || next.value?.error) return { early, iterator, done: false };
     }
   })();
-  started.catch(() => {});
+  // Say why the main model did not answer: the fallback answering in its
+  // place is otherwise invisible (a different style, nothing in the logs).
+  started.catch(error => {
+    if (error?.name === "AbortError" || controller.signal.aborted) return;
+    console.warn("⚠️ Main chat model failed (" + model + "): " + describeProviderError(error) + " — answering with " + fallback);
+  });
   let timer;
-  const timedOut = new Promise(resolve => { timer = setTimeout(() => resolve(null), timeoutMs); });
+  let timedOutFirst = false;
+  const timedOut = new Promise(resolve => { timer = setTimeout(() => { timedOutFirst = true; resolve(null); }, timeoutMs); });
   let first;
   try {
     first = await Promise.race([started, timedOut]);
@@ -231,6 +242,9 @@ async function openFastStream(call, model, fallback, timeoutMs) {
     clearTimeout(timer);
   }
   if (!first) {
+    if (!controller.signal.aborted && timedOutFirst) {
+      console.warn("⚠️ Main chat model (" + model + ") did not start within " + timeoutMs + " ms — answering with " + fallback);
+    }
     controller.abort();
     return call(fallback, false);
   }
@@ -243,6 +257,20 @@ async function openFastStream(call, model, fallback, timeoutMs) {
       yield next.value;
     }
   })();
+}
+
+// "anthropic/claude-sonnet-5.5" and a dated "anthropic/claude-sonnet-5.5-20261001"
+// are the same model.
+function sameModel(served, requested) {
+  const a = String(served || "").toLowerCase().replace(/^~/, "");
+  const b = String(requested || "").toLowerCase().replace(/^~/, "").replace(/:.*$/, "");
+  return a === b || a.startsWith(b) || b.startsWith(a);
+}
+
+function describeProviderError(error) {
+  const status = error?.status ? error.status + " " : "";
+  const detail = error?.error?.message || error?.message || String(error);
+  return (status + detail).slice(0, 400);
 }
 
 function providerSort(env = {}) {
