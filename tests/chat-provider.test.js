@@ -119,3 +119,34 @@ test('DeepSeek answers without thinking first; other models are left alone', asy
     assert.deepEqual(payloads[2].reasoning, { enabled: false });
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('Claude gets one cached system prompt, the per-turn note inside the last message, and only a temperature', async () => {
+  const { isClaude, claudeMessages, claudeSampling } = await import('../chat-provider.js');
+  assert.equal(isClaude('anthropic/claude-sonnet-5.5'), true);
+  assert.equal(isClaude('~anthropic/claude-sonnet-latest'), true);
+  assert.equal(isClaude('z-ai/glm-5.3'), false);
+  const out = claudeMessages([
+    { role: 'system', content: 'You are Astrid.' },
+    { role: 'user', content: 'Hola' },
+    { role: 'assistant', content: 'Hey.' },
+    { role: 'system', content: '[Stay in character as Astrid.]' },
+    { role: 'user', content: 'Stoick has died.' }
+  ]);
+  assert.equal(out.filter(m => m.role === 'system').length, 1);
+  assert.deepEqual(out[0].content[0].cache_control, { type: 'ephemeral' });
+  assert.match(out.at(-1).content, /^\(Director's note[\s\S]*Stay in character as Astrid[\s\S]*Stoick has died\.$/);
+  assert.deepEqual(claudeSampling({ temperature: 1.3, top_p: 1, min_p: 0.1, repetition_penalty: 1.04 }), { temperature: 1 });
+
+  // The request OpenRouter receives.
+  const originalFetch = globalThis.fetch;
+  let payload;
+  globalThis.fetch = async (url, options) => { payload = JSON.parse(options.body); return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { headers: { 'content-type': 'application/json' } }); };
+  try {
+    await createChatProvider({ OPENROUTER_API_KEY: 'k' }, {}).responses.create({ model: 'anthropic/claude-sonnet-5.5', instructions: 'You are Astrid.', input: [{ role: 'system', content: 'note' }, { role: 'user', content: 'hi' }], stream: false, sampling: { temperature: 0.7, top_p: 1, min_p: 0.1 } });
+    assert.equal(payload.temperature, 0.7);
+    assert.equal(payload.top_p, undefined);
+    assert.equal(payload.min_p, undefined);
+    assert.equal(payload.reasoning, undefined);
+    assert.equal(payload.messages.length, 2);
+  } finally { globalThis.fetch = originalFetch; }
+});

@@ -105,9 +105,9 @@ export function createChatProvider(env, openai) {
         const call = (model, withFallback, signal) => router.chat.completions.create({
           model,
           ...(withFallback && fallback && fallback !== model ? { models: [model, fallback] } : {}),
-          messages,
+          messages: isClaude(model) ? claudeMessages(messages) : messages,
           max_tokens: request.max_output_tokens,
-          ...(request.sampling || {}),
+          ...(isClaude(model) ? claudeSampling(request.sampling) : request.sampling || {}),
           // Prefer the providers that start answering soonest (OpenRouter's
           // default leans on price). OPENROUTER_PROVIDER_SORT=price|throughput
           // changes it; "off" leaves OpenRouter's default.
@@ -145,6 +145,50 @@ export function createChatProvider(env, openai) {
       }
     }
   };
+}
+
+// Claude (Anthropic) through OpenRouter.
+export function isClaude(model) {
+  return /anthropic\/|claude/i.test(String(model || ""));
+}
+
+// Claude takes one system prompt, at the top. The per-turn note the server
+// puts right before the user's last message (voice-polish.js anchor) goes
+// into that message instead, marked as a note, so it keeps its place at the
+// end. The system prompt is marked for prompt caching: the long character
+// sheet is billed at a fraction of the price while it doesn't change.
+export function claudeMessages(messages) {
+  const out = [];
+  let pendingNote = "";
+  messages.forEach((message, index) => {
+    if (message.role === "system" && index > 0) {
+      pendingNote += (pendingNote ? "\n\n" : "") + String(message.content || "");
+      return;
+    }
+    if (index === 0 && message.role === "system") {
+      out.push({ role: "system", content: [{ type: "text", text: String(message.content || ""), cache_control: { type: "ephemeral" } }] });
+      return;
+    }
+    if (pendingNote && message.role === "user") {
+      const note = "(Director's note for this reply — not written by the user:)\n" + pendingNote + "\n\n(The user's message:)\n";
+      pendingNote = "";
+      if (typeof message.content === "string") {
+        out.push({ ...message, content: note + message.content });
+      } else {
+        out.push({ ...message, content: [{ type: "text", text: note }, ...message.content] });
+      }
+      return;
+    }
+    out.push(message);
+  });
+  return out;
+}
+
+// Claude rejects temperature and top_p together and has no min_p or
+// repetition penalties: only the temperature (0-1) is sent.
+export function claudeSampling(sampling = {}) {
+  const temperature = Number(sampling?.temperature);
+  return Number.isFinite(temperature) ? { temperature: Math.max(0, Math.min(1, temperature)) } : {};
 }
 
 function firstTokenTimeout(env = {}) {
