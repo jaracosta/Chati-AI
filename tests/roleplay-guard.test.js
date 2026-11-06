@@ -218,3 +218,12 @@ test('18+ refusals are detected and retried on the mature fallback model', async
   assert.equal(matureFallbackModel({ OPENROUTER_API_KEY: 'k', MATURE_FALLBACK_MODEL: 'off' }, 'x'), '');
   assert.equal(matureFallbackModel({}, 'x'), '');
 });
+
+test('No Filter characters use the uncensored model; it can be changed or turned off', async () => {
+  const { noFilterModel } = await import('../roleplay-guard.js');
+  assert.equal(noFilterModel({}), '');
+  assert.equal(noFilterModel({ OPENROUTER_API_KEY: 'k' }), 'anthracite-org/magnum-v4-72b');
+  assert.equal(noFilterModel({ OPENROUTER_API_KEY: 'k', MATURE_FALLBACK_MODEL: 'a/b' }), 'a/b');
+  assert.equal(noFilterModel({ OPENROUTER_API_KEY: 'k', NO_FILTER_MODEL: 'c/d', MATURE_FALLBACK_MODEL: 'a/b' }), 'c/d');
+  assert.equal(noFilterModel({ OPENROUTER_API_KEY: 'k', NO_FILTER_MODEL: 'off' }), '');
+});

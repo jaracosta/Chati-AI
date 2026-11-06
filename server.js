@@ -43,7 +43,8 @@ import {
   guessLanguage,
   trimToCompleteSentence,
   looksLikeRefusal,
-  matureFallbackModel
+  matureFallbackModel,
+  noFilterModel
 } from "./roleplay-guard.js";
 import {
   mergeUserDetails,
@@ -2947,9 +2948,20 @@ app.post(
         );
 
 
-      // Adults who switched on "Mature content (18+)" in Settings.
+      // "No Filter" switched on for this character (Edit character), by
+      // someone who confirmed they are an adult.
       const matureContent =
         req.body.matureContent === true;
+
+      // No Filter characters are written by the uncensored model from the
+      // first word (NO_FILTER_MODEL, else MATURE_FALLBACK_MODEL, default
+      // Magnum); every other character by the main model (OPENROUTER_MODEL).
+      const chatModel =
+        (matureContent &&
+          noFilterModel(
+            process.env
+          )) ||
+        MODEL;
 
 
       // A voice call (voice-call.js): the reply is spoken by the
@@ -3031,7 +3043,7 @@ app.post(
       // are not cut off by the provider.
       const contextTokens =
         getModelContextTokens(
-          MODEL,
+          chatModel,
           process.env
         );
 
@@ -3452,7 +3464,7 @@ ${groupContinuation
       const responseRequest = {
 
         model:
-          MODEL,
+          chatModel,
 
         store:
           false,
@@ -4066,7 +4078,7 @@ ${groupContinuation
           matureContent
             ? matureFallbackModel(
                 process.env,
-                MODEL
+                chatModel
               )
             : "";
 
