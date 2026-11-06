@@ -63,6 +63,7 @@ import {
   stripForeignScript,
   wornBeats,
   dropWornBeats,
+  cutLoop,
   detectMoment,
   hasForeignScript,
   looksLikeGibberish,
@@ -3549,6 +3550,14 @@ ${groupContinuation
       }
 
 
+      // Longest reply before it counts as running away (the reply range is
+      // about 200 words; a call line is short).
+      const replyWordLimit =
+        voiceCall
+          ? 90
+          : 230;
+
+
       // What the user wrote lately, to tell gibberish from a language the
       // user really uses.
       const recentUserText =
@@ -3685,6 +3694,23 @@ ${groupContinuation
                   generatedText,
                   recentUserText
                 )
+              ) {
+
+                break;
+
+              }
+
+              // The model got stuck repeating itself (or ran far past the
+              // reply range): stop here; the cut version replaces it below.
+              if (
+                cutLoop(
+                  generatedText,
+                  {
+                    maxWords:
+                      replyWordLimit
+                  }
+                ).length <
+                generatedText.length
               ) {
 
                 break;
@@ -4119,12 +4145,18 @@ ${groupContinuation
 
           const polished =
             stripForeignScript(
-              dropWornBeats(
-                polishReply(
-                  generatedText,
-                  previousReplies
+              cutLoop(
+                dropWornBeats(
+                  polishReply(
+                    generatedText,
+                    previousReplies
+                  ),
+                  worn
                 ),
-                worn
+                {
+                  maxWords:
+                    replyWordLimit
+                }
               ),
               messages
                 .filter(message => message?.sender === "user")

@@ -426,7 +426,9 @@ export function normalizeReplyLength(value) {
   return REPLY_LENGTHS.includes(value) ? value : "auto";
 }
 
-const REPLY_TOKEN_CAP = 700;
+// 5 short paragraphs (~200 words) fit in ~350 tokens even in Spanish; a
+// little more room, but not enough for a runaway loop to fill the screen.
+const REPLY_TOKEN_CAP = 520;
 
 export function capTokensForLength(maxTokens) {
   return Math.min(maxTokens, REPLY_TOKEN_CAP);
